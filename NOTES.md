@@ -1,6 +1,6 @@
 # Invoke Hack – Notizen
 
-Stand: 2026-09-29
+Stand: 2026-09-30
 
 ## Hardware
 
@@ -77,17 +77,39 @@ mtdparts=mv_nand:128K(block0),1M(pre-bootloader),2M(post-bootloader),2M(postboot
   `scripts/verify-backup.py` (Partitionen == Rohabbild ohne OOB, rootfs = SquashFS,
   factory_setting nicht leer). Ergebnis in `backup/<zeit>/` (nicht im Git).
 
-Ungetestet, weil das Gerät noch nicht im Flashing-Modus war. Offene Risiken beim
-`backup`-Boot: Der SDK-Kernel stammt vom Marvell-Referenz-Dongle (2014), nicht vom Invoke;
-er kann hängen oder NAND-ECC anders auslesen (dann schlägt die rootfs-Prüfung fehl). Er
-schreibt nicht auf den NAND, solange er die BBT findet (gleiche Lage bei 255 MiB wie im
-SDK-Layout); alle mtd-Partitionen sind read-only.
+Am 2026-09-30 erfolgreich benutzt (siehe unten).
+
+## Sicherung 2026-09-30 (erledigt)
+
+- `backup/20260930-000419/` (nur lokal, Rechte 700; enthält Geräteschlüssel aus
+  factory_setting und WLAN-Zugangsdaten aus `app`). Alle 14 Partitionen + ganzer Chip roh
+  (2048+64 B je Seite), jede Partition zweimal gelesen, Prüfsummen Gerät = Host,
+  Partitionen == Rohabbild ohne OOB. `SHA256SUMS` im Ordner.
+- **Installierte Firmware: Barracuda_libre-12.2050.3** (nicht 12.2134): `wifi-blocker` mit
+  Datum 2021-08-01, adbd aus, `start sshd` (dropbear `-B`) aktiv, aber Port 22 per iptables
+  gesperrt (außer bei gesetztem Debug-Flag im Gerätezertifikat), root `x` (gesperrt).
+  `/etc/dnsmasq.conf -> /data/dnsmasq.conf` auch hier.
+- rootfs-SquashFS besteht `7z t` fehlerfrei -> ECC des SDK-Kernels passt zum Invoke.
+- NAND: Toshiba 0x98/0xda, 256 MiB, Seite 2048, OOB 64 (nicht 128), Block 128 KiB.
+  BBT gefunden (Seiten 131008/130944, v1) -> Kernel musste nichts schreiben.
+  Schlechte Blöcke: 0x0c000000, 0x0c020000 (in `app`) + 4 BBT-Blöcke in `tail`.
+- ECC-Fehler (2 Bit, beide Lesevorgänge gleich) nur in `fw_stat` Offsets 0x47000-0x4e800
+  (16 Seiten); OOB liegt im Rohabbild vor.
+- factory_setting: 14 belegte Seiten ab 0x1e0000 (yaffs2): Libre-Gerätezertifikat
+  (`lsc-certchain`, CN 5pcAmU8iD9JhDUNy) und privater Schlüssel.
+- U-Boot per USB: „U-Boot 2013.04 (Apr 11 2016) Marvell … MV88DE3006“, DRAM 512 MiB,
+  „Flash: 16 MiB“ (SPI-NOR vorhanden!), „environment in SPI flash is invalid“, OTP ohne
+  Kundenschlüssel (RKEK/Sign-Felder 0) – Secure Boot offenbar nicht aktiv.
+- Der Flashing-Modus braucht ggf. mehrere Anläufe: das Boot-ROM fordert 08_IMAGE an und
+  setzt sich 2-3x zurück, bevor die Kette (09, sysinit, drm_erom, bootloader, 79, 81, 82)
+  durchläuft. busybox `nanddump` scheitert an ro-Partitionen (öffnet O_RDWR) -> toolbox
+  `nandread` verwenden. Die Ramdisk-.profile gibt bei jedem `adb shell` „/“ aus.
 
 ## Plan
 
 1. udev-Regel installieren (sudo), Flashing-Modus, `tools/usb-ramboot.sh backup`,
-   `scripts/nand-backup.sh`. Sicherung doppelt ablegen.
-2. Klären, welche Firmware drauf ist (`rootfs`-Abbild -> `etc/build.info`).
+   `scripts/nand-backup.sh` – **erledigt**. Offen: zweite Kopie außerhalb dieses Rechners.
+2. Firmware: 12.2050.3 – **erledigt**.
 3. Weg zu WLAN + SSH (jeder Weg braucht einen Schreibzugriff auf den NAND):
    - a) **StockRoot 11.1842 mit dem Harman-Verfahren flashen** (`l2nand 83`): WLAN-Einrichtung
      über den Setup-AP (192.168.43.1), danach `ssh root@<ip>` (leeres Passwort) und adbd.

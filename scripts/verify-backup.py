@@ -30,7 +30,7 @@ for line in (d / "SHA256SUMS").read_text().splitlines():
 parts = []
 for line in (d / "proc_mtd.txt").read_text().splitlines():
     m = re.match(r'mtd(\d+): ([0-9a-f]+) ([0-9a-f]+) "(.*)"', line)
-    if m and m.group(4) != "nand":
+    if m and m.group(4) not in ("nand", "mv_nand"):
         parts.append((int(m.group(1)), int(m.group(2), 16), m.group(4)))
 
 data = b"".join((d / f"{n:02d}_{name}.bin").read_bytes() for n, _, name in parts)
