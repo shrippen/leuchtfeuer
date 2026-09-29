@@ -169,3 +169,30 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
   zeigen per /etc/hosts auf 127.0.0.1.
 - Normaler Kernel: mtdparts endet mit fw_stat 128K, cenv 128K, senv 128K; factory_setting ist
   rw eingehängt (Original-Verhalten). Service-USB meldet sich im Normalbetrieb nicht.
+
+## SSH nur mit Schlüssel, adb aus (2026-09-30, erledigt)
+
+- Das mitgelieferte dropbear 2016.72 kann kein ed25519 -> eigenes statisches dropbear
+  2026.94 (armv7 musl, Passwort-Login einkompiliert aus): `tools/build-dropbear.sh`
+  (Toolchain `tools/docker/armv7-musl.Dockerfile`), Ergebnis `build/dropbear/dropbearmulti`.
+- Auf dem Gerät `/data/invoke/` (= /lsync/data1/invoke): `dropbearmulti`, `host_ed25519`,
+  `host_ecdsa` (eigene Host-Schlüssel), `authorized_keys` (~/.ssh/HKInvoke.pub, liegt im
+  Bitwarden-SSH-Agent), `boot.sh`, `hook.sh` (Quelle: `device/invoke/`), `disable-adb`,
+  `hook.log`, `dnsmasq.conf.orig`.
+- Autostart: `/data/dnsmasq.conf` hat am Ende `dhcp-script=/data/invoke/boot.sh`,
+  `leasefile-ro`, `dhcp-range=10.254.254.10,10.254.254.20,1h` (in keinem Netz) -> dnsmasq
+  ruft beim Start (sobald wlan0 oben ist) `boot.sh init` auf -> `hook.sh` (Schleife 30 s):
+  tmpfs über /home/root + authorized_keys, `stop sshd` + eigenes dropbear auf 22,
+  `stop adbd`, iptables-Kette INVOKE (22, mDNS, DHCP-Antworten, ICMP, bestehende; auf p2p0
+  zusätzlich Setup-Ports; weitere aus `/data/invoke/ports.local`), IPv6 aus (kein ip6tables).
+  Startet das eigene dropbear nicht, gehen Original-sshd und adbd wieder an.
+  Notbremse: `/data/invoke/disable-hook`.
+- dropbear prüft die Rechte aller Elternverzeichnisse von authorized_keys (/data ist 777,
+  /run 1777) -> deshalb tmpfs mit Modus 700 über /home/root.
+- Geprüft nach echtem Neustart (`/bin/reboot` = toolbox; busybox `/sbin/reboot` tut nichts):
+  Host-Schlüssel SHA256:dBJeQTcwjPnksG1Y5n67XSjLIbkLl7Q1bktX4hJ4SnY, nur „publickey“,
+  5555/443/9998/9999/53 gefiltert, adbd aus, IPv6 aus, redbend-Sperre in /etc/hosts aktiv.
+- `getprop` geht in SSH-Sitzungen und im Haken nicht (ANDROID_PROPERTY_WORKSPACE fehlt),
+  `start`/`stop`/`setprop` gehen.
+- Anmelden: `ssh -i ~/.ssh/HKInvoke.pub -o IdentitiesOnly=yes root@192.168.231.61`
+  (IdentitiesOnly nötig, der Agent hat >10 Schlüssel, dropbear erlaubt 10 Versuche).
