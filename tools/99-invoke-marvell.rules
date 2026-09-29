@@ -1,0 +1,6 @@
+# Harman Kardon Invoke ohne root ansprechen:
+#  - Marvell-USB-Bootmodus (BG2CD Boot-ROM / usb_boot): 1286:8174
+#  - ADB der Sicherungs-Ramdisk (Android-Gadget, Hersteller Marvell oder Google-Vorgabe): 0d02
+# Installieren: sudo cp tools/99-invoke-marvell.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+SUBSYSTEM=="usb", ATTR{idVendor}=="1286", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", ATTR{idProduct}=="0d02", MODE="0660", GROUP="plugdev", TAG+="uaccess"

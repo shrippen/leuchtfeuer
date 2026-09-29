@@ -1,0 +1,9 @@
+# Große Binär-Assets nicht ins Git (per scripts/fetch.sh holen)
+firmware/*.zip
+firmware/*.img
+firmware/83_IMAGE
+firmware/extracted/
+recon/*.log
+*.o
+backup/
+__pycache__/
