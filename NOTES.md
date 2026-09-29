@@ -153,3 +153,19 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
    (`dmix` „volmix_music“ bzw. `pcm.dsp`, card 1, 48 kHz S32_LE).
 5. Bluetooth: Logs von `/bin/bluetooth`, `bt_stack.conf` in `/data/bluetooth`, ggf.
    Firmware `sd8887_bt_a2_new.bin` prüfen.
+
+## Im Heimnetz 2026-09-30
+
+- WLAN über Setup-AP „HK Invoke_C12906“ (offen, 192.168.43.1): POST an
+  `/goform/HandleSACConfiguration` (`SSID=…&Security=WPA-PSK`, Passphrase per
+  `--data-urlencode`) -> Antwort „continue“, verbindet sofort (2,4 GHz, WPA2-CCMP), DHCP.
+  `https://192.168.43.1/getlogcat.asp` liefert das ganze logcat. Der Ring leuchtete vorher rot.
+- Invoke: WLAN-MAC d8:f7:10:c1:29:06 (AP: da:…), im Heimnetz 192.168.231.61.
+- Offen: 22 (dropbear, nur `ssh-rsa`-Hostkey -> `-o HostKeyAlgorithms=+ssh-rsa`), **5555 adbd
+  ohne Anmeldung = root-Shell für jeden im LAN**, 9998/9999 (WAMP), 443, 12345.
+- SSH-Passwortlogin geht nicht: `/etc/shadow` hat `root:*` (passwd `root::` wirkt nicht).
+  Zugang derzeit nur über `adb connect 192.168.231.61:5555`.
+- OTA: `ota_rbua_install.sh` läuft („fota-check“), Server (Neptune/saf1/harman-podium.redbend.com)
+  zeigen per /etc/hosts auf 127.0.0.1.
+- Normaler Kernel: mtdparts endet mit fw_stat 128K, cenv 128K, senv 128K; factory_setting ist
+  rw eingehängt (Original-Verhalten). Service-USB meldet sich im Normalbetrieb nicht.
