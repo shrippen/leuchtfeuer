@@ -105,7 +105,7 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
   durchläuft. busybox `nanddump` scheitert an ro-Partitionen (öffnet O_RDWR) -> toolbox
   `nandread` verwenden. Die Ramdisk-.profile gibt bei jedem `adb shell` „/“ aus.
 
-## Flash-Vorbereitung 2026-09-30 (abgebrochen vor dem Schreiben)
+## StockRoot geflasht 2026-09-30 mit `l2nand -m 83`
 
 - `firmware/83_IMAGE` = StockRoot (sha256 f59d0a56…6cc7), Kopf/CRC ok (`tools/check83.py`).
   Nur rootfs anders als Harman 11.1842: 12 Dateien (init.rc, passwd, hosts, firewall.sh,
@@ -118,7 +118,14 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
 - **U-Boot `help l2nand`:** „l2nand 83 … load image … to DDR addr 0x4000000, **erase all NAND
   content**, and burn the image to NAND. l2nand -m 84 … burn it to NAND, **without erase all
   NAND content**.“ -> das offizielle `l2nand 83` löscht den ganzen Chip, also auch
-  factory_setting (und evtl. BBT). Deshalb nicht geflasht.
+  factory_setting (und evtl. BBT). Deshalb stattdessen **`l2nand -m 83`** verwendet:
+  löscht nur die Blöcke jedes Eintrags („N blocks erased“), schreibt, liest per CRC zurück
+  (pre-bootloader 8 Kopien), app mit OOB (yaffs2), schlechte Blöcke 0x0c000000/0x0c020000
+  übersprungen, „Congratulations! u2nand succeed!“. U-Boot meldet „oob size: 32B, ecc
+  48bits/2kB“, Chip 98DA90157616, unrandomized. Log: `recon/flash-20260930-003955.log`.
+- Danach ohne Neustart Sicherungs-Ramdisk + `scripts/verify-after-flash.sh`: factory_setting
+  (Daten und Daten+OOB), postbootloaderB, tz_en-B, fw_stat, tail/BBT == Sicherung; block0,
+  pre-/post-bootloader, tz_en, bootimgs(_B), bsl, rootfs == Abbild. **Alles OK.**
 - Weitere U-Boot-Befehle: nandinit, nandbad, nanderase, nandrd, nandrdoob, nandwr,
   nandverify, nandmarkbad, usbload, u2nand/usb2nand, tftp2nand, b2nand, spinit.
 - Werkzeuge: `tools/usb-flash.sh` (U-Boot-Konsole per FIFO), `tools/uboot-send.sh`,
@@ -129,7 +136,7 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
 
 1. udev-Regel installieren (sudo), Flashing-Modus, `tools/usb-ramboot.sh backup`,
    `scripts/nand-backup.sh` – **erledigt**. Offen: zweite Kopie außerhalb dieses Rechners.
-2. Firmware: 12.2050.3 – **erledigt**.
+2. Firmware: 12.2050.3 – **erledigt**. StockRoot 11.1842 per `l2nand -m 83` geflasht – **erledigt**.
 3. Weg zu WLAN + SSH (jeder Weg braucht einen Schreibzugriff auf den NAND):
    - a) **StockRoot 11.1842 mit dem Harman-Verfahren flashen** (`l2nand 83`): WLAN-Einrichtung
      über den Setup-AP (192.168.43.1), danach `ssh root@<ip>` (leeres Passwort) und adbd.
