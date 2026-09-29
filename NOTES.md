@@ -105,6 +105,26 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
   durchläuft. busybox `nanddump` scheitert an ro-Partitionen (öffnet O_RDWR) -> toolbox
   `nandread` verwenden. Die Ramdisk-.profile gibt bei jedem `adb shell` „/“ aus.
 
+## Flash-Vorbereitung 2026-09-30 (abgebrochen vor dem Schreiben)
+
+- `firmware/83_IMAGE` = StockRoot (sha256 f59d0a56…6cc7), Kopf/CRC ok (`tools/check83.py`).
+  Nur rootfs anders als Harman 11.1842: 12 Dateien (init.rc, passwd, hosts, firewall.sh,
+  build.info, distro_version, version.txt, motd, 4 Sounddateien). `firewall.sh` hat einen
+  leeren `if`-Block -> Syntaxfehler -> keine DROP-Regel, alle Ports offen.
+- Einträge im Abbild (Startblock+Anzahl, 128 KiB): block0 0+1, pre-bootloader 1+8,
+  post-bootloader 9+16, tz_en 81+40, bootimgs_B 129+80, bsl 209+40, bootimgs 249+80,
+  rootfs 329+720, app 1049+984 (flags=1). factory_setting (41–80), postbootloaderB,
+  tz_en-B, fw_stat, BBT stehen nicht drin.
+- **U-Boot `help l2nand`:** „l2nand 83 … load image … to DDR addr 0x4000000, **erase all NAND
+  content**, and burn the image to NAND. l2nand -m 84 … burn it to NAND, **without erase all
+  NAND content**.“ -> das offizielle `l2nand 83` löscht den ganzen Chip, also auch
+  factory_setting (und evtl. BBT). Deshalb nicht geflasht.
+- Weitere U-Boot-Befehle: nandinit, nandbad, nanderase, nandrd, nandrdoob, nandwr,
+  nandverify, nandmarkbad, usbload, u2nand/usb2nand, tftp2nand, b2nand, spinit.
+- Werkzeuge: `tools/usb-flash.sh` (U-Boot-Konsole per FIFO), `tools/uboot-send.sh`,
+  `scripts/verify-after-flash.sh` (factory_setting inkl. OOB, B-Partitionen, fw_stat, BBT
+  gegen Sicherung; geschriebene Partitionen gegen Abbild) – am ungeflashten Gerät getestet.
+
 ## Plan
 
 1. udev-Regel installieren (sudo), Flashing-Modus, `tools/usb-ramboot.sh backup`,
