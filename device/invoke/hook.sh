@@ -12,6 +12,9 @@
 #    dhcpcd meldet "LibreSync-<nr>", das der Router nicht einträgt. Deshalb nach dem Start und
 #    alle 6 h eine zusätzliche DHCP-Anfrage mit busybox udhcpc (-s /bin/true: ändert nichts an
 #    der Schnittstelle, fragt nur dieselbe Adresse mit dem gewünschten Namen an).
+#  - Harman-Dienste kürzen: /data/invoke/podium.conf per Bind-Mount über
+#    /etc/podium/podium.conf, dann init-Dienst "podium" (system-manager) einmal neu starten
+#    (ohne Cortana, Harman-Spotify, OTA, Absturzbericht-Upload)
 #  - Dienste: jedes ausführbare /data/invoke/services/<name>.sh (endet mit exec) wird gestartet
 #    und bei Absturz neu gestartet; Log /data/invoke/log/<name>.log (ab 1 MiB -> .1)
 # Notbremse: /data/invoke/disable-hook anlegen -> Skript macht nichts.
@@ -97,6 +100,15 @@ services(){
   done
 }
 
+podium_trim(){
+  [ -s $D/podium.conf ] || return 0
+  grep -q ' /etc/podium/podium.conf ' /proc/mounts && return 0
+  mount --bind $D/podium.conf /etc/podium/podium.conf || { log "FEHLER: Bind-Mount podium.conf"; return 1; }
+  stop podium; sleep 3; start podium
+  log "Harman-Dienste mit gekürzter podium.conf neu gestartet"
+}
+
+podium_trim
 tick=0
 while :; do
   [ -e $D/disable-hook ] && { log "disable-hook gesetzt – Ende"; exit 0; }

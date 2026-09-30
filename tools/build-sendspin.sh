@@ -24,6 +24,9 @@ Libs: /opt/opus/lib/libopus.a -lm
 PC
   git clone -q --depth 1 --branch "$TAG" https://github.com/Sendspin/sendspin-go.git && cd sendspin-go
   git rev-parse HEAD > /out/source.commit
+  # Invoke: miniaudio spinnt mit mmap auf dmix/softvol (ein Kern 100 % beim Abspielen) -> kein mmap
+  sed -i "s/^\(\s*\)deviceConfig.PeriodSizeInMilliseconds = 20$/&\n\1deviceConfig.Alsa.NoMMap = 1/" pkg/audio/output/malgo.go
+  grep -q "Alsa.NoMMap = 1" pkg/audio/output/malgo.go
   export CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 CC=arm-linux-gnueabihf-gcc PKG_CONFIG_LIBDIR=/tmp/pc
   go build -trimpath -tags nolibopusfile -ldflags "-s -w" -o /out/sendspin-player .
   arm-linux-gnueabihf-readelf -d /out/sendspin-player | grep NEEDED > /out/needed.txt

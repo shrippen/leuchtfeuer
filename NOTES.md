@@ -231,8 +231,32 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
   selbst (ws://…:8927/sendspin); mDNS-Suche geht über den Router nicht -> fest
   `--server ploetze.lan:8927` (Music Assistant 2.10.4, auch unter 192.168.231.2).
   Verbunden, client_id = WLAN-MAC. Angebot auf 48 kHz/24 bit begrenzt.
-- **Tidal Connect:** nur als iFi-Binary (`tidal_connect_application`, Raspbian stretch,
-  glibc 2.24) mit iFi-Gerätezertifikat (TonyTromp/tidal-connect-docker) – offen, Entscheidung
-  des Nutzers nötig.
+- **Tidal Connect** (auf ausdrücklichen Wunsch des Nutzers; iFi-Binary 1.1.3 mit
+  iFi-Zertifikat `IfiAudio_ZenStream.dat`, nicht für das Gerät lizenziert, kann gesperrt
+  werden): `tools/build-tidal-bundle.sh` -> `/data/invoke/tidal/` (~11 MB). Läuft mit der
+  glibc 2.23 des Geräts (braucht nur ≥ 2.9); mitgeliefert: FFmpeg 3.4 minimal
+  (`tools/build-ffmpeg34.sh`, Sonamen 57/57/55/2, alle 35 benötigten Symbole vorhanden),
+  libstdc++ 6.0.22 (GLIBCXX_3.4.22), portaudio/FLAC++/avahi aus stretch, libssl 1.0.1t +
+  libcurl3 7.38 aus jessie (Debian-Symbolversionen OPENSSL_1.0.x/CURL_OPENSSL_3).
+  Dienste `tidal-1-dbus` (dbus-daemon des Geräts, eigene Konfig), `tidal-2-avahi` (avahi
+  0.6.32 stretch; LD_PRELOAD-Shim `device/src/avahi-user-shim.c` liefert Benutzer „avahi“),
+  `tidal-3-connect` (`--netif-for-deviceid wlan0` nötig, sonst ioctl-Fehler). Websocket
+  2019/tcp. avahi-Hostname `hk-invoke` (bei „invoke“ Namenskonflikt, vermutlich meldet der
+  Router den DHCP-Namen selbst per mDNS). Auf dem Gerät per avahi-browse geprüft:
+  `_tidalconnect._tcp` „HK Invoke“ und `_spotify-connect._tcp` „HK Invoke“ sichtbar
+  (vom kabelgebundenen Rechner aus nicht – der Router reicht mDNS nicht von WLAN nach LAN).
+- **Harman-Dienste gekürzt:** `hook.sh` legt beim Start `/data/invoke/podium.conf` per
+  Bind-Mount über `/etc/podium/podium.conf` und startet den init-Dienst `podium`
+  (system-manager) neu. Entfernt: cortana-harness, spotify, ota_rbua_install.sh,
+  crash-uploader-HK.sh. Weiter aktiv: mcu-interface, dsp-client, audio-ui,
+  connection-manager, music-source-manager, bluetooth, device_auto_recovery.sh.
+  Danach offen (intern, von außen gefiltert): 7777 luci_service, 9998/9999 bonefish (WAMP).
+- **Sendspin-CPU:** Beim Abspielen hält ein miniaudio-Thread einen Kern bei 100 % (nach
+  Ende teils weiter). Vermutung mmap auf dmix/softvol; `tools/build-sendspin.sh` setzt jetzt
+  `Alsa.NoMMap = 1` – **noch nicht getestet** (WLAN brach beim Test ein), auf dem Gerät läuft
+  noch der alte Build.
+- **WLAN-Problem 2026-09-30 01:30:** Invoke hängt am AVM-AP 98:9b:cb:ee:2b:0d (Kanal 6,
+  −69 dBm, Qualität 3/5), Ping 80 % Verlust / ~950 ms, scp ~40 kB/s. Vorher an
+  20:05:b6:ff:98:d0 problemlos. Power-Management ist aus.
 - Last mit allen drei Diensten: Load ~0,3, ~60 MB RAM belegt, SoC 78 °C (Harman-Abschaltung
   bei 95 °C, `device_auto_recovery.sh`). Harman-`cortana` braucht die meiste CPU.
