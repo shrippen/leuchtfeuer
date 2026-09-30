@@ -227,8 +227,10 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
   GStreamer/GLib des Geräts. 49494/tcp, 1900/udp. Getestet: Ton per SetAVTransportURI/Play
   vom Rechner abgespielt (PLAYING -> STOPPED am Ende).
 - **Sendspin:** sendspin-go v1.8.2 Player (Go + cgo, glibc 2.23, libopus 1.5.2 statisch,
-  miniaudio lädt libasound des Geräts), `tools/build-sendspin.sh`. mDNS `_sendspin._tcp`,
-  8927/tcp. Wartet auf einen Music-Assistant-Server.
+  miniaudio lädt libasound des Geräts), `tools/build-sendspin.sh`. Der Player verbindet sich
+  selbst (ws://…:8927/sendspin); mDNS-Suche geht über den Router nicht -> fest
+  `--server ploetze.lan:8927` (Music Assistant 2.10.4, auch unter 192.168.231.2).
+  Verbunden, client_id = WLAN-MAC. Angebot auf 48 kHz/24 bit begrenzt.
 - **Tidal Connect:** nur als iFi-Binary (`tidal_connect_application`, Raspbian stretch,
   glibc 2.24) mit iFi-Gerätezertifikat (TonyTromp/tidal-connect-docker) – offen, Entscheidung
   des Nutzers nötig.
