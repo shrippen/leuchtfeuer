@@ -205,3 +205,32 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
 - Host-Schlüssel steht in ~/.ssh/known_hosts als `invoke.lan,192.168.231.61`.
 - Anmelden: `ssh -i ~/.ssh/HKInvoke.pub -o IdentitiesOnly=yes root@invoke.lan`
   (IdentitiesOnly nötig, der Agent hat >10 Schlüssel, dropbear erlaubt 10 Versuche).
+
+## Musikdienste (2026-09-30)
+
+Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/services/`), von
+`hook.sh` gestartet und bei Absturz neu gestartet, Logs `/data/invoke/log/`. Programme in
+`/data/invoke/bin/`. Freigegebene Ports in `/data/invoke/ports.local`. Name überall „HK Invoke“.
+
+- **Audio-Weg:** ALSA-PCM `music` = softvol „music“ (Karte 0) -> dmix `volmix_music` -> `dsp`
+  (Karte 1 wm8904, 48 kHz S32_LE). dmix teilt sich das Gerät mit den Harman-Diensten.
+  Standardgerät `default` zeigt ins Loopback (stumm) -> für miniaudio-Programme
+  `ALSA_CONFIG=/data/invoke/asound-music.conf` (bindet asound-product.conf ein, default=music).
+- **Spotify Connect:** librespot 0.8.0 statisch (armv7 musl, rustls, libmdns),
+  `tools/build-librespot.sh` (`tools/docker/rust-armv7.Dockerfile`). Ausgabe über
+  subprocess-Backend an `aplay -D music` (Geräte-alsa-lib, kein zweites dmix-Layout).
+  Zeroconf 57500/tcp. Das Harman-`spotify` (eSDK) läuft weiter, ist aber tot
+  (esdk-ffl.spotify.com gibt es nicht mehr). **Nicht anhalten:** SIGSTOP -> fehlender Heartbeat
+  -> system-manager startet den ganzen Podium-Stack neu (adbd kam kurz zurück, hook stoppt ihn).
+- **UPnP/DLNA:** gmrender-resurrect (Commit 3d87b36) + libupnp 1.14.31 statisch, gegen glibc
+  2.23 (Xenial-armhf-Cross, `tools/build-gmrender.sh`, `tools/docker/xenial-armhf.Dockerfile`),
+  GStreamer/GLib des Geräts. 49494/tcp, 1900/udp. Getestet: Ton per SetAVTransportURI/Play
+  vom Rechner abgespielt (PLAYING -> STOPPED am Ende).
+- **Sendspin:** sendspin-go v1.8.2 Player (Go + cgo, glibc 2.23, libopus 1.5.2 statisch,
+  miniaudio lädt libasound des Geräts), `tools/build-sendspin.sh`. mDNS `_sendspin._tcp`,
+  8927/tcp. Wartet auf einen Music-Assistant-Server.
+- **Tidal Connect:** nur als iFi-Binary (`tidal_connect_application`, Raspbian stretch,
+  glibc 2.24) mit iFi-Gerätezertifikat (TonyTromp/tidal-connect-docker) – offen, Entscheidung
+  des Nutzers nötig.
+- Last mit allen drei Diensten: Load ~0,3, ~60 MB RAM belegt, SoC 78 °C (Harman-Abschaltung
+  bei 95 °C, `device_auto_recovery.sh`). Harman-`cortana` braucht die meiste CPU.

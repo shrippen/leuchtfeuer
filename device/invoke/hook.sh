@@ -12,6 +12,8 @@
 #    dhcpcd meldet "LibreSync-<nr>", das der Router nicht einträgt. Deshalb nach dem Start und
 #    alle 6 h eine zusätzliche DHCP-Anfrage mit busybox udhcpc (-s /bin/true: ändert nichts an
 #    der Schnittstelle, fragt nur dieselbe Adresse mit dem gewünschten Namen an).
+#  - Dienste: jedes ausführbare /data/invoke/services/<name>.sh (endet mit exec) wird gestartet
+#    und bei Absturz neu gestartet; Log /data/invoke/log/<name>.log (ab 1 MiB -> .1)
 # Notbremse: /data/invoke/disable-hook anlegen -> Skript macht nichts.
 D=/data/invoke
 PIDF=/run/invoke-dropbear.pid
@@ -82,6 +84,19 @@ dhcp_name(){
   log "DHCP-Name $n: keine Antwort"; return 1
 }
 
+services(){
+  for s in $D/services/*.sh; do
+    [ -x "$s" ] || continue
+    n=$(basename "$s" .sh); pf=/run/invoke-svc-$n.pid; lf=$D/log/$n.log
+    p=$(cat $pf 2>/dev/null); [ -n "$p" ] && kill -0 "$p" 2>/dev/null && continue
+    mkdir -p $D/log
+    [ -f $lf ] && [ "$(wc -c < $lf)" -gt 1048576 ] && mv $lf $lf.1
+    setsid "$s" >>$lf 2>&1 </dev/null &
+    echo $! > $pf
+    log "Dienst $n gestartet (pid $!)"
+  done
+}
+
 tick=0
 while :; do
   [ -e $D/disable-hook ] && { log "disable-hook gesetzt – Ende"; exit 0; }
@@ -89,6 +104,7 @@ while :; do
   ssh_up && adb_off
   firewall
   ipv6_off
+  services
   # beim ersten Durchlauf mit Adresse, danach alle 6 h (720 x 30 s)
   if [ $tick -le 0 ]; then dhcp_name && tick=720; fi
   tick=$((tick - 1))
