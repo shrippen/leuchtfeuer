@@ -1,0 +1,12 @@
+# Konfiguration des Invoke-Hacks (sh-Syntax). Der Installer legt sie als /data/invoke/config ab;
+# Änderungen danach auf dem Gerät: Datei bearbeiten und die Dienste neu starten (oder neu booten).
+
+# Name, unter dem sich das Gerät in Spotify, Tidal, UPnP, Cast, Sendspin und Bluetooth zeigt
+DEVICE_NAME="HK Invoke"
+
+# Sendspin (Music Assistant): Adresse "host:8927" des Servers. Leer = Suche per mDNS. Nötig, wenn mDNS
+# zwischen WLAN und LAN nicht durch den Router kommt (häufig bei AVM/FRITZ!Box, WLAN <-> LAN).
+SENDSPIN_SERVER=""
+
+# DHCP-Hostname, unter dem der Router das Gerät einträgt (z. B. "invoke" -> invoke.lan)
+DHCP_HOSTNAME="invoke"
