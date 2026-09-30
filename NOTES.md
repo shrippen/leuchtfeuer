@@ -194,5 +194,14 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
   5555/443/9998/9999/53 gefiltert, adbd aus, IPv6 aus, redbend-Sperre in /etc/hosts aktiv.
 - `getprop` geht in SSH-Sitzungen und im Haken nicht (ANDROID_PROPERTY_WORKSPACE fehlt),
   `start`/`stop`/`setprop` gehen.
-- Anmelden: `ssh -i ~/.ssh/HKInvoke.pub -o IdentitiesOnly=yes root@192.168.231.61`
+- Name **invoke.lan**: Das Libre-dhcpcd sendet `-h LibreSync-279012855` (Name aus dem Libre-NV,
+  `getFromNVDeviceName`), der Router trägt das nicht ein. `hook.sh` schickt deshalb nach dem
+  Start und alle 6 h `busybox udhcpc -r <ip> -x hostname:invoke -s /bin/true` (Name aus
+  `/data/invoke/hostname`) -> Router trägt `invoke.lan` ein. Nach Neustart geprüft.
+  Nicht funktioniert: `dhcpcd -n` (hängt), eigener dhcpcd-Neustart (bekommt kein Lease),
+  eigener mDNS-Responder für invoke.local (Router leitet mDNS nur per Proxy weiter; verworfen).
+  Verbindungen vom Rechner kommen am Invoke mit Quelle 192.168.231.1 an (Router-NAT zwischen
+  LAN und WLAN).
+- Host-Schlüssel steht in ~/.ssh/known_hosts als `invoke.lan,192.168.231.61`.
+- Anmelden: `ssh -i ~/.ssh/HKInvoke.pub -o IdentitiesOnly=yes root@invoke.lan`
   (IdentitiesOnly nötig, der Agent hat >10 Schlüssel, dropbear erlaubt 10 Versuche).

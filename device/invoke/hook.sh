@@ -8,6 +8,10 @@
 #    /data/invoke/ports.local (eine Zeile je Port: "tcp 1234" / "udp 5678")
 #  - IPv6 aus (Kernel ohne ip6tables)
 #  - adbd (Port 5555, root ohne Anmeldung) aus, sobald /data/invoke/disable-adb existiert
+#  - DHCP-Name aus /data/invoke/hostname (z. B. "invoke" -> invoke.lan im Router): das Libre-
+#    dhcpcd meldet "LibreSync-<nr>", das der Router nicht einträgt. Deshalb nach dem Start und
+#    alle 6 h eine zusätzliche DHCP-Anfrage mit busybox udhcpc (-s /bin/true: ändert nichts an
+#    der Schnittstelle, fragt nur dieselbe Adresse mit dem gewünschten Namen an).
 # Notbremse: /data/invoke/disable-hook anlegen -> Skript macht nichts.
 D=/data/invoke
 PIDF=/run/invoke-dropbear.pid
@@ -67,11 +71,26 @@ adb_off(){
   pidof adbd >/dev/null 2>&1 && { stop adbd; sleep 1; log "adbd gestoppt"; }
 }
 
+dhcp_name(){
+  [ -s $D/hostname ] || return 0
+  n=$(cat $D/hostname)
+  ip=$(ip -4 addr show wlan0 2>/dev/null | awk '/inet /{sub(/\/.*/,"",$2); print $2; exit}')
+  [ -n "$ip" ] || return 1
+  if busybox udhcpc -i wlan0 -f -q -n -t 4 -T 3 -r "$ip" -x hostname:"$n" -F "$n" -s /bin/true >/dev/null 2>&1; then
+    log "DHCP-Name $n für $ip gemeldet"; return 0
+  fi
+  log "DHCP-Name $n: keine Antwort"; return 1
+}
+
+tick=0
 while :; do
   [ -e $D/disable-hook ] && { log "disable-hook gesetzt – Ende"; exit 0; }
   setup_home
   ssh_up && adb_off
   firewall
   ipv6_off
+  # beim ersten Durchlauf mit Adresse, danach alle 6 h (720 x 30 s)
+  if [ $tick -le 0 ]; then dhcp_name && tick=720; fi
+  tick=$((tick - 1))
   sleep 30
 done
