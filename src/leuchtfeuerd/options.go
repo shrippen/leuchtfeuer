@@ -155,7 +155,12 @@ func discover(kind string) ([]foundService, error) {
 			}
 			f := foundService{Name: e.Instance, Host: e.AddrIPv4[0].String(), Port: e.Port}
 			for _, t := range e.Text {
-				if k, v, ok := strings.Cut(t, "="); ok && (k == "internal_url" || (k == "base_url" && f.URL == "")) && v != "" {
+				k, v, ok := strings.Cut(t, "=")
+				switch {
+				case !ok || v == "":
+				case k == "name": // lesbarer Name (Music Assistant: "Music Assistant (…)"); der Instanzname ist oft eine Kennung
+					f.Name = v
+				case k == "internal_url", k == "base_url" && f.URL == "":
 					f.URL = v
 				}
 			}
