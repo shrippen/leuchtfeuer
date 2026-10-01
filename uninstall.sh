@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Removes the Invoke Hack again: autostart hook from /data/dnsmasq.conf, reboot. Afterwards the speaker behaves like
+# Removes Leuchtfeuer again: autostart hook from /data/dnsmasq.conf, reboot. Afterwards the speaker behaves like
 # the plain StockRoot firmware (vendor sshd with locked root, adbd on again).
-# Entfernt den Invoke-Hack wieder: Autostart-Haken aus /data/dnsmasq.conf, Neustart.
+# Entfernt Leuchtfeuer wieder: Autostart-Haken aus /data/dnsmasq.conf, Neustart.
 #   ./uninstall.sh                      interactive (asks what it needs)
 #   ./uninstall.sh --non-interactive --ip IP --key ~/.ssh/id_ed25519.pub [--purge]
 #   --purge   also deletes /data/invoke (programs, settings, saved Bluetooth pairings, logs)
@@ -16,7 +16,7 @@ while [ $# -gt 0 ]; do
     -h|--help) sed -n '2,9p' "$0"; exit 0 ;; *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
-say "Remove the Invoke Hack" "Invoke-Hack entfernen"
+say "Remove Leuchtfeuer" "Leuchtfeuer entfernen"
 info "This switches off the autostart hook and restarts the speaker. Afterwards the speaker is back to the plain StockRoot
 firmware: the vendor SSH server (root locked) and the open adb root shell on port 5555 are active again, and Harman's
 services (Cortana, OTA, vendor Bluetooth) run again. Your Bluetooth pairings are kept unless you purge." \
@@ -34,7 +34,7 @@ if [ $PURGE = 0 ] && [ "$INTERACTIVE" = 1 ]; then
   note "--purge also deletes /data/invoke: programs, settings and saved Bluetooth pairings." "--purge löscht auch /data/invoke: Programme, Einstellungen und gespeicherte Bluetooth-Kopplungen."
   ask_yn "Also delete /data/invoke (purge)?" "Auch /data/invoke löschen (purge)?" n && PURGE=1
 fi
-ask_yn "Remove the Invoke Hack from $IP now?" "Den Invoke-Hack jetzt von $IP entfernen?" y || die "aborted" "abgebrochen"
+ask_yn "Remove Leuchtfeuer from $IP now?" "Leuchtfeuer jetzt von $IP entfernen?" y || die "aborted" "abgebrochen"
 S 'touch /data/invoke/disable-hook
    if [ -f /data/invoke/dnsmasq.conf.orig ]; then cp /data/invoke/dnsmasq.conf.orig /data/dnsmasq.conf; echo "dnsmasq.conf restored"
    else sed -i "/Invoke-Hack: Autostart-Haken/,\$d" /data/dnsmasq.conf; echo "hook removed from dnsmasq.conf"; fi'

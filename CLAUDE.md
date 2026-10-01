@@ -1,4 +1,4 @@
-# Invoke Hack – Projektziel
+# Leuchtfeuer (Invoke Hack) – Projektziel
 
 Harman Kardon Invoke (Marvell BG2CD, Google-Cast-Linux), am Service-USB dieses Rechners.
 

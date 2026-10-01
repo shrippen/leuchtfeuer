@@ -35,8 +35,8 @@ case $PW in *$'\n'*) die "no line breaks in the password" "keine Zeilenumbrüche
 
 # the password travels on stdin (not in the command line); invoked hashes it with a random salt and writes the hash
 printf '%s\n' "$PW" | S '/data/invoke/bin/invoked -set-password && { p=$(cat /run/invoke-svc-invoked.pid 2>/dev/null); [ -n "$p" ] && kill "$p"; true; }' \
-  || die "could not set the password (is the Invoke Hack installed and up to date? run ./install.sh)" \
-         "Passwort konnte nicht gesetzt werden (Invoke-Hack installiert und aktuell? ./install.sh ausführen)"
+  || die "could not set the password (is Leuchtfeuer installed and up to date? run ./install.sh)" \
+         "Passwort konnte nicht gesetzt werden (Leuchtfeuer installiert und aktuell? ./install.sh ausführen)"
 ok "web password set (stored as a salted hash); the web interface restarts within 30 seconds, existing logins end" \
    "Web-Passwort gesetzt (nur als gesalzener Hash gespeichert); die Weboberfläche startet binnen 30 Sekunden neu, bestehende Anmeldungen enden"
 [ $RANDOM_PW = 1 ] && info "New password: $PW" "Neues Passwort: $PW"

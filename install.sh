@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the Invoke Hack on a Harman Kardon Invoke running the StockRoot firmware
+# Installs Leuchtfeuer on a Harman Kardon Invoke running the StockRoot firmware
 # (Barracuda_rooted_libre-11.1842.0) and turns it into a network speaker:
 #   Spotify Connect, UPnP/DLNA, Sendspin (Music Assistant), Cast (emulated), Tidal Connect (optional),
 #   Bluetooth (BlueZ, A2DP), SSH with key only, Harman cloud services (Cortana, OTA, ...) off.
@@ -56,7 +56,7 @@ STAGE=$(mktemp -d); trap 'rm -rf "$STAGE"' EXIT
 
 # ====================================================================== welcome
 if [ "$INTERACTIVE" = 1 ]; then
-  say "Invoke Hack installer" "Invoke-Hack-Installer"
+  say "Leuchtfeuer installer" "Leuchtfeuer-Installer"
   info "This turns your Harman Kardon Invoke into a network speaker (Spotify, UPnP/DLNA, Sendspin, Cast, Bluetooth,
 optionally Tidal). I will ask a few questions and explain what happens before each step.
 Nothing is flashed here: only the writable /data partition of the speaker is changed, and everything can be
@@ -66,7 +66,7 @@ Bluetooth, optional Tidal). Ich stelle ein paar Fragen und erkläre vor jedem Sc
 Hier wird nichts geflasht: nur die beschreibbare Partition /data des Lautsprechers wird geändert, und mit
 ./uninstall.sh lässt sich alles wieder entfernen. Mit Strg+C kannst du jederzeit abbrechen."
 else
-  say "Invoke Hack installer (non-interactive)" "Invoke-Hack-Installer (nicht interaktiv)"
+  say "Leuchtfeuer installer (non-interactive)" "Leuchtfeuer-Installer (nicht interaktiv)"
 fi
 
 # ====================================================================== tools
@@ -114,8 +114,8 @@ sshd(){ ssh $(ssh_opts) "${SSH_ID[@]}" root@"$IP" "$@"; }
 say "Step 4: what is on the speaker?" "Schritt 4: Was ist auf dem Lautsprecher?"
 if sshd true 2>/dev/null; then
   MODE=update
-  ok "SSH with your key works: the Invoke Hack is already installed, this will be an update." \
-     "SSH mit deinem Schlüssel geht: der Invoke-Hack ist schon installiert, das wird ein Update."
+  ok "SSH with your key works: Leuchtfeuer is already installed, this will be an update." \
+     "SSH mit deinem Schlüssel geht: Leuchtfeuer ist schon installiert, das wird ein Update."
 else
   MODE=first
   info "No SSH access with this key yet: this is a first installation. I will connect over adb (port 5555), set up

@@ -1,4 +1,8 @@
-# HK Invoke Hack
+<p align="center"><img src="docs/logo.svg" alt="Leuchtfeuer" width="96" height="96"></p>
+
+# Leuchtfeuer
+
+_Network speaker firmware tools for the Harman Kardon Invoke_
 
 Turn a **Harman Kardon Invoke** (the Cortana smart speaker Harman abandoned) into a plain network
 speaker. After the install the speaker shows up as **"HK Invoke"** in:

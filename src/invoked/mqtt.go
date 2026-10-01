@@ -225,7 +225,7 @@ func (m *mqttBridge) discover(prefix string) {
 		"identifiers":  []string{"invoke_" + m.id},
 		"name":         a.cfg.Get("DEVICE_NAME", "HK Invoke"),
 		"manufacturer": "Harman Kardon",
-		"model":        "Invoke (Invoke Hack)",
+		"model":        "Invoke (Leuchtfeuer)",
 		"sw_version":   a.version,
 	}
 	put := func(comp, obj string, cfg map[string]any) {

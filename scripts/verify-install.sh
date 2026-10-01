@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks over SSH that the Invoke Hack is fully running / Prüft per SSH, ob der Invoke-Hack vollständig läuft.
+# Checks over SSH that Leuchtfeuer is fully running / Prüft per SSH, ob Leuchtfeuer vollständig läuft.
 #   scripts/verify-install.sh [--ip IP] [--key ~/.ssh/id_ed25519.pub]
 set -uo pipefail
 cd "$(dirname "$0")/.."

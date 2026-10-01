@@ -1,4 +1,8 @@
-# HK Invoke Hack
+<p align="center"><img src="logo.svg" alt="Leuchtfeuer" width="96" height="96"></p>
+
+# Leuchtfeuer
+
+_Netzwerk-Lautsprecher-Werkzeuge für den Harman Kardon Invoke_
 
 Macht aus einem **Harman Kardon Invoke** (dem Cortana-Lautsprecher, den Harman aufgegeben hat) einen
 normalen Netzwerk-Lautsprecher. Nach der Installation erscheint er als **„HK Invoke“** in:

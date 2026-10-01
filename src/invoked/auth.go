@@ -229,7 +229,7 @@ func (w *webServer) auth(next http.Handler) http.Handler {
 		case p == "/api/logout":
 			w.login.logout(rw, r)
 			return
-		case p == "/login.html" || p == "/app.css" || strings.HasPrefix(p, "/kante/"):
+		case p == "/login.html" || p == "/favicon.svg" || p == "/app.css" || strings.HasPrefix(p, "/kante/"):
 			next.ServeHTTP(rw, r)
 			return
 		case w.login.valid(r):

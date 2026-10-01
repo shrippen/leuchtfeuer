@@ -1,4 +1,4 @@
-# Konfiguration des Invoke-Hacks (sh-Syntax). Der Installer legt sie als /data/invoke/config ab;
+# Konfiguration von Leuchtfeuer (sh-Syntax). Der Installer legt sie als /data/invoke/config ab;
 # Änderungen danach auf dem Gerät: Datei bearbeiten und die Dienste neu starten (oder neu booten).
 
 # Name, unter dem sich das Gerät in Spotify, Tidal, UPnP, Cast, Sendspin und Bluetooth zeigt

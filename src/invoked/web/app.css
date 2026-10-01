@@ -41,3 +41,4 @@
 /* Dienste-Kacheln: engere Zeilenhöhe und breitere Kacheln, damit lange Namen nicht über drei Zeilen laufen */
 #c-svc{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));margin-bottom:.4rem;align-items:stretch}
 #c-svc .status .name{line-height:1.25}
+.brand-logo{display:inline-block;vertical-align:-.3rem;margin-right:.55rem}
