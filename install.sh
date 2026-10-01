@@ -363,8 +363,8 @@ ich mit dem richtigen Gerät spreche."
     HOSTPUB=$(adbsh '/data/invoke/dropbearmulti dropbearkey -y -f /data/invoke/host_ed25519' | awk '/^ssh-ed25519/{print $1" "$2}')
     [ -n "$HOSTPUB" ] || die "could not read the host key" "Host-Schlüssel konnte nicht gelesen werden"
     adbsh '[ -f /data/invoke/dnsmasq.conf.orig ] || cp /data/dnsmasq.conf /data/invoke/dnsmasq.conf.orig'
-    if ! adbsh 'grep -q "Invoke-Hack: Autostart-Haken" /data/dnsmasq.conf && echo yes' | grep -q yes; then
-      adbsh "printf '\n# --- Invoke-Hack: Autostart-Haken (/data/invoke/boot.sh) ---\n# dhcp-script wird wegen leasefile-ro beim Start mit \"init\" aufgerufen. Die dhcp-range liegt\n# in keinem vorhandenen Netz, dnsmasq verteilt dadurch nirgends Adressen.\ndhcp-script=/data/invoke/boot.sh\nleasefile-ro\ndhcp-range=10.254.254.10,10.254.254.20,1h\n' >> /data/dnsmasq.conf"
+    if ! adbsh 'grep -q "Autostart-Haken (/data/invoke/boot.sh)" /data/dnsmasq.conf && echo yes' | grep -q yes; then
+      adbsh "printf '\n# --- Leuchtfeuer: Autostart-Haken (/data/invoke/boot.sh) ---\n# dhcp-script wird wegen leasefile-ro beim Start mit \"init\" aufgerufen. Die dhcp-range liegt\n# in keinem vorhandenen Netz, dnsmasq verteilt dadurch nirgends Adressen.\ndhcp-script=/data/invoke/boot.sh\nleasefile-ro\ndhcp-range=10.254.254.10,10.254.254.20,1h\n' >> /data/dnsmasq.conf"
     fi
     mkdir -p "$(dirname "$KNOWN")"; touch "$KNOWN"
     ssh-keygen -R "$IP" -f "$KNOWN" >/dev/null 2>&1 || true
@@ -424,6 +424,12 @@ REMOTE
   fi
   if [ "$TIDAL" = 0 ]; then sshd 'rm -f /data/invoke/services/tidal-*.sh'; fi
   sshd 'rm -f /data/invoke/bin/sendspin-player.old /data/invoke/podium.conf.vor-bluez'
+  # older installations: the comment line in dnsmasq.conf carried the former project name (the hook lines stay as they are)
+  sshd 'if grep -q "Invoke-Hack: Autostart-Haken" /data/dnsmasq.conf; then
+          sed "s/Invoke-Hack: Autostart-Haken/Leuchtfeuer: Autostart-Haken/" /data/dnsmasq.conf > /data/dnsmasq.conf.new &&
+          grep -q "dhcp-script=/data/invoke/boot.sh" /data/dnsmasq.conf.new && cat /data/dnsmasq.conf.new > /data/dnsmasq.conf
+          rm -f /data/dnsmasq.conf.new
+        fi'
   sshd 'sh -s' <<'REMOTE'
 pid=$(cat /run/invoke-hook.pid 2>/dev/null); [ -n "$pid" ] && kill "$pid" 2>/dev/null
 sleep 1

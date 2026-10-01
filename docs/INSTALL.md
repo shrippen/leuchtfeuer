@@ -19,7 +19,7 @@ Linux PC. Needed: `adb`, `docker`, `go` (≥ 1.22), `curl`, `git`, `unzip`, `pyt
 (GitHub CLI, only for `scripts/fetch.sh`; alternatively download the three files by hand, see below).
 
 ```sh
-git clone <this repo> invoke-hack && cd invoke-hack
+git clone <this repo> leuchtfeuer && cd leuchtfeuer
 ./scripts/fetch.sh                      # downloads the vendor flashing tool, the rooted image "StockRoot" and the OTA
                                         # from github.com/coggy9/HKHacking releases into firmware/ (not in git)
 sudo cp tools/99-invoke-marvell.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger

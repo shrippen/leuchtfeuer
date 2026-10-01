@@ -37,7 +37,7 @@ fi
 ask_yn "Remove Leuchtfeuer from $IP now?" "Leuchtfeuer jetzt von $IP entfernen?" y || die "aborted" "abgebrochen"
 S 'touch /data/invoke/disable-hook
    if [ -f /data/invoke/dnsmasq.conf.orig ]; then cp /data/invoke/dnsmasq.conf.orig /data/dnsmasq.conf; echo "dnsmasq.conf restored"
-   else sed -i "/Invoke-Hack: Autostart-Haken/,\$d" /data/dnsmasq.conf; echo "hook removed from dnsmasq.conf"; fi'
+   else sed -Ei "/(Leuchtfeuer|Invoke-Hack): Autostart-Haken/,\$d" /data/dnsmasq.conf; echo "hook removed from dnsmasq.conf"; fi'
 if [ $PURGE = 1 ]; then S 'rm -rf /data/invoke; echo "/data/invoke deleted"'; fi
 info "Restarting ..." "Neustart ..."; S '/bin/reboot' >/dev/null 2>&1 || true
 info "Done. After the restart the speaker behaves like StockRoot (adb on port 5555 is open again!)." \

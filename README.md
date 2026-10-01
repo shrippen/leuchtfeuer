@@ -54,7 +54,7 @@ Requirements: an Invoke, a Linux PC (developed on Arch), USB cable for the servi
 `go` ≥ 1.22, `curl`, `git`, `unzip`, `python3`, `socat`, `telnet`. The Invoke must be reachable in your Wi-Fi.
 
 ```sh
-git clone https://git.arianw.de/shrippen/invoke-hack.git && cd invoke-hack
+git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
 
 # 1. FIRST read docs/INSTALL.md parts 1-3: back up the NAND, flash StockRoot, put the speaker in your Wi-Fi.
 # 2. install: the installer is interactive, it asks and explains every step (and builds the programs if needed:

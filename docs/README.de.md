@@ -55,7 +55,7 @@ Voraussetzungen: ein Invoke, ein Linux-PC (entwickelt unter Arch), USB-Kabel fü
 `docker`, `go` ≥ 1.22, `curl`, `git`, `unzip`, `python3`, `socat`, `telnet`. Der Invoke muss im WLAN erreichbar sein.
 
 ```sh
-git clone https://git.arianw.de/shrippen/invoke-hack.git && cd invoke-hack
+git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
 
 # 1. ZUERST docs/INSTALL.de.md Teile 1-3 lesen: NAND sichern, StockRoot flashen, Lautsprecher ins WLAN bringen.
 # 2. installieren: fragt und erklärt Schritt für Schritt (baut bei Bedarf auch alles, Docker, einmalig 20-60 Minuten)

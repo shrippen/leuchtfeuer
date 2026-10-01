@@ -1,4 +1,4 @@
-# Invoke Hack – Forschungsnotizen
+# Leuchtfeuer – Forschungsnotizen
 
 > Arbeitsnotizen aus der Entstehung des Projekts (deutsch), bereinigt um gerätespezifische und persönliche
 > Angaben (Kennungen, Adressen, Schlüssel). Sie halten fest, *wie* die Erkenntnisse zustande kamen.
