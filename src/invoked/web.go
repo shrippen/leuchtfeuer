@@ -52,27 +52,28 @@ func decode(r *http.Request, v any) error {
 // ---- Status ----
 
 type statusResp struct {
-	Name       string         `json:"name"`
-	Version    string         `json:"version"`
-	Volume     int            `json:"volume"`
-	Muted      bool           `json:"muted"`
-	VolKnown   bool           `json:"volumeKnown"`
-	WampOK     bool           `json:"wamp"`
-	Player     map[string]any `json:"player"`
-	Alarm      alarmState     `json:"alarm"`
-	NextAlarm  string         `json:"nextAlarm"`
-	NextName   string         `json:"nextAlarmName"`
-	Timers     []timerView    `json:"timers"`
-	Wifi       wifiStatus     `json:"wifi"`
-	Sys        sysStatus      `json:"sys"`
-	Bluetooth  btState        `json:"bluetooth"`
-	BTMode     string         `json:"btMode"`
-	MQTT       bool           `json:"mqtt"`
-	Buttons    []buttonEvent  `json:"buttons"`
-	Now        string         `json:"now"`
-	Timezone   string         `json:"timezone"`
-	WebDefault bool           `json:"webDefaultPassword"`
-	Demo       bool           `json:"demo"`
+	Name       string          `json:"name"`
+	Version    string          `json:"version"`
+	Volume     int             `json:"volume"`
+	Muted      bool            `json:"muted"`
+	VolKnown   bool            `json:"volumeKnown"`
+	WampOK     bool            `json:"wamp"`
+	Player     map[string]any  `json:"player"`
+	Alarm      alarmState      `json:"alarm"`
+	NextAlarm  string          `json:"nextAlarm"`
+	NextName   string          `json:"nextAlarmName"`
+	Timers     []timerView     `json:"timers"`
+	Wifi       wifiStatus      `json:"wifi"`
+	Sys        sysStatus       `json:"sys"`
+	Bluetooth  btState         `json:"bluetooth"`
+	BTMode     string          `json:"btMode"`
+	MQTT       bool            `json:"mqtt"`
+	Buttons    []buttonEvent   `json:"buttons"`
+	Now        string          `json:"now"`
+	Timezone   string          `json:"timezone"`
+	WebDefault bool            `json:"webDefaultPassword"`
+	Demo       bool            `json:"demo"`
+	Viz        map[string]bool `json:"viz"` // Leuchtring-Visualizer: Tonabgriff gefunden, zeigt gerade an
 }
 
 type timerView struct {
@@ -93,6 +94,10 @@ func (w *webServer) status() statusResp {
 		Alarm: a.sch.State(), Wifi: a.wifiFn(), Sys: a.sysFn(), Bluetooth: a.btFn(),
 		BTMode: a.cfg.Get("BLUETOOTH_PAIRING", "button"), MQTT: a.mqttOK(), Buttons: a.Buttons(),
 		Now: a.sch.Now().Format(time.RFC3339), Timezone: set.Timezone, Demo: demoMode,
+		Viz: map[string]bool{"tap": demoMode, "active": false},
+	}
+	if a.viz != nil {
+		s.Viz = a.viz.Status()
 	}
 	if t, n := a.sch.NextAlarm(); !t.IsZero() {
 		s.NextAlarm, s.NextName = t.Format(time.RFC3339), n
@@ -226,6 +231,20 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		v.RttMs = clamp(v.RttMs, 20, 5000)
 		v.PenaltyMins = clamp(v.PenaltyMins, 1, 1440)
 		return a.st.Update(func(s *Settings) { s.Wifi = v })
+	case "viz":
+		var v VizSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if !vizModes[v.Mode] {
+			return fmt.Errorf("unbekannte Anzeige %q", v.Mode)
+		}
+		if _, ok := vizColors[v.Color]; !ok {
+			return fmt.Errorf("unbekannte Farbe %q", v.Color)
+		}
+		v.Brightness = clamp(v.Brightness, 5, 100)
+		v.Rotate = clamp(v.Rotate, 0, vizLEDs-1)
+		return a.st.Update(func(s *Settings) { s.Viz = v })
 	case "timezone":
 		var v struct {
 			Timezone string `json:"timezone"`

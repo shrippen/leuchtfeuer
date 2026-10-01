@@ -63,6 +63,7 @@ type Settings struct {
 	Buttons  map[string]map[string]string `json:"buttons"` // Taste -> Druckart -> Aktion
 	MQTT     MQTTSettings                 `json:"mqtt"`
 	Wifi     WifiSettings                 `json:"wifi"`
+	Viz      VizSettings                  `json:"viz"` // Leuchtring als Visualizer (viz.go)
 }
 
 func defaultSettings() Settings {
@@ -78,6 +79,7 @@ func defaultSettings() Settings {
 		},
 		MQTT: MQTTSettings{Port: 1883, Discovery: "homeassistant"},
 		Wifi: WifiSettings{Enabled: true, IntervalSec: 20, LossPct: 20, RttMs: 150, Prefer5GHz: false, PenaltyMins: 30},
+		Viz:  VizSettings{Mode: "off", Color: "rainbow", Brightness: 60},
 	}
 }
 
@@ -119,6 +121,9 @@ func mergeDefaults(s Settings) Settings {
 	if s.Wifi.IntervalSec == 0 {
 		s.Wifi = d.Wifi
 	}
+	if s.Viz.Mode == "" {
+		s.Viz = d.Viz
+	}
 	return s
 }
 
@@ -136,6 +141,13 @@ func (st *store) Update(f func(s *Settings)) error {
 		return err
 	}
 	return os.Rename(tmp, st.path)
+}
+
+// Viz liefert die Visualizer-Einstellungen ohne JSON-Rundlauf (wird 25-mal je Sekunde gelesen).
+func (st *store) Viz() VizSettings {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.S.Viz
 }
 
 // Snapshot liefert eine Kopie (JSON-Rundlauf, damit Slices/Maps nicht geteilt werden).

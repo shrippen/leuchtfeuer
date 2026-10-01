@@ -241,7 +241,7 @@ fi
 need=(build/dropbear/dropbearmulti build/librespot/librespot build/gmrender/gmediarender
       build/sendspin/sendspin-player build/castrecv/castrecv build/btagent/btagent
       build/bluez/bluetoothd build/bluez/bluealsa build/bluez/bluealsa-aplay build/bluez/hciconfig
-      build/bluez/hcitool build/bluez/lib/libsbc.so.1 build/shim/avahi-user-shim.so build/invoked/invoked build/shairport/shairport-sync)
+      build/bluez/hcitool build/bluez/lib/libsbc.so.1 build/shim/avahi-user-shim.so build/invoked/invoked build/shairport/shairport-sync build/viztap/invoke-viz-tap.so)
 if [ "$TIDAL" = 1 ]; then need+=(build/tidal/bin/tidal_connect_application build/tidal/cert/IfiAudio_ZenStream.dat); fi
 missing=(); for f in "${need[@]}"; do [ -e "$f" ] || missing+=("$f"); done
 if [ ${#missing[@]} -gt 0 ]; then
@@ -263,7 +263,7 @@ fi
 # ====================================================================== staging (file tree as on the speaker)
 assemble(){
   local S=$STAGE/invoke d=device/invoke name=""
-  mkdir -p "$S"/{bin,services,bluez/bin,bluez/lib,bluez/etc/bluetooth,bluez/var,tidal}
+  mkdir -p "$S"/{bin,services,lib/ladspa,bluez/bin,bluez/lib,bluez/etc/bluetooth,bluez/var,tidal}
   cp "$d/boot.sh" "$d/hook.sh" "$d/podium.conf" "$d/ports.local" "$d/asound-music.conf" "$d/ca-certificates.crt" "$S/"
   if [ "$DRY" = 1 ] && [ ! -e build/dropbear/dropbearmulti ]; then return 0; fi
   cp build/dropbear/dropbearmulti "$S/"
@@ -271,6 +271,7 @@ assemble(){
      build/castrecv/castrecv build/btagent/btagent build/invoked/invoked build/shairport/shairport-sync "$S/bin/"
   cp build/bluez/{bluetoothd,bluealsa,bluealsa-aplay,hciconfig,hcitool} "$S/bluez/bin/"
   cp build/bluez/lib/libsbc.so.1 "$S/bluez/lib/"
+  cp build/viztap/invoke-viz-tap.so "$S/lib/ladspa/"   # needed by asound-music.conf: without it no sound
   cp "$d/services/"{librespot,gmrender,sendspin,castrecv,shairport,invoked,volume-sync,bluetooth-1-bluetoothd,bluetooth-2-agent,bluetooth-3-bluealsa,bluetooth-4-aplay}.sh "$S/services/"
   if [ "$TIDAL" = 1 ]; then
     cp -a build/tidal/bin build/tidal/cert build/tidal/lib build/tidal/sbin "$S/tidal/"

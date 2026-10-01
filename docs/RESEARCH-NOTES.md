@@ -265,11 +265,18 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
 - Last mit allen drei Diensten: Load ~0,3, ~60 MB RAM belegt, SoC 78 °C (Harman-Abschaltung
   bei 95 °C, `device_auto_recovery.sh`). Harman-`cortana` braucht die meiste CPU.
 
-## Leuchtring-Visualizer (untersucht, nicht umgesetzt)
+## Leuchtring-Visualizer
 
-- Ring: 13 LEDs, Muster-Dateien `/usr/share/lights/*.bin` mit je 39 Byte pro Bild (13 × 3 Byte, vermutlich G,R,B), ~37-42 ms pro Bild.
+- Ring: 13 LEDs, Muster-Dateien `/usr/share/lights/*.bin` mit je 39 Byte pro Bild (13 × 3 Byte, R,G,B; die Muster nutzen nur 12 LEDs, Cortana-Blau = 27,80,180), ~37-42 ms pro Bild.
   `com.harman.ledAnimate [Name] {repeat}` spielt ein Muster; `ledSet ["front"] {color, mode}` nur die Front-LED.
 - Tonabgriff: ALSA-`multi` (dmix + `hw:Loopback,0,7`) liefert die Daten (Loopback-Aufnahme zeigt den Testton), aber GStreamer
   (`alsasink` auf `invoke_music`, also gmrender) scheitert dann in `snd_pcm_hw_params_get_min` (leeres Intervall), auch mit festen
   Parametern („Invalid argument“). Das `meter`-Plugin ist für GStreamer transparent, bekommt aber in den Ketten plug/softvol/dmix
   keine Nutzdaten (s16-Puffer bleibt Null, hinten wie vorn). FIFO-Tee oder dmix-Speicher wären riskant für den Hauptton.
+- **Lösung (umgesetzt):** eigenes LADSPA-Plugin als Durchreiche mit Kopie nach `/dev/shm/invoke-viz`; vor ihm wandelt `plug` auf
+  48 kHz Float (sonst leeres Intervall für die Periodendauer 5333,33 µs von dmix, Tidal/PortAudio bricht ab).
+- Ring direkt: I²C-Mitschnitt von mcu-interface per LD_PRELOAD-Shim (Hook auf `ioctl(I2C_RDWR)`): MCU an Adresse `0x36`,
+  Muster als `0e 01` + Bilder (ein Bild = statische Anzeige), Herzschlag `24 …` alle 5 s, Front-LED `09 01 …`. `ledAnimate`
+  braucht ~250 ms je Aufruf (lädt Datei, schläft danach), direktes Schreiben eines Bildes ~5 ms.
+- Achtung: Beenden von mcu-interface ließ podium beim ersten Mal den ganzen Stack neu starten, beim zweiten Mal startete es
+  mcu-interface nicht neu („heartbeats timed out“); von Hand mit `logwrapper mcu-interface 127.0.0.1 9999` gestartet.

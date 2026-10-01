@@ -17,7 +17,8 @@ speaker. After the install the speaker shows up as **"HK Invoke"** in:
 status, **web radio**, **alarms** (fade-in, snooze, radio or beeps) and **timers**, **button mapping**, the **Wi-Fi guard**
 (measures the real link quality to your router and switches to a better access point of the same network when it stays
 poor), **Home Assistant** (MQTT discovery: volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, temperature,
-Wi-Fi, button events) and settings. Alarms and timers use your time zone and the light ring's own animations.
+Wi-Fi, button events), a **light ring visualizer** (spectrum, level or pulse, colour and brightness adjustable) and
+settings. Alarms and timers use your time zone and the light ring's own animations.
 
 Everything plays through the speaker's own DSP/amplifier chain; the **volume knob** controls all sources
 and stays in sync with the phone volume over Bluetooth in both directions.

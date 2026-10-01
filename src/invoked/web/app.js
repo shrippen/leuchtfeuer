@@ -346,8 +346,10 @@ function bindHA() {
   }, tt('Saved', 'Gespeichert'));
 }
 
+const vizHTML = () => !S.viz.tap ? T('No music signal found yet (play something; needs the current installation).', 'Noch kein Musiksignal gefunden (etwas abspielen; braucht die aktuelle Installation).')
+  : S.viz.active ? `<span class="pill" data-state="applied">${T('showing music', 'zeigt Musik')}</span>` : '';
 function viewSettings() {
-  const d = CFG.device;
+  const d = CFG.device, v = CFG.settings.viz;
   return `<div class="grid">
   <div class="card" data-tier="yellow"><h3>${T('Speaker', 'Lautsprecher')}</h3>
     ${fld('s-name', 'Name (Spotify, UPnP, Cast, AirPlay, Bluetooth)', 'Name (Spotify, UPnP, Cast, AirPlay, Bluetooth)', d.name)}
@@ -356,8 +358,13 @@ function viewSettings() {
     <p>${T('A name change applies after restarting the services below.', 'Eine Namensänderung gilt nach dem Neustart der Dienste weiter unten.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="s-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
   <div class="card" data-tier="cyan"><h3>${T('Light ring', 'Leuchtring')}</h3>
-    <p>${T('The ring shows the speaker states (volume knob, alarm, timer, Bluetooth pairing). It cannot follow the music, see the notes in the documentation.', 'Der Ring zeigt die Zustände des Lautsprechers (Drehrad, Wecker, Timer, Bluetooth-Kopplung). Er kann der Musik nicht folgen, siehe Hinweise in der Dokumentation.')}</p>
-    <div class="row"><button class="btn btn-outline btn-sm" id="l-test">${ico('test')}${T('Test ring', 'Ring testen')}</button></div></div>
+    <p>${T('The ring can follow the music of all receivers. Volume knob, mute, alarm, timer and buttons keep showing their own animations.', 'Der Ring kann der Musik aller Empfänger folgen. Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen.')} <span id="v-st">${vizHTML()}</span></p>
+    <div class="field"><span class="field-label">${T('Display', 'Anzeige')}</span>${seg('v-mode', [['off', 'Off', 'Aus'], ['spectrum', 'Spectrum', 'Spektrum'], ['level', 'Level', 'Pegel'], ['pulse', 'Pulse', 'Puls']], v.mode)}</div>
+    <div class="field"><span class="field-label">${T('Colour', 'Farbe')}</span>${seg('v-col', [['rainbow', 'Rainbow', 'Regenbogen'], ['white', 'White', 'Weiß'], ['warm', 'Warm', 'Warm'], ['blue', 'Blue', 'Blau'], ['green', 'Green', 'Grün'], ['red', 'Red', 'Rot'], ['purple', 'Purple', 'Lila']], v.color)}</div>
+    <div class="alarm"><div class="range field"><label for="v-bri">${T('Brightness %', 'Helligkeit %')}</label>
+        <div class="range-row"><input id="v-bri" type="range" min="5" max="100" step="5" value="${v.brightness}"><output class="range-out" id="v-bri-o">${v.brightness}</output></div></div>
+      ${fld('v-rot', 'Start LED (turns the display)', 'Start-LED (dreht die Anzeige)', v.rotate, 'type="number" min="0" max="11"')}</div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="v-save">${ico('save')}${T('Save', 'Speichern')}</button><button class="btn btn-outline btn-sm" id="l-test">${ico('test')}${T('Test ring', 'Ring testen')}</button></div></div>
   <div class="card"><h3>${T('Web password', 'Web-Passwort')}</h3>
     <p>${T('At least 6 characters. Stored only as a salted hash.', 'Mindestens 6 Zeichen. Wird nur als gesalzener Hash gespeichert.')}</p>
     <div class="field"><label for="pw">${T('New password', 'Neues Passwort')}</label><input class="input" id="pw" type="password" autocomplete="new-password"></div>
@@ -371,6 +378,8 @@ function bindSettings() {
   bindSw($('#view')); bindSeg($('#view'));
   $('#s-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, name: $('#s-name').value, bluetoothPairing: segVal('s-bt'), airplay: swVal('s-air') ? 'on' : 'off' }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#l-test').onclick = () => act(() => api('/api/led/test', 'POST', {}));
+  $('#v-bri').oninput = () => { $('#v-bri-o').textContent = $('#v-bri').value; };
+  $('#v-save').onclick = () => act(async () => { await api('/api/settings/viz', 'PUT', { mode: segVal('v-mode'), color: segVal('v-col'), brightness: +$('#v-bri').value, rotate: +$('#v-rot').value || 0 }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#pw-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, webPassword: $('#pw').value }); $('#pw').value = ''; }, tt('Password changed - sign in again', 'Passwort geändert - bitte neu anmelden'));
   $('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); };
   $$('[data-rs]').forEach(b => b.onclick = () => act(() => api('/api/services/restart', 'POST', { name: b.dataset.rs }), tt('Stopped, will restart within 30 s', 'Gestoppt, startet binnen 30 s neu')));
@@ -422,6 +431,8 @@ function tick() {
       $$('[data-tcancel]', l).forEach(b => b.onclick = () => act(() => api('/api/timers/cancel', 'POST', { id: b.dataset.tcancel })));
     }
     const t = $('#spk-time'); if (t) t.textContent = fmtTime(S.now);
+  } else if (route === 'settings') {
+    const v = $('#v-st'); if (v) v.innerHTML = vizHTML();
   } else if (route === 'ha') {
     const m = $('#mq-st'); if (m) m.innerHTML = mqttHTML();
   } else if (route === 'radio') {

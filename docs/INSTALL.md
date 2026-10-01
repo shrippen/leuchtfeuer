@@ -144,8 +144,8 @@ The volume knob sets all sources. Logs are in `/data/invoke/log/` on the speaker
   "Find access points" lists them and lets you switch by hand; *Dry run* only logs.
 - **Home Assistant:** Home Assistant tab: enter your MQTT broker. The speaker registers itself via MQTT discovery (device with
   volume, mute, web radio, pairing, timers, alarm buttons, sensors, button events).
-- **Light ring:** shows the speaker's states (volume knob, alarm, timer, pairing). It cannot follow the music (see
-  [ARCHITECTURE.md](ARCHITECTURE.md), *Light ring*).
+- **Light ring:** can follow the music of all receivers as a visualizer (Settings > Light ring: spectrum, level or pulse,
+  colour, brightness, start LED; off by default). Volume knob, mute, alarm, timer and buttons keep their own animations.
 
 ### Discovery across Wi-Fi ↔ LAN
 

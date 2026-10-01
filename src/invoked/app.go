@@ -46,6 +46,7 @@ type app struct {
 	sch     *scheduler
 	wifi    *wifiWatch
 	mq      *mqttBridge
+	viz     *visualizer // nil im Demo-Modus
 	started time.Time
 	version string
 

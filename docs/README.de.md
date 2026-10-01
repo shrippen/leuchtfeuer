@@ -17,8 +17,8 @@ normalen Netzwerk-Lautsprecher. Nach der Installation erscheint er als **„HK I
 Status, **Webradio**, **Wecker** (Anstieg, Schlummern, Radio oder Signalton) und **Timer**, **Tastenbelegung**, der **WLAN-Wächter**
 (misst die echte Verbindungsqualität zum Router und wechselt bei anhaltend schlechter Qualität zu einem besseren Access Point
 desselben Netzes), **Home Assistant** (MQTT-Erkennung: Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timer,
-Wecker-Tasten, Temperatur, WLAN, Tasten-Ereignisse) und Einstellungen. Wecker und Timer nutzen deine Zeitzone und die
-Animationen des Leuchtrings.
+Wecker-Tasten, Temperatur, WLAN, Tasten-Ereignisse), einen **Leuchtring-Visualizer** (Spektrum, Pegel oder Puls, Farbe und
+Helligkeit einstellbar) und Einstellungen. Wecker und Timer nutzen deine Zeitzone und die Animationen des Leuchtrings.
 
 Alles läuft über die eigene DSP-/Verstärkerkette des Lautsprechers. Das **Drehrad** regelt alle Quellen und bleibt
 über Bluetooth in beide Richtungen mit der Handy-Lautstärke synchron.

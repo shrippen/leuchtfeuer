@@ -120,13 +120,24 @@ The core works against small interfaces (volume, player, LED) and an injectable 
 
 ### Light ring
 
-The ring (13 RGB LEDs, 39 bytes per frame, about 25 frames per second) is driven by `mcu-interface` from pattern files
-`/usr/share/lights/*.bin`; `ledAnimate(name, {repeat})` plays one, `ledSet("front", …)` drives only the front status LED.
-An **audio visualizer was investigated and not built**: it needs a tap of the played audio. The Loopback card can receive a
-copy through an ALSA `multi` tee (data arrives), but then GStreamer clients (gmrender/UPnP) fail to open `invoke_music`
-(empty hw-params intervals, also with fixed parameters). The ALSA `meter` plugin with a scope is transparent but receives no
-payload in the speaker's plug/softvol/dmix chains (its buffer stays zero). Other routes (FIFO tee, reading dmix shared memory)
-would block or depend on internals and could stall the main audio path, which was not acceptable.
+The ring controller (MCU, `mcu-interface` talks to it) sits on `/dev/i2c-0` at address `0x36`. `ledAnimate(name, {repeat})`
+uploads a pattern file `/usr/share/lights/*.bin` (39 bytes per frame: 13 × R,G,B; the stock patterns use only the first 12
+LEDs) as `0e 01 <frames>` and the MCU plays it; `ledSet("front", …)` drives only the front status LED. A call takes about
+250 ms, too slow for live frames, so the **visualizer** in invoked (`viz.go`) writes single frames `0e 01 <39 bytes>` itself,
+25 per second (about 5 ms bus time each). `mcu-interface` opens the bus only per transfer, so both coexist. The visualizer
+stops writing while the stock firmware uses the ring: after `volumeChanged`/`musicMuteChanged` and button events (2.5-3 s),
+while muted, and while invoked plays its own alarm/timer animation. Killing `mcu-interface` is not a good idea: podium
+then may not restart it, and it also handles the DAC/amplifier mute.
+
+The audio comes from the LADSPA plugin `invoke-viz-tap` (`device/src/invoke-viz-tap.c`, `tools/build-viztap.sh`) in
+`asound-music.conf`: `invoke_music` = `plug` (to 48 kHz float) → `ladspa` tap → `softvol "Invoke Music"` → `dmix`. It passes
+the audio through unchanged and writes a mono copy into a ring buffer `/dev/shm/invoke-viz` (header: magic, rate, write
+position; 8192 floats) without ever blocking. invoked reads the last 2048 samples, computes 12 log-spaced bands (50 Hz -
+14 kHz, FFT with Hann window) or the RMS level, applies automatic gain and decay, and renders spectrum, level (symmetric
+from the start LED) or pulse (bass). The rate conversion must happen before the tap: dmix fixes the period time at
+5333.33 µs, and with a free rate in front of the LADSPA stage the hw-params intervals become empty for 44.1 kHz clients
+(PortAudio/Tidal aborts with `snd_interval_empty`). Earlier attempts (ALSA `multi` tee to the Loopback card, `meter`
+plugin) failed, see RESEARCH-NOTES.md.
 
 ## Build system
 

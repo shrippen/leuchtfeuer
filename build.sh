@@ -34,6 +34,7 @@ step "BlueZ + bluez-alsa"     build/bluez/bluetoothd          tools/build-bluez.
 step "avahi-Shim"             build/shim/avahi-user-shim.so   tools/build-shim.sh
 step "invoked (Web, Wecker, ...)" build/invoked/invoked        tools/build-invoked.sh
 step "shairport-sync (AirPlay)" build/shairport/shairport-sync tools/build-shairport.sh
+step "Visualizer-Abgriff (LADSPA)" build/viztap/invoke-viz-tap.so tools/build-viztap.sh
 if [ $tidal = 1 ]; then
   step "Tidal-Connect-Bündel" build/tidal/bin/tidal_connect_application tools/build-tidal-bundle.sh
 fi

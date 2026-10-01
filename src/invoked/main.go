@@ -60,6 +60,9 @@ func main() {
 	go a.sch.Run()
 	go a.wifi.Run()
 	go a.mq.Run()
+	a.viz = newVisualizer(a)
+	a.led = holdLED{ledAPI: a.led, v: a.viz}
+	go a.viz.Run()
 	// abgelaufene Timer nach Neustart nicht erneut klingeln lassen
 	st.Update(func(s *Settings) {
 		var keep []Timer

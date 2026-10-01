@@ -149,8 +149,8 @@ Das Drehrad regelt alle Quellen. Logs liegen unter `/data/invoke/log/` auf dem L
   erneut. „Access Points suchen“ listet sie auf und erlaubt den Wechsel von Hand; *Probelauf* protokolliert nur.
 - **Home Assistant:** Reiter Home Assistant: MQTT-Broker eintragen. Der Lautsprecher meldet sich per MQTT-Erkennung selbst an
   (Gerät mit Lautstärke, Stumm, Webradio, Kopplung, Timern, Wecker-Tasten, Sensoren, Tasten-Ereignissen).
-- **Leuchtring:** zeigt die Zustände des Lautsprechers (Drehrad, Wecker, Timer, Kopplung). Er kann der Musik nicht folgen
-  (siehe [ARCHITECTURE.md](ARCHITECTURE.md), *Light ring*).
+- **Leuchtring:** kann als Visualizer der Musik aller Empfänger folgen (Einstellungen > Leuchtring: Spektrum, Pegel oder
+  Puls, Farbe, Helligkeit, Start-LED; anfangs aus). Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen.
 
 ### Erkennung zwischen WLAN ↔ LAN
 
