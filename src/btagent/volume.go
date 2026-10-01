@@ -1,21 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"leuchtfeuer/wamp"
+	"leuchtfeuer/lfbus"
 )
 
-// Lautstärke: Das Drehrad des Invoke und die Handy-Lautstärke (AVRCP-Absolutvolumen, bei bluez-alsa die
-// Eigenschaft Volume des PCM, 0..127 je Kanal) bilden eine gemeinsame Lautstärke. Maßgeblich ist der
-// Harman-Dienst audio-ui (Gruppe "music", 0..100 %): Er führt den Zustand, setzt die ALSA-Regler und
-// die LEDs. Darum wird nicht der ALSA-Regler geschrieben (audio-ui kennt den Wert sonst nicht und macht
-// beim nächsten Schritt am Rad vom alten Stand aus weiter), sondern über WAMP (Router bonefish,
-// 127.0.0.1:9999) gerufen: com.harman.volumeAdjust([Differenz]). Das Rad meldet com.harman.volumeChanged.
+// Lautstärke: Die Lautstärke des Geräts und die Handy-Lautstärke (AVRCP-Absolutvolumen, bei bluez-alsa die
+// Eigenschaft Volume des PCM, 0..127 je Kanal) bilden eine gemeinsame Lautstärke. Maßgeblich ist leuchtfeuerd
+// (0..100 %; auf dem Invoke führt sie die Hersteller-Software, Drehrad und LEDs inklusive): Änderungen kommen als
+// Ereignis "volume" über den lokalen Bus, Änderungen am Handy gehen als POST /volume zurück.
 // bluealsa läuft mit --a2dp-volume und dämpft nicht selbst. Das Gerät ist Master: verbindet sich ein
 // Handy, bekommt es den Wert des Geräts.
 
@@ -54,66 +53,50 @@ func setPhone(pcm dbus.ObjectPath, p int) {
 	}
 }
 
-// hub: Verbindung zum Router des Invoke (bonefish), verbindet selbst neu.
-var hub = wamp.NewHub(wamp.Addr)
+// lf: lokaler Bus von leuchtfeuerd (src/lfbus); verbindet selbst neu.
+var lf = lfbus.New(lfbus.DefaultPath())
 
-// setupWamp meldet die Ereignisse an; nach jeder Verbindung wird die aktuelle Lautstärke gelesen.
-func setupWamp() {
-	hub.Subscribe("com.harman.volumeChanged", vs.onVolume)
-	hub.Subscribe("com.harman.test.inputEvent", func(args []any) {
-		if len(args) >= 1 {
-			if b, _ := args[0].(string); b == "bluetooth" {
-				pw.toggle(*window)
-			}
+// setupBus meldet die Ereignisse an: Lautstärke, Bluetooth-Taste, Befehle der Weboberfläche, Vorrang anderer Quellen.
+func setupBus() {
+	lf.On("volume", func(b json.RawMessage) {
+		var v lfbus.Volume
+		if json.Unmarshal(b, &v) == nil && v.Known {
+			vs.onVolume(v.Volume)
+		}
+	})
+	lf.On("button", func(b json.RawMessage) {
+		var v lfbus.Button
+		if json.Unmarshal(b, &v) == nil && v.Name == "bluetooth" {
+			pw.toggle(*window)
 		}
 	})
 	// Befehle von leuchtfeuerd (Weboberfläche, Home Assistant)
-	hub.Subscribe("leuchtfeuer.bt.pairing", func(args []any) {
-		if len(args) >= 1 {
-			if a, _ := args[0].(string); a != "" {
-				pw.Set(a, *window)
-			}
+	lf.On("bt-pairing", func(b json.RawMessage) {
+		var v lfbus.Action
+		if json.Unmarshal(b, &v) == nil && v.Action != "" {
+			pw.Set(v.Action, *window)
 		}
 	})
-	hub.Subscribe("leuchtfeuer.bt.control", func(args []any) {
-		if len(args) >= 1 {
-			if a, _ := args[0].(string); a != "" {
-				media.control(a)
-			}
+	lf.On("bt-control", func(b json.RawMessage) {
+		var v lfbus.Action
+		if json.Unmarshal(b, &v) == nil && v.Action != "" {
+			media.control(v.Action)
 		}
 	})
-	// Eine andere Quelle beginnt zu spielen (leuchtfeuerd, Quellen-Regel "last"): Handy anhalten.
-	hub.Subscribe("leuchtfeuer.source.claim", func(args []any) {
-		if len(args) >= 1 {
-			if src, _ := args[0].(string); src != "" && src != "bluetooth" {
-				media.control("pause")
-			}
+	// Eine andere Quelle beginnt zu spielen (Quellen-Regel "last"): Handy anhalten.
+	lf.On("claim", func(b json.RawMessage) {
+		var v lfbus.Claim
+		if json.Unmarshal(b, &v) == nil && v.Source != "" && v.Source != "bluetooth" {
+			media.control("pause")
 		}
 	})
-	hub.OnConnect(func() {
-		// aktueller Wert: ein Null-Schritt mit volumeAdjust(0) liefert [Wert, "music"]
-		res, err := hub.Call("com.harman.volumeAdjust", 0)
-		if err != nil || len(res) < 1 {
-			return
-		}
-		vs.mu.Lock()
-		vs.cur = wamp.ToInt(res[0])
-		vs.mu.Unlock()
-		log.Printf("Lautstärke %d %%", wamp.ToInt(res[0]))
-	})
-	go hub.Run()
+	go lf.Run()
 }
 
-// onVolume: das Drehrad (oder leuchtfeuerd) hat die Lautstärke geändert.
-func (s *volState) onVolume(args []any) {
-	if len(args) < 2 {
-		return
-	}
-	if g, _ := args[0].(string); g != "music" {
-		return
-	}
-	n := wamp.ToInt(args[1])
+// onVolume: das Gerät (Drehrad, Weboberfläche ...) hat die Lautstärke geändert.
+func (s *volState) onVolume(n int) {
 	s.mu.Lock()
+	first := s.cur < 0
 	s.cur = n
 	pcm, last := s.pcm, s.lastPhone
 	push := pcm != "" && (last < 0 || phoneToMusic(last) != n)
@@ -122,6 +105,9 @@ func (s *volState) onVolume(args []any) {
 	}
 	p := s.lastPhone
 	s.mu.Unlock()
+	if first {
+		log.Printf("Lautstärke %d %%", n)
+	}
 	if push {
 		log.Printf("Gerät %d %% -> Handy %d/127", n, p)
 		setPhone(pcm, p)
@@ -139,15 +125,14 @@ func (s *volState) onPhone(p int) {
 	cur := s.cur
 	s.mu.Unlock()
 	target := phoneToMusic(p)
-	if !hub.Connected() || cur < 0 || target == cur {
+	if !lf.Connected() || cur < 0 || target == cur {
 		return
 	}
-	res, err := hub.Call("com.harman.volumeAdjust", target-cur)
-	if err != nil {
-		log.Printf("volumeAdjust: %v", err)
+	if err := lf.Post("/volume", map[string]int{"volume": target}, nil); err != nil {
+		log.Printf("Lautstärke setzen: %v", err)
 		return
 	}
-	log.Printf("Handy %d/127 -> Gerät %d %% (volumeAdjust %+d, Ergebnis %v)", p, target, target-cur, res)
+	log.Printf("Handy %d/127 -> Gerät %d %%", p, target)
 }
 
 func volumeLoop() {

@@ -552,7 +552,6 @@ func (a *app) voiceScene(now time.Time, fr *ringFrame) bool {
 
 // writePorts: zusätzliche Ports, die leuchtfeuerd braucht (Sprachassistent), für die Firewall des Hooks
 // (/data/leuchtfeuer/ports.leuchtfeuerd, gleiches Format wie ports.local).
-var portsFile = "/data/leuchtfeuer/ports.leuchtfeuerd"
 
 func (v *voiceSat) writePorts() {
 	var lines []string

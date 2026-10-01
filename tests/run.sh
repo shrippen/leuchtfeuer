@@ -7,7 +7,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 fail=0
 step(){ printf '\n== %s\n' "$1"; shift; "$@" || { echo "FEHLER: $*"; fail=1; }; }
-for m in wamp leuchtfeuerd btagent castrecv relsign; do
+for m in wamp lfbus leuchtfeuerd btagent castrecv relsign; do
   [ -d src/$m ] || continue
   step "go vet $m" sh -c "cd src/$m && go vet ./..."
   step "gofmt $m" sh -c "cd src/$m && test -z \"\$(gofmt -l .)\" || { gofmt -l .; exit 1; }"

@@ -14,8 +14,6 @@ import (
 // librespot-Umgebung) als eine JSON-Zeile über den Unix-Socket /run/leuchtfeuer-events.sock an das laufende leuchtfeuerd und
 // endet sofort; er wartet höchstens 1 s und meldet nie einen Fehler zurück (der Dienst soll nie hängen).
 
-var eventsSock = "/run/leuchtfeuer-events.sock"
-
 type sourceEvent struct {
 	Source string            `json:"source"`
 	Args   []string          `json:"args"`

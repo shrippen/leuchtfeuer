@@ -16,6 +16,8 @@ type fakeVol struct {
 	sets  []int
 }
 
+func (f *fakeVol) OnChange(func()) {}
+
 func (f *fakeVol) Get() (int, bool, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -111,7 +113,8 @@ func newTestApp(t *testing.T, start string) *testApp {
 		t.Fatal(err)
 	}
 	ta := &testApp{vol: &fakeVol{vol: 30}, pl: &fakePlayer{}, led: &fakeLED{}, now: now}
-	a := &app{cfg: cfg, st: st, h: newHub()}
+	a := &app{cfg: cfg, st: st}
+	a.bus = newLocalBus(a)
 	a.clock = func() time.Time { return ta.now }
 	a.vol, a.pl, a.led = ta.vol, ta.pl, ta.led
 	a.src = newSourceHub(a)

@@ -36,8 +36,6 @@ type UpdateSettings struct {
 
 const defaultUpdateURL = "https://git.arianw.de/api/v1/repos/shrippen/leuchtfeuer/releases/latest"
 
-var dataDir = "/data/leuchtfeuer"
-
 type updateInfo struct {
 	Current    string `json:"current"`
 	Latest     string `json:"latest"`

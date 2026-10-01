@@ -45,7 +45,9 @@ func memInfo() (total, free int) {
 func collectSys() sysStatus {
 	var s sysStatus
 	// tsen_temp liefert °C (ganzzahlig)
-	s.TempC = readFloat(hw.TempPath)
+	if hw.TempPath != "" && hw.TempDiv > 0 {
+		s.TempC = readFloat(hw.TempPath) / hw.TempDiv
+	}
 	s.UptimeSecs = int(readFloat("/proc/uptime"))
 	s.Load1 = readFloat("/proc/loadavg")
 	s.MemTotalMB, s.MemFreeMB = memInfo()

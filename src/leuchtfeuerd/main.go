@@ -19,10 +19,10 @@ func main() {
 		sendSourceEvent(os.Args[2], os.Args[3:])
 		return
 	}
-	cfgPath := flag.String("config", "/data/leuchtfeuer/config", "Shell-Konfiguration")
-	dataPath := flag.String("data", "/data/leuchtfeuer/leuchtfeuerd.json", "Einstellungen von leuchtfeuerd")
+	cfgPath := flag.String("config", filepath.Join(dataDir, "config"), "Shell-Konfiguration")
+	dataPath := flag.String("data", filepath.Join(dataDir, "leuchtfeuerd.json"), "Einstellungen von leuchtfeuerd")
 	listen := flag.String("listen", ":80", "Adresse der Weboberfläche")
-	sessPath := flag.String("sessions", "/data/leuchtfeuer/sessions.json", "Ablage der Anmelde-Sitzungen")
+	sessPath := flag.String("sessions", filepath.Join(dataDir, "sessions.json"), "Ablage der Anmelde-Sitzungen")
 	setPass := flag.Bool("set-password", false, "Passwort der Weboberfläche aus der ersten Zeile von stdin setzen (gehasht) und beenden")
 	wdAlive := flag.String("watchdog", "", "Hardware-Watchdog füttern, solange diese Lebenszeichen-Datei frisch ist (vom Hook)")
 	wdDev := flag.String("watchdog-dev", "/dev/watchdog", "Watchdog-Gerät")
@@ -45,7 +45,13 @@ func main() {
 	log.SetFlags(log.LstdFlags)
 
 	cfg := &shellConfig{path: *cfgPath}
-	selectTarget(cfg.Get("TARGET", "invoke"))
+	selectTarget(cfg.Get("TARGET", defaultTarget))
+	if c := cfg.Get("ALSA_CARD", ""); c != "" {
+		hw.MixerCard = c
+	}
+	if w := cfg.Get("WIFI_IFACE", ""); w != "" {
+		hw.WifiIface = w
+	}
 	st := loadStore(*dataPath)
 	if st.S.Timezone == "" || st.S.Timezone == "Europe/Berlin" {
 		if tz := cfg.Get("TIMEZONE", ""); tz != "" {
@@ -70,12 +76,9 @@ func main() {
 		}
 		log.Printf("Weboberfläche: kein Passwort gesetzt, einmalig erzeugt: %s (ändern: scripts/set-web-password.sh)", pw)
 	}
-	// Tasten und Bluetooth-Knopf
-	a.h.Subscribe(hw.WAMP.InputEvent, a.onButton)
-	// Lautstärke-Abgleich "system" -> "Leuchtfeuer Music" und Quellen-Regler (ersetzt volume-sync.sh)
+	// Lautstärke ("Leuchtfeuer Music": gespiegelt oder eigen) und Quellen-Regler
 	a.mix = newMixSync(amixer{card: hw.MixerCard})
-	a.h.Subscribe(hw.WAMP.VolumeChanged, func([]any) { a.mix.Kick() })
-	a.h.Subscribe(hw.WAMP.MuteChanged, func([]any) { a.mix.Kick() })
+	a.mix.mirror = hw.MirrorCtl
 	a.mix.SetTrims(st.Snapshot().Sources.Trims())
 	a.Listen(func(kind string, _ map[string]any) {
 		if kind == "settings" {
@@ -83,26 +86,11 @@ func main() {
 		}
 	})
 	go a.mix.Run()
-	// Zustand und Titel von Bluetooth (btagent) und Cast (castrecv)
-	a.h.Subscribe("leuchtfeuer.source.state", func(args []any) {
-		if len(args) < 2 {
-			return
-		}
-		name, _ := args[0].(string)
-		m := toStrMap(args[1])
-		if name == "" || m == nil {
-			return
-		}
-		meta := map[string]string{}
-		for _, k := range []string{"title", "artist", "album"} {
-			if v, ok := m[k].(string); ok {
-				meta[k] = v
-			}
-		}
-		st, _ := m["state"].(string)
-		a.src.Update(name, st, meta)
-	})
-	go a.h.Run()
+	// Treiber des Zielgeräts (Invoke: WAMP-Router, Tasten), lokaler Bus für btagent und castrecv
+	if hw.start != nil {
+		hw.start(a)
+	}
+	go a.bus.Serve(busSock)
 	go a.sch.Run()
 	go a.wifi.Run()
 	go a.mq.Run()
@@ -112,10 +100,12 @@ func main() {
 	go a.watchClock()
 	a.eq = newEqWriter(a, eqPath)
 	go a.eq.Run()
-	a.viz = newVisualizer(a)
-	a.viz.scenes = []ringScene{a.voiceScene, a.sunriseScene, a.timerScene}
-	a.led = holdLED{ledAPI: a.led, v: a.viz}
-	go a.viz.Run()
+	if hw.ring != nil { // Erweiterung Leuchtring: Visualizer und Szenen
+		a.viz = newVisualizer(a, hw.ring.writer())
+		a.viz.scenes = []ringScene{a.voiceScene, a.sunriseScene, a.timerScene}
+		a.led = holdLED{ledAPI: a.led, v: a.viz}
+		go a.viz.Run()
+	}
 	// abgelaufene Timer nach Neustart nicht erneut klingeln lassen
 	st.Update(func(s *Settings) {
 		var keep []Timer

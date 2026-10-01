@@ -5,51 +5,60 @@ import (
 	"strings"
 )
 
-// Zielgerät: Was an der Hardware und der Hersteller-Software eines Lautsprechers hängt, steht hier an einer Stelle,
-// nicht verstreut im Code. Heute gibt es nur den Harman Kardon Invoke. Ein weiterer Lautsprecher bekommt einen eigenen
-// Eintrag; wo er etwas grundsätzlich anders macht (Lautstärke ohne WAMP-Router, Ring ohne I²C), kommen die
-// Schnittstellen audioCtl, ledAPI und mixerCtl (app.go, mixer.go) mit eigener Umsetzung dazu.
-// Auswahl: TARGET in der Shell-Konfiguration (Standard "invoke").
-
-type wampNames struct {
-	VolumeChanged, MuteChanged, InputEvent       string // Ereignisse
-	VolumeGet, VolumeAdjust, MuteSet, MuteToggle string // Aufrufe
-	LEDAnimate, LEDOff                           string
-}
+// Zielgeräte. Leuchtfeuer selbst (Wecker, Radio, Quellen, Klang, Briefing, Weboberfläche, Home Assistant ...) kennt
+// kein bestimmtes Gerät; ein Zielgerät liefert nur, was es hat:
+//
+//   - Pflicht: Lautstärke und Stumm (audioCtl). Entweder führt die Hersteller-Software sie (Invoke: audio-ui,
+//     Drehrad) und leuchtfeuerd spiegelt ihren Regler auf "Leuchtfeuer Music" (MirrorCtl), oder leuchtfeuerd führt
+//     sie selbst und schreibt "Leuchtfeuer Music" direkt (generic).
+//   - Erweiterung Tasten: Das Gerät meldet Tastendrücke (a.onButton); Tastenbelegung und Mehrfachdruck sind allgemein.
+//   - Erweiterung Leuchtring: Bilder schreiben (Visualizer, Lichtwecker, Timer, Sprachassistent) und
+//     Animationen mit eigenen Namen (alarm, timer, success, bt_open, bt_closed) abspielen.
+//
+// Die Oberfläche, MQTT und die API zeigen nur, was das Gerät kann (Status: device.capabilities).
+// Auswahl: TARGET in der Shell-Konfiguration. Ein neues Gerät: target_<name>.go mit einem Eintrag in targets
+// (Anleitung: docs/TARGETS.md).
 
 type target struct {
 	ID           string
 	Manufacturer string
 	Model        string
-	DefaultName  string            // Gerätename, solange DEVICE_NAME fehlt
-	MixerCard    string            // ALSA-Karte der eigenen Softvol-Regler
-	SystemCtl    string            // Regler, den die Hersteller-Software beim Drehen setzt (wird nach "Leuchtfeuer Music" kopiert)
-	TempPath     string            // SoC-Temperatur in °C
-	WifiIface    string            // WLAN-Schnittstelle (wpa_cli, MAC als Gerätekennung, mDNS)
-	RingDev      string            // I²C-Gerät des Leuchtring-Controllers ("" = kein Ring)
-	RingAddr     int               // I²C-Adresse
-	WAMP         wampNames         // Hersteller-Router (audio-ui)
-	Animations   map[string]string // eigene Namen -> Ring-Animation der Hersteller-Software
-	SoundDirs    []string          // hier liegen die Klänge der Hersteller-Software (sounds.go)
+	DefaultName  string   // Gerätename, solange DEVICE_NAME fehlt
+	MixerCard    string   // ALSA-Karte der eigenen Softvol-Regler
+	MirrorCtl    string   // Regler der Hersteller-Software, der nach "Leuchtfeuer Music" kopiert wird ("" = keiner)
+	TempPath     string   // Temperatur (Datei mit Zahl)
+	TempDiv      float64  // Teiler auf °C (1 oder 1000 für Milligrad)
+	WifiIface    string   // WLAN-Schnittstelle (wpa_cli, Gerätekennung, mDNS)
+	SoundDirs    []string // Klänge der Hersteller-Software (sounds.go); leer = keine
+	Link         string   // Verbindung zur Hersteller-Software für die Statusanzeige ("" = keine)
+	ButtonNames  []string // Namen der Tasten (Home Assistant: Ereignis-Typen)
+
+	newVolume func(a *app) audioCtl // Lautstärke (Pflicht)
+	start     func(a *app)          // Treiber starten (Ereignisse, Tasten); nil = nichts
+	linkOK    func(a *app) bool     // Verbindung zur Hersteller-Software steht
+	buttons   bool                  // meldet Tasten
+	ring      *ringSpec             // Leuchtring; nil = keiner
 }
 
-var targets = map[string]target{
-	"invoke": {
-		ID: "invoke", Manufacturer: "Harman Kardon", Model: "Invoke", DefaultName: "HK Invoke",
-		MixerCard: "0", SystemCtl: "system", TempPath: "/sys/class/hwmon/hwmon0/device/tsen_temp", WifiIface: "wlan0",
-		RingDev: "/dev/i2c-0", RingAddr: 0x36, // 13 LEDs, die Muster nutzen 12 (vizLEDs)
-		WAMP: wampNames{
-			VolumeChanged: "com.harman.volumeChanged", MuteChanged: "com.harman.musicMuteChanged", InputEvent: "com.harman.test.inputEvent",
-			VolumeGet: "com.harman.volumeGet", VolumeAdjust: "com.harman.volumeAdjust", MuteSet: "com.harman.musicMuteSet",
-			MuteToggle: "com.harman.musicMuteToggle", LEDAnimate: "com.harman.ledAnimate", LEDOff: "com.harman.ledOff",
-		},
-		Animations: map[string]string{"alarm": "L_111_c_alarm", "timer": "L_112_c_timer", "success": "L_106_c_success"},
-		SoundDirs:  []string{"/usr/share", "/usr/local/share", "/etc", "/opt"},
-	},
+type ringSpec struct {
+	writer func() ringWriter   // einzelne Bilder (Visualizer, Szenen)
+	led    func(a *app) ledAPI // Animationen mit eigenen Namen
+}
+
+var targets = map[string]target{}
+
+// defaultTarget: ohne TARGET in der Konfiguration (ältere Installationen kennen den Schalter nicht).
+const defaultTarget = "invoke"
+
+func registerTarget(t target) {
+	targets[t.ID] = t
+	if t.ID == defaultTarget {
+		hw = t
+	}
 }
 
 // hw: das Zielgerät dieses Laufs.
-var hw = targets["invoke"]
+var hw target
 
 func selectTarget(id string) {
 	id = strings.ToLower(strings.TrimSpace(id))
@@ -64,5 +73,43 @@ func selectTarget(id string) {
 	hw = t
 }
 
-// anim liefert die Ring-Animation des Zielgeräts für einen eigenen Namen ("" = keine).
-func anim(name string) string { return hw.Animations[name] }
+// capabilities: Erweiterungen des Geräts (für Oberfläche, MQTT, API).
+func (t target) capabilities() []string {
+	c := []string{}
+	if t.buttons {
+		c = append(c, "buttons")
+	}
+	if t.ring != nil {
+		c = append(c, "ring")
+	}
+	if len(t.SoundDirs) > 0 {
+		c = append(c, "vendorSounds")
+	}
+	if t.MirrorCtl != "" {
+		c = append(c, "vendorVolume")
+	}
+	return c
+}
+
+func (t target) has(c string) bool {
+	for _, x := range t.capabilities() {
+		if x == c {
+			return true
+		}
+	}
+	return false
+}
+
+type deviceStatus struct {
+	ID           string   `json:"id"`
+	Model        string   `json:"model"`
+	Capabilities []string `json:"capabilities"`
+	Link         string   `json:"link"`   // z. B. "audio-ui (WAMP)"; leer = keine Hersteller-Software
+	LinkOK       bool     `json:"linkOK"` // verbunden
+}
+
+// noLED: Gerät ohne Leuchtring.
+type noLED struct{}
+
+func (noLED) Animate(string, bool) {}
+func (noLED) Off()                 {}

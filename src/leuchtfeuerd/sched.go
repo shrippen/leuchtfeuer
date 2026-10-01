@@ -189,7 +189,7 @@ func (s *scheduler) ring(a Alarm, resume bool) {
 		s.mu.Unlock()
 		s.app.pl.PlayURL("alarm", a.Name, url)
 	}
-	s.app.led.Animate(anim("alarm"), true)
+	s.app.led.Animate("alarm", true)
 	s.app.emit("alarm", map[string]any{"name": a.Name, "state": "ringing"})
 }
 
@@ -587,7 +587,7 @@ func (s *scheduler) CancelTimer(id string) {
 func (s *scheduler) fireTimer(t Timer) {
 	log.Printf("Timer %q abgelaufen", t.Name)
 	s.app.pl.PlayTone("timer", t.Name, toneTimer, true)
-	s.app.led.Animate(anim("timer"), true)
+	s.app.led.Animate("timer", true)
 	s.app.emit("timer", map[string]any{"name": t.Name, "state": "finished"})
 	// Ton nach 60 s von selbst beenden; Timer aus der Liste nehmen
 	go func() {

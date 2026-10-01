@@ -15,7 +15,7 @@ type btState struct {
 
 func readBT() btState {
 	var s btState
-	if b, err := os.ReadFile("/run/leuchtfeuer-bt-state.json"); err == nil {
+	if b, err := os.ReadFile(btStateFile); err == nil {
 		json.Unmarshal(b, &s)
 	}
 	return s

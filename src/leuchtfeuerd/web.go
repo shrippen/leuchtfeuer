@@ -58,7 +58,8 @@ type statusResp struct {
 	Volume     int             `json:"volume"`
 	Muted      bool            `json:"muted"`
 	VolKnown   bool            `json:"volumeKnown"`
-	WampOK     bool            `json:"wamp"`
+	WampOK     bool            `json:"wamp"` // Verbindung zur Hersteller-Software (wie device.linkOK)
+	Device     deviceStatus    `json:"device"`
 	Player     map[string]any  `json:"player"`
 	Alarm      alarmState      `json:"alarm"`
 	NextAlarm  string          `json:"nextAlarm"`
@@ -99,7 +100,7 @@ func (w *webServer) status() statusResp {
 	set := a.st.Snapshot()
 	s := statusResp{
 		Name: a.cfg.Get("DEVICE_NAME", hw.DefaultName), Version: a.version, Volume: vol, Muted: muted, VolKnown: known,
-		WampOK: a.wampOK(), Player: map[string]any{"kind": kind, "name": name, "state": state, "title": title},
+		WampOK: hw.linkOK == nil || hw.linkOK(a), Device: deviceStatus{ID: hw.ID, Model: hw.Model, Capabilities: hw.capabilities(), Link: hw.Link, LinkOK: hw.linkOK == nil || hw.linkOK(a)}, Player: map[string]any{"kind": kind, "name": name, "state": state, "title": title},
 		Alarm: a.sch.State(), Wifi: a.wifiFn(), Sys: a.sysFn(), Bluetooth: a.btFn(),
 		BTMode: a.cfg.Get("BLUETOOTH_PAIRING", "button"), MQTT: a.mqttOK(), Buttons: a.Buttons(),
 		Now: a.sch.Now().Format(time.RFC3339), Timezone: set.Timezone, Demo: demoMode,
@@ -591,7 +592,7 @@ func (w *webServer) routes() http.Handler {
 		if v.Action != "open" && v.Action != "close" && v.Action != "toggle" {
 			return fmt.Errorf("open, close oder toggle")
 		}
-		a.h.Publish("leuchtfeuer.bt.pairing", v.Action)
+		a.bus.Publish("bt-pairing", map[string]string{"action": v.Action})
 		return nil
 	})
 	post("/api/services/restart", func(r *http.Request) error {
@@ -864,7 +865,7 @@ func (w *webServer) routes() http.Handler {
 		return a.wifi.RoamTo(v.BSSID)
 	})
 	mux.HandleFunc("/api/led/test", func(rw http.ResponseWriter, r *http.Request) {
-		a.led.Animate(anim("success"), false)
+		a.led.Animate("success", false)
 		writeJSON(rw, map[string]bool{"ok": true})
 	})
 	mux.HandleFunc("/api/events", w.events)
@@ -919,7 +920,7 @@ func (w *webServer) routes() http.Handler {
 		}
 		switch v.Action {
 		case "play", "pause", "stop", "next", "previous":
-			a.h.Publish("leuchtfeuer.bt.control", v.Action)
+			a.bus.Publish("bt-control", map[string]string{"action": v.Action})
 			return nil
 		}
 		return fmt.Errorf("play, pause, stop, next oder previous")

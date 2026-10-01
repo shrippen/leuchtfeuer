@@ -99,8 +99,8 @@ func (s *server) broadcast(src, ns string, payload any) {
 
 var levelRe = regexp.MustCompile(`Front Left: (\d+) `)
 
-// getVolume liefert die Lautstärke 0..1 und Stumm. Maßgeblich ist audio-ui (über WAMP, wie Drehrad und Bluetooth);
-// ohne Verbindung zum Router gilt der ALSA-Regler des Drehrads.
+// getVolume liefert die Lautstärke 0..1 und Stumm. Maßgeblich ist leuchtfeuerd (über den lokalen Bus, wie Drehrad und Bluetooth);
+// ohne Verbindung zu leuchtfeuerd gilt der ALSA-Regler des Drehrads.
 func getVolume() (float64, bool) {
 	if v, m, ok := ui.get(); ok {
 		return float64(v) / 100, m

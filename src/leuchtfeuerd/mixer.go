@@ -77,6 +77,8 @@ type mixSync struct {
 	lastAll time.Time
 	ready   map[string]bool
 	step    time.Duration // Pause zwischen den Überblend-Schritten (0 = ohne Überblenden)
+	mirror  string        // Regler der Hersteller-Software, der gespiegelt wird ("" = master gilt)
+	master  int           // eigener Wert für "Leuchtfeuer Music" (-1 = noch keiner)
 }
 
 const (
@@ -86,7 +88,7 @@ const (
 
 func newMixSync(m mixerCtl) *mixSync {
 	return &mixSync{m: m, kick: make(chan struct{}, 1), muted: map[string]bool{}, trim: map[string]int{}, written: map[string]int{},
-		ready: map[string]bool{}, step: rampStep}
+		ready: map[string]bool{}, step: rampStep, mirror: "system", master: -1}
 }
 
 // SetTrims setzt den Pegelausgleich (dB Absenkung je Quelle, 0 ... 20).
@@ -181,8 +183,26 @@ func (x *mixSync) ensure(ctl, pcm string) bool {
 	return true
 }
 
+// SetMaster: Gerät ohne Hersteller-Lautstärke (generic): leuchtfeuerd setzt "Leuchtfeuer Music" selbst (0 ... 255).
+func (x *mixSync) SetMaster(v int) {
+	x.mu.Lock()
+	x.master = clamp(v, 0, softvolMax)
+	x.mu.Unlock()
+	x.Kick()
+}
+
+// reference: Wert für "Leuchtfeuer Music" - der gespiegelte Regler der Hersteller-Software oder der eigene.
+func (x *mixSync) reference() (int, bool) {
+	if x.mirror != "" {
+		return x.m.Get(x.mirror)
+	}
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return x.master, x.master >= 0
+}
+
 func (x *mixSync) sync(full bool) {
-	if v, ok := x.m.Get(hw.SystemCtl); ok && x.ensure("Leuchtfeuer Music", "leuchtfeuer_music") {
+	if v, ok := x.reference(); ok && x.ensure("Leuchtfeuer Music", "leuchtfeuer_music") {
 		if cur, ok := x.m.Get("Leuchtfeuer Music"); ok && cur != v {
 			x.m.Set("Leuchtfeuer Music", v)
 		}

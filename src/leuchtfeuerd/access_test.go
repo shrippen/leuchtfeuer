@@ -232,7 +232,6 @@ func TestMetricsFormat(t *testing.T) {
 	ta.wifiFn = func() wifiStatus { return wifiStatus{RSSI: -60, Good: true} }
 	ta.btFn = func() btState { return btState{} }
 	ta.mqttOK = func() bool { return false }
-	ta.wampOK = func() bool { return true }
 	ta.logs = newLogHub(nil)
 	ta.logs.publish(logLine{Service: "bluetooth-4-aplay", Text: "underrun!!!"})
 	w := &webServer{app: ta.app}

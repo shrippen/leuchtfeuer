@@ -13,72 +13,6 @@ import (
 	"time"
 )
 
-// ---------------------------------------------------------------------------------------------------------
-// Lautstärke und Stumm über audio-ui (WAMP): audio-ui führt den Zustand, setzt die ALSA-Regler und die LEDs.
-
-type volumeCtl struct {
-	h     *hub
-	mu    sync.Mutex
-	vol   int
-	muted bool
-	known bool
-	onChg func()
-}
-
-func newVolumeCtl(h *hub) *volumeCtl {
-	v := &volumeCtl{h: h}
-	h.Subscribe(hw.WAMP.VolumeChanged, func(a []any) {
-		if len(a) >= 2 {
-			if g, _ := a[0].(string); g == "music" {
-				v.set(toInt(a[1]), nil)
-			}
-		}
-	})
-	h.Subscribe(hw.WAMP.MuteChanged, func(a []any) {
-		if len(a) >= 1 {
-			if m, ok := a[0].(bool); ok {
-				v.set(-1, &m)
-			}
-		}
-	})
-	h.OnConnect(func() { v.refresh() })
-	return v
-}
-
-func (v *volumeCtl) set(vol int, mute *bool) {
-	v.mu.Lock()
-	if vol >= 0 {
-		v.vol = vol
-	}
-	if mute != nil {
-		v.muted = *mute
-	}
-	v.known = true
-	cb := v.onChg
-	v.mu.Unlock()
-	if cb != nil {
-		cb()
-	}
-}
-
-func (v *volumeCtl) Get() (int, bool, bool) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.vol, v.muted, v.known
-}
-
-// refresh liest den aktuellen Zustand (volumeGet liefert ihn als Schlüssel-Wert-Struktur).
-func (v *volumeCtl) refresh() {
-	_, kw, err := v.h.CallKw(hw.WAMP.VolumeGet, nil)
-	if err != nil || kw == nil {
-		return
-	}
-	if m := toStrMap(kw["music"]); m != nil {
-		mute := toInt(m["mute"]) != 0
-		v.set(toInt(m["volume"]), &mute)
-	}
-}
-
 func clamp(x, lo, hi int) int {
 	if x < lo {
 		return lo
@@ -87,47 +21,6 @@ func clamp(x, lo, hi int) int {
 		return hi
 	}
 	return x
-}
-
-// Adjust ändert die Lautstärke um delta Prozentpunkte (audio-ui begrenzt auf 0..100).
-func (v *volumeCtl) Adjust(delta int) error {
-	r, err := v.h.Call(hw.WAMP.VolumeAdjust, delta)
-	if err == nil && len(r) >= 1 {
-		v.set(toInt(r[0]), nil)
-	}
-	return err
-}
-
-// SetVolume setzt die Lautstärke absolut (Differenz zum aktuellen Wert).
-func (v *volumeCtl) SetVolume(target int) error {
-	target = clamp(target, 0, 100)
-	r, err := v.h.Call(hw.WAMP.VolumeAdjust, 0)
-	if err != nil || len(r) < 1 {
-		return err
-	}
-	cur := toInt(r[0])
-	if cur == target {
-		return nil
-	}
-	return v.Adjust(target - cur)
-}
-
-func (v *volumeCtl) SetMute(m bool) error {
-	_, err := v.h.Call(hw.WAMP.MuteSet, m)
-	if err == nil {
-		v.set(-1, &m)
-	}
-	return err
-}
-
-func (v *volumeCtl) ToggleMute() error {
-	r, err := v.h.Call(hw.WAMP.MuteToggle)
-	if err == nil && len(r) >= 1 {
-		if m, ok := r[0].(bool); ok {
-			v.set(-1, &m)
-		}
-	}
-	return err
 }
 
 // ---------------------------------------------------------------------------------------------------------

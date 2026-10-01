@@ -184,7 +184,7 @@ func (h *sourceHub) onStart(name string) {
 			}
 		}
 		h.mu.Unlock()
-		h.a.h.Publish("leuchtfeuer.source.claim", name) // Bluetooth und Cast halten selbst an
+		h.a.bus.Publish("claim", map[string]string{"source": name}) // Bluetooth und Cast halten selbst an
 		for _, o := range others {
 			h.yield(o)
 		}
@@ -241,7 +241,7 @@ func (h *sourceHub) tick() {
 // das nächste Mal zu spielen beginnt.
 func (h *sourceHub) StopAll() {
 	h.a.RadioStop()
-	h.a.h.Publish("leuchtfeuer.source.claim", "sleep")
+	h.a.bus.Publish("claim", map[string]string{"source": "sleep"})
 	h.mu.Lock()
 	var playing []string
 	for n, s := range h.s {

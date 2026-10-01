@@ -140,7 +140,7 @@ func main() {
 	}
 	pw.always = *pairing == "always"
 	log.Printf("Bluetooth-Kopplung: %s", *pairing)
-	setupWamp()
+	setupBus()
 	go volumeLoop()
 	for {
 		tick()

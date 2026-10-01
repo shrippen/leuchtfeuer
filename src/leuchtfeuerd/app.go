@@ -18,6 +18,7 @@ type buttonEvent struct {
 // Nahtstellen: Die Wecker-/Timer-/Tastenlogik arbeitet gegen diese Schnittstellen und eine austauschbare Uhr,
 // damit sie sich ohne Gerät prüfen lässt.
 type audioCtl interface {
+	OnChange(func()) // nach jeder Änderung (auch am Gerät)
 	Get() (vol int, muted, known bool)
 	Adjust(delta int) error
 	SetVolume(target int) error
@@ -40,7 +41,9 @@ type ledAPI interface {
 type app struct {
 	cfg     *shellConfig
 	st      *store
-	h       *hub
+	h       *hub // Router der Hersteller-Software (nur Invoke, target_invoke.go)
+	hOnce   sync.Once
+	bus     *localBus // eigene Programme (btagent, castrecv), bus.go
 	vol     audioCtl
 	pl      playerCtl
 	led     ledAPI
@@ -69,7 +72,6 @@ type app struct {
 	wifiFn func() wifiStatus
 	btFn   func() btState
 	mqttOK func() bool
-	wampOK func() bool
 
 	mu       sync.Mutex
 	buttons  []buttonEvent
@@ -82,14 +84,16 @@ type app struct {
 func newApp(cfg *shellConfig, st *store) *app {
 	a := &app{cfg: cfg, st: st, started: time.Now(), version: version}
 	a.clock = time.Now
-	a.h = newHub()
+	a.bus = newLocalBus(a)
 	a.src = newSourceHub(a)
-	vc := newVolumeCtl(a.h)
-	vc.onChg = func() {
+	a.vol = hw.newVolume(a)
+	a.vol.OnChange(func() {
 		a.emit("volume", nil)
+		if a.bus != nil {
+			a.bus.Publish("volume", a.bus.volumeState())
+		}
 		go a.src.EnforceMax()
-	}
-	a.vol = vc
+	})
 	pl := newPlayer(map[string]string{"radio": "leuchtfeuer_radio", "": "leuchtfeuer_music"})
 	pl.onChange = func() {
 		kind, _, state, title := pl.Info()
@@ -102,7 +106,10 @@ func newApp(cfg *shellConfig, st *store) *app {
 	}
 	a.pl = pl
 	a.ann = newAnnouncer(a, "leuchtfeuer_announce")
-	a.led = &ledHW{h: a.h}
+	a.led = noLED{}
+	if hw.ring != nil {
+		a.led = hw.ring.led(a)
+	}
 	a.rb = newRadioBrowser()
 	a.meas = newMeasurer(a)
 	a.sounds = newSoundStore()
@@ -115,7 +122,6 @@ func newApp(cfg *shellConfig, st *store) *app {
 	a.wifiFn = a.wifi.Status
 	a.btFn = readBT
 	a.mqttOK = a.mq.connected
-	a.wampOK = a.h.Connected
 	return a
 }
 
@@ -191,14 +197,10 @@ func (a *app) RadioIndex() int { a.mu.Lock(); defer a.mu.Unlock(); return a.last
 
 // ---- Tasten ----
 
-func (a *app) onButton(args []any) {
-	if len(args) < 1 {
-		return
-	}
-	name, _ := args[0].(string)
-	val := ""
-	if len(args) > 1 {
-		val = fmt.Sprint(args[1])
+// onButton: Tastendruck des Geräts (Treiber im Zielgerät).
+func (a *app) onButton(name, val string) {
+	if a.bus != nil {
+		a.bus.Publish("button", map[string]string{"name": name, "value": val})
 	}
 	set := a.st.Snapshot()
 	// Mehrfachdruck: Sind "double"/"triple" belegt, wartet ein kurzer Druck pressWindow auf weitere
@@ -319,7 +321,7 @@ func (a *app) Do(action string) error {
 		}
 		return a.vol.ToggleMute()
 	case "bt_pairing":
-		a.h.Publish("leuchtfeuer.bt.pairing", "toggle")
+		a.bus.Publish("bt-pairing", map[string]string{"action": "toggle"})
 	case "sleep_toggle": // Schlummertimer 30 Minuten an / aus
 		if a.sch.SleepRemaining() > 0 {
 			a.sch.SetSleep(0)

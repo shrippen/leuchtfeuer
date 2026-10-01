@@ -11,8 +11,6 @@ package main
 // Visualizer nichts.
 
 import (
-	"errors"
-	"log"
 	"math"
 	"math/cmplx"
 	"os"
@@ -79,8 +77,8 @@ type visualizer struct {
 	scenes  []ringScene
 }
 
-func newVisualizer(a *app) *visualizer {
-	return &visualizer{app: a, ring: &ringI2C{}, refDB: -30}
+func newVisualizer(a *app, w ringWriter) *visualizer {
+	return &visualizer{app: a, ring: w, refDB: -30}
 }
 
 // Hold: Hersteller zeigt etwas an (Drehrad, Taste, einmalige Animation).
@@ -107,10 +105,15 @@ func (v *visualizer) Status() map[string]bool {
 }
 
 func (v *visualizer) Run() {
-	h := v.app.h
-	h.Subscribe(hw.WAMP.VolumeChanged, func([]any) { v.Hold(2500 * time.Millisecond) })
-	h.Subscribe(hw.WAMP.MuteChanged, func([]any) { v.Hold(2500 * time.Millisecond) })
-	h.Subscribe(hw.WAMP.InputEvent, func([]any) { v.Hold(3 * time.Second) })
+	// Das Gerät zeigt Lautstärke und Tasten selbst auf dem Ring: solange nicht überschreiben
+	v.app.Listen(func(kind string, _ map[string]any) {
+		switch kind {
+		case "volume":
+			v.Hold(2500 * time.Millisecond)
+		case "button":
+			v.Hold(3 * time.Second)
+		}
+	})
 	t := time.NewTicker(time.Second / vizFPS)
 	defer t.Stop()
 	reopen := time.Time{}
@@ -509,53 +512,6 @@ func (t *vizTap) last(dst []float32) int {
 		rate = 48000
 	}
 	return rate
-}
-
-// ---- Ring über I2C ----
-
-type ringI2C struct {
-	f      *os.File
-	errLog time.Time
-}
-
-const (
-	i2cSlave      = 0x0703
-	i2cSlaveForce = 0x0706
-)
-
-func (r *ringI2C) Write(fr *ringFrame) error {
-	if r.f == nil {
-		f, err := os.OpenFile(hw.RingDev, os.O_RDWR, 0)
-		if err != nil {
-			return r.fail(err)
-		}
-		if _, _, e := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), i2cSlave, uintptr(hw.RingAddr)); e != 0 {
-			if _, _, e = syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), i2cSlaveForce, uintptr(hw.RingAddr)); e != 0 {
-				f.Close()
-				return r.fail(e)
-			}
-		}
-		r.f = f
-	}
-	var b [2 + 13*3]byte
-	b[0], b[1] = 0x0e, 0x01
-	for i := range fr {
-		copy(b[2+i*3:], fr[i][:])
-	}
-	if _, err := r.f.Write(b[:]); err != nil {
-		r.f.Close()
-		r.f = nil
-		return r.fail(err)
-	}
-	return nil
-}
-
-func (r *ringI2C) fail(err error) error {
-	if time.Since(r.errLog) > time.Minute {
-		r.errLog = time.Now()
-		log.Printf("Leuchtring (I2C): %v", err)
-	}
-	return errors.Join(errors.New("Leuchtring"), err)
 }
 
 // holdLED hält den Visualizer an, solange eine Hersteller-Animation läuft.

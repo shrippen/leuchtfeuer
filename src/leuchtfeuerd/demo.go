@@ -106,6 +106,8 @@ type demoVol struct {
 	muted bool
 }
 
+func (d *demoVol) OnChange(func()) {}
+
 func (d *demoVol) Get() (int, bool, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -264,7 +266,6 @@ func runDemo(listen string) {
 	}
 	a.btFn = func() btState { return btState{} }
 	a.mqttOK = func() bool { return true }
-	a.wampOK = func() bool { return true }
 	for _, e := range sp.ButtonLog {
 		a.buttons = append(a.buttons, buttonEvent{Time: now.Add(-time.Duration(e.Ago) * time.Second), Name: e.Name, Value: e.Value, Do: e.Action})
 	}

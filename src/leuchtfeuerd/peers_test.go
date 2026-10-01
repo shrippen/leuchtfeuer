@@ -14,7 +14,6 @@ func fullTestApp(t *testing.T) *testApp {
 	ta.wifiFn = func() wifiStatus { return wifiStatus{} }
 	ta.btFn = func() btState { return btState{} }
 	ta.mqttOK = func() bool { return false }
-	ta.wampOK = func() bool { return true }
 	ta.peers = newPeerHub(ta.app)
 	return ta
 }

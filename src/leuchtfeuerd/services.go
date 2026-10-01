@@ -16,12 +16,7 @@ import (
 // wird mit SERVICE_<GRUPPE>="on|off" in der Shell-Konfiguration geschaltet; der Hook startet nur eingeschaltete
 // Dienste und öffnet nur deren Ports. Zustand je Dienst schreibt der Hook nach /run/leuchtfeuer-svc-<name>.state.
 
-var (
-	servicesDir = "/data/leuchtfeuer/services"
-	runDir      = "/run"
-	logDir      = "/data/leuchtfeuer/log"
-	hookLog     = "/data/leuchtfeuer/hook.log"
-)
+// (Pfade: paths.go)
 
 type serviceDef struct {
 	Name    string `json:"name"`

@@ -157,7 +157,7 @@ func (m *mqttBridge) command(name, payload string) {
 			}
 		}
 	case "pairing":
-		a.h.Publish("leuchtfeuer.bt.pairing", map[bool]string{true: "open", false: "close"}[payload == "ON"])
+		a.bus.Publish("bt-pairing", map[string]string{"action": map[bool]string{true: "open", false: "close"}[payload == "ON"]})
 	case "timer_minutes":
 		if v, err := strconv.ParseFloat(payload, 64); err == nil && v > 0 {
 			a.sch.AddTimer("", int(v*60))
@@ -194,7 +194,9 @@ func (m *mqttBridge) command(name, payload string) {
 			log.Printf("MQTT-Durchsage: %v", err)
 		}
 	case "ring":
-		m.ringCommand(payload)
+		if hw.ring != nil {
+			m.ringCommand(payload)
+		}
 	}
 	m.publishState()
 }
@@ -393,8 +395,25 @@ func (m *mqttBridge) discover(prefix string) {
 	put("button", "chime", map[string]any{"name": "Gong", "command_topic": T("chime/press"), "icon": "mdi:bell-ring"})
 	put("button", "briefing", map[string]any{"name": "Briefing abspielen", "command_topic": T("briefing/press"), "icon": "mdi:weather-sunset-up"})
 	put("button", "voice", map[string]any{"name": "Sprachassistent zuhören", "command_topic": T("voice/press"), "icon": "mdi:microphone"})
-	put("light", "ring", map[string]any{"name": "Leuchtring", "schema": "json", "state_topic": T("ring"), "command_topic": T("ring/set"),
-		"brightness": true, "brightness_scale": 100, "supported_color_modes": []string{"rgb"}, "effect": true,
-		"effect_list": ringEffectNames(), "icon": "mdi:led-strip-variant"})
-	put("event", "button", map[string]any{"name": "Taste", "state_topic": T("button"), "event_types": []string{"mic", "bluetooth", "volumeup", "volumedown", "reset", "play", "mute"}})
+	// Erweiterungen des Geräts; fehlt eine, wird ihre Entität entfernt (leere Konfiguration)
+	drop := func(comp, obj string) {
+		m.mu.Lock()
+		c := m.c
+		m.mu.Unlock()
+		if c != nil {
+			c.Publish(fmt.Sprintf("%s/%s/leuchtfeuer_%s/%s/config", prefix, comp, m.id, obj), 0, true, "")
+		}
+	}
+	if hw.ring != nil {
+		put("light", "ring", map[string]any{"name": "Leuchtring", "schema": "json", "state_topic": T("ring"), "command_topic": T("ring/set"),
+			"brightness": true, "brightness_scale": 100, "supported_color_modes": []string{"rgb"}, "effect": true,
+			"effect_list": ringEffectNames(), "icon": "mdi:led-strip-variant"})
+	} else {
+		drop("light", "ring")
+	}
+	if hw.buttons {
+		put("event", "button", map[string]any{"name": "Taste", "state_topic": T("button"), "event_types": hw.ButtonNames})
+	} else {
+		drop("event", "button")
+	}
 }

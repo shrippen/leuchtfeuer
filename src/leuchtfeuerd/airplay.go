@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ import (
 // Die Pipe wird lesend und schreibend geöffnet: so blockiert das Öffnen nicht und sie bleibt bestehen,
 // auch wenn shairport-sync neu startet.
 
-var airplayPipe = "/run/shairport-sync-metadata"
+var airplayPipe = filepath.Join(runDir, "shairport-sync-metadata")
 
 var (
 	apType = regexp.MustCompile(`<type>([0-9a-f]{8})</type><code>([0-9a-f]{8})</code><length>(\d+)</length>`)
