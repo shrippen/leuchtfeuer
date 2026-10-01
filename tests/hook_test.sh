@@ -115,7 +115,8 @@ cat > $T/bin/setsid <<'S'
 exec "$@"
 S
 chmod 755 $T/bin/setsid
-export LEUCHTFEUER_WATCHDOG_DEV=$T/watchdog
+# hook.sh ist schon geladen: WDDEV direkt setzen, sonst greift ein echtes /dev/watchdog des Rechners
+export LEUCHTFEUER_WATCHDOG_DEV=$T/watchdog; WDDEV=$T/watchdog
 : > $T/d/config
 watchdog_ctl
 check "Watchdog aus ohne WATCHDOG=on" '[ ! -e $T/r/leuchtfeuer-watchdog.pid ]'
