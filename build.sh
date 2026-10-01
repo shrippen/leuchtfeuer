@@ -5,7 +5,7 @@
 #
 #   ./build.sh [--force] [--no-tidal]
 #
-# Result: build/dropbear, librespot, gmrender, sendspin, castrecv, btagent, bluez, shim, invoked, shairport, snapclient,
+# Result: build/dropbear, librespot, gmrender, sendspin, castrecv, btagent, bluez, shim, leuchtfeuerd, shairport, snapclient,
 # viztap (LADSPA plugins), (tidal). A signed release package for web updates: tools/make-release.sh
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -33,10 +33,10 @@ step "castrecv (Cast)"        build/castrecv/castrecv         tools/build-castre
 step "btagent"                build/btagent/btagent           tools/build-btagent.sh
 step "BlueZ + bluez-alsa"     build/bluez/bluetoothd          tools/build-bluez.sh
 step "avahi-Shim"             build/shim/avahi-user-shim.so   tools/build-shim.sh
-step "invoked (Web, Wecker, ...)" build/invoked/invoked        tools/build-invoked.sh
+step "leuchtfeuerd (Web, Wecker, ...)" build/leuchtfeuerd/leuchtfeuerd        tools/build-leuchtfeuerd.sh
 step "shairport-sync (AirPlay)" build/shairport/shairport-sync tools/build-shairport.sh
 step "snapclient (Snapcast)"   build/snapclient/snapclient     tools/build-snapclient.sh
-step "Tonkette (LADSPA: Abgriff, Klang)" build/viztap/invoke-eq.so tools/build-viztap.sh
+step "Tonkette (LADSPA: Abgriff, Klang)" build/viztap/leuchtfeuer-eq.so tools/build-viztap.sh
 if [ $tidal = 1 ]; then
   step "Tidal-Connect-Bündel" build/tidal/bin/tidal_connect_application tools/build-tidal-bundle.sh
 fi

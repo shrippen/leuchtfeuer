@@ -11,10 +11,10 @@ KEY=""
 [ "${1:-}" = --key ] && KEY=${2:?}
 ver=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
 stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT
-scripts/assemble.sh "$stage/invoke"
+scripts/assemble.sh "$stage/data"
 mkdir -p dist
 pkg=dist/leuchtfeuer-$ver-invoke.tar.gz
-tar -C "$stage/invoke" --owner=0 --group=0 --sort=name -czf "$pkg" .
+tar -C "$stage/data" --owner=0 --group=0 --sort=name -czf "$pkg" .
 (cd dist && sha256sum "$(basename "$pkg")" > "$(basename "$pkg").sha256")
 if [ -z "$KEY" ] && [ -n "${LEUCHTFEUER_SIGNING_KEY:-}" ]; then
   KEY=$stage/key; printf '%s\n' "$LEUCHTFEUER_SIGNING_KEY" > "$KEY"; chmod 600 "$KEY"

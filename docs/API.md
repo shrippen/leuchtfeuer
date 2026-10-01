@@ -1,6 +1,6 @@
 # Leuchtfeuer web API
 
-The web interface of a speaker (`invoked`, port 80, or 443 with `WEB_TLS="on"`) is a JSON API. Everything the
+The web interface of a speaker (`leuchtfeuerd`, port 80, or 443 with `WEB_TLS="on"`) is a JSON API. Everything the
 interface can do, scripts, Home Assistant (`custom_components/leuchtfeuer`, see [HOMEASSISTANT.md](HOMEASSISTANT.md)), other Leuchtfeuer speakers
 and Prometheus can do through it as well.
 
@@ -8,11 +8,11 @@ and Prometheus can do through it as well.
 
 | Way | How | Allowed |
 |---|---|---|
-| Session | `POST /api/login {"password": "..."}` sets the cookie `invoke_session` (HttpOnly, SameSite=Strict, 30 days) | everything |
+| Session | `POST /api/login {"password": "..."}` sets the cookie `leuchtfeuer_session` (HttpOnly, SameSite=Strict, 30 days) | everything |
 | API key | header `Authorization: Bearer lf_<64 hex>`; create one in the web interface under **System > Access** | `/api/*` and `/metrics`, except access management |
 | API key, scope `read` | as above | only `GET`/`HEAD` (status, settings, events, logs, metrics) |
 
-- Keys are shown once when they are created. The speaker stores only their SHA-256 (`/data/invoke/tokens.json`).
+- Keys are shown once when they are created. The speaker stores only their SHA-256 (`/data/leuchtfeuer/tokens.json`).
 - Access management needs a session and never works with a key. This covers API keys (`/api/tokens*`), SSH keys
   (`/api/ssh-keys*`), other speakers (`/api/peers*`), the device section with the web password
   (`PUT /api/settings/device`), backup and restore.
@@ -96,7 +96,7 @@ The metrics, all prefixed `leuchtfeuer_`:
 - `service_enabled|up|failures{service}`
 - `service_restarts_total{service}`
 - `source_playing{source}`
-- `audio_underruns_total{service}`: lines with "underrun"/"xrun" in the logs since invoked started
+- `audio_underruns_total{service}`: lines with "underrun"/"xrun" in the logs since leuchtfeuerd started
 - `log_lines_total{service}`
 - `next_alarm_timestamp_seconds`
 - `sleep_timer_seconds`

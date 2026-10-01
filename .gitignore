@@ -17,6 +17,6 @@ NOTES.md
 tools/yaffs2_extract.py
 build-demo/
 dist/
-src/invoked/invoked
+src/leuchtfeuerd/leuchtfeuerd
 __pycache__/
 .pytest_cache/

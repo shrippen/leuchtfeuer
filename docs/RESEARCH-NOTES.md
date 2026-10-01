@@ -1,5 +1,7 @@
 # Leuchtfeuer – Forschungsnotizen
 
+> Seit Oktober 2026 heißen Verzeichnis, Programme und Bezeichner generisch „leuchtfeuer“ (`/data/leuchtfeuer`, `leuchtfeuerd`, ALSA `leuchtfeuer_*`, `/run/leuchtfeuer-*`); die Notizen unten sind darauf angepasst. Ältere Installationen hatten `/data/invoke`, `invoked` und `invoke_*`.
+
 > Arbeitsnotizen aus der Entstehung des Projekts (deutsch), bereinigt um gerätespezifische und persönliche
 > Angaben (Kennungen, Adressen, Schlüssel). Sie halten fest, *wie* die Erkenntnisse zustande kamen.
 > Der **aktuelle Stand** und die Anleitung stehen in der [README](../README.de.md) und [INSTALL.de.md](INSTALL.de.md);
@@ -181,17 +183,17 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
 - Das mitgelieferte dropbear 2016.72 kann kein ed25519 -> eigenes statisches dropbear
   2026.94 (armv7 musl, Passwort-Login einkompiliert aus): `tools/build-dropbear.sh`
   (Toolchain `tools/docker/armv7-musl.Dockerfile`), Ergebnis `build/dropbear/dropbearmulti`.
-- Auf dem Gerät `/data/invoke/` (= /lsync/data1/invoke): `dropbearmulti`, `host_ed25519`,
-  `host_ecdsa` (eigene Host-Schlüssel), `authorized_keys` (öffentlicher Schlüssel des Nutzers), `boot.sh`, `hook.sh` (Quelle: `device/invoke/`), `disable-adb`,
+- Auf dem Gerät `/data/leuchtfeuer/` (= /lsync/data1/leuchtfeuer; bis Oktober 2026 hieß das Verzeichnis `invoke`): `dropbearmulti`, `host_ed25519`,
+  `host_ecdsa` (eigene Host-Schlüssel), `authorized_keys` (öffentlicher Schlüssel des Nutzers), `boot.sh`, `hook.sh` (Quelle: `device/leuchtfeuer/`), `disable-adb`,
   `hook.log`, `dnsmasq.conf.orig`.
-- Autostart: `/data/dnsmasq.conf` hat am Ende `dhcp-script=/data/invoke/boot.sh`,
+- Autostart: `/data/dnsmasq.conf` hat am Ende `dhcp-script=/data/leuchtfeuer/boot.sh`,
   `leasefile-ro`, `dhcp-range=10.254.254.10,10.254.254.20,1h` (in keinem Netz) -> dnsmasq
   ruft beim Start (sobald wlan0 oben ist) `boot.sh init` auf -> `hook.sh` (Schleife 30 s):
   tmpfs über /home/root + authorized_keys, `stop sshd` + eigenes dropbear auf 22,
-  `stop adbd`, iptables-Kette INVOKE (22, mDNS, DHCP-Antworten, ICMP, bestehende; auf p2p0
-  zusätzlich Setup-Ports; weitere aus `/data/invoke/ports.local`), IPv6 aus (kein ip6tables).
+  `stop adbd`, iptables-Kette LEUCHTFEUER (22, mDNS, DHCP-Antworten, ICMP, bestehende; auf p2p0
+  zusätzlich Setup-Ports; weitere aus `/data/leuchtfeuer/ports.local`), IPv6 aus (kein ip6tables).
   Startet das eigene dropbear nicht, gehen Original-sshd und adbd wieder an.
-  Notbremse: `/data/invoke/disable-hook`.
+  Notbremse: `/data/leuchtfeuer/disable-hook`.
 - dropbear prüft die Rechte aller Elternverzeichnisse von authorized_keys (/data ist 777,
   /run 1777) -> deshalb tmpfs mit Modus 700 über /home/root.
 - Geprüft nach echtem Neustart (`/bin/reboot` = toolbox; busybox `/sbin/reboot` tut nichts):
@@ -202,7 +204,7 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
 - Name **invoke.lan** (frei wählbar, `DHCP_HOSTNAME`): Das Libre-dhcpcd sendet `-h LibreSync-279012855` (Name aus dem Libre-NV,
   `getFromNVDeviceName`), der Router trägt das nicht ein. `hook.sh` schickt deshalb nach dem
   Start und alle 6 h `busybox udhcpc -r <ip> -x hostname:invoke -s /bin/true` (Name aus
-  `/data/invoke/hostname`) -> Router trägt `invoke.lan` ein. Nach Neustart geprüft.
+  `/data/leuchtfeuer/hostname`) -> Router trägt `invoke.lan` ein. Nach Neustart geprüft.
   Nicht funktioniert: `dhcpcd -n` (hängt), eigener dhcpcd-Neustart (bekommt kein Lease),
   eigener mDNS-Responder für invoke.local (Router leitet mDNS nur per Proxy weiter; verworfen).
   Verbindungen aus dem LAN kommen am Invoke mit der Router-Adresse als Quelle an (Router-NAT zwischen
@@ -212,14 +214,14 @@ Am 2026-09-30 erfolgreich benutzt (siehe unten).
 
 ## Musikdienste (2026-09-30)
 
-Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/services/`), von
-`hook.sh` gestartet und bei Absturz neu gestartet, Logs `/data/invoke/log/`. Programme in
-`/data/invoke/bin/`. Freigegebene Ports in `/data/invoke/ports.local`. Name überall „HK Invoke“.
+Alle als Dienste unter `/data/leuchtfeuer/services/*.sh` (Quelle `device/leuchtfeuer/services/`), von
+`hook.sh` gestartet und bei Absturz neu gestartet, Logs `/data/leuchtfeuer/log/`. Programme in
+`/data/leuchtfeuer/bin/`. Freigegebene Ports in `/data/leuchtfeuer/ports.local`. Name überall „HK Invoke“.
 
 - **Audio-Weg:** ALSA-PCM `music` = softvol „music“ (Karte 0) -> dmix `volmix_music` -> `dsp`
   (Karte 1 wm8904, 48 kHz S32_LE). dmix teilt sich das Gerät mit den Harman-Diensten.
   Standardgerät `default` zeigt ins Loopback (stumm) -> für miniaudio-Programme
-  `ALSA_CONFIG=/data/invoke/asound-music.conf` (bindet asound-product.conf ein, default=music).
+  `ALSA_CONFIG=/data/leuchtfeuer/asound-music.conf` (bindet asound-product.conf ein, default=music).
 - **Spotify Connect:** librespot 0.8.0 statisch (armv7 musl, rustls, libmdns),
   `tools/build-librespot.sh` (`tools/docker/rust-armv7.Dockerfile`). Ausgabe über
   subprocess-Backend an `aplay -D music` (Geräte-alsa-lib, kein zweites dmix-Layout).
@@ -233,11 +235,11 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
 - **Sendspin:** sendspin-go v1.8.2 Player (Go + cgo, glibc 2.23, libopus 1.5.2 statisch,
   miniaudio lädt libasound des Geräts), `tools/build-sendspin.sh`. Der Player verbindet sich
   selbst (ws://…:8927/sendspin); mDNS-Suche geht über den Router nicht -> fest
-  `--server <music-assistant>:8927` (Music Assistant 2.10, `SENDSPIN_SERVER` in `/data/invoke/config`).
+  `--server <music-assistant>:8927` (Music Assistant 2.10, `SENDSPIN_SERVER` in `/data/leuchtfeuer/config`).
   Verbunden, client_id = WLAN-MAC. Angebot auf 48 kHz/24 bit begrenzt.
 - **Tidal Connect** (auf ausdrücklichen Wunsch des Nutzers; iFi-Binary 1.1.3 mit
   iFi-Zertifikat `IfiAudio_ZenStream.dat`, nicht für das Gerät lizenziert, kann gesperrt
-  werden): `tools/build-tidal-bundle.sh` -> `/data/invoke/tidal/` (~11 MB). Läuft mit der
+  werden): `tools/build-tidal-bundle.sh` -> `/data/leuchtfeuer/tidal/` (~11 MB). Läuft mit der
   glibc 2.23 des Geräts (braucht nur ≥ 2.9); mitgeliefert: FFmpeg 3.4 minimal
   (`tools/build-ffmpeg34.sh`, Sonamen 57/57/55/2, alle 35 benötigten Symbole vorhanden),
   libstdc++ 6.0.22 (GLIBCXX_3.4.22), portaudio/FLAC++/avahi aus stretch, libssl 1.0.1t +
@@ -249,7 +251,7 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
   Router den DHCP-Namen selbst per mDNS). Auf dem Gerät per avahi-browse geprüft:
   `_tidalconnect._tcp` „HK Invoke“ und `_spotify-connect._tcp` „HK Invoke“ sichtbar
   (vom kabelgebundenen Rechner aus nicht – der Router reicht mDNS nicht von WLAN nach LAN).
-- **Harman-Dienste gekürzt:** `hook.sh` legt beim Start `/data/invoke/podium.conf` per
+- **Harman-Dienste gekürzt:** `hook.sh` legt beim Start `/data/leuchtfeuer/podium.conf` per
   Bind-Mount über `/etc/podium/podium.conf` und startet den init-Dienst `podium`
   (system-manager) neu. Entfernt: cortana-harness, spotify, ota_rbua_install.sh,
   crash-uploader-HK.sh. Weiter aktiv: mcu-interface, dsp-client, audio-ui,
@@ -270,10 +272,10 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
 - Ring: 13 LEDs, Muster-Dateien `/usr/share/lights/*.bin` mit je 39 Byte pro Bild (13 × 3 Byte, R,G,B; die Muster nutzen nur 12 LEDs, Cortana-Blau = 27,80,180), ~37-42 ms pro Bild.
   `com.harman.ledAnimate [Name] {repeat}` spielt ein Muster; `ledSet ["front"] {color, mode}` nur die Front-LED.
 - Tonabgriff: ALSA-`multi` (dmix + `hw:Loopback,0,7`) liefert die Daten (Loopback-Aufnahme zeigt den Testton), aber GStreamer
-  (`alsasink` auf `invoke_music`, also gmrender) scheitert dann in `snd_pcm_hw_params_get_min` (leeres Intervall), auch mit festen
+  (`alsasink` auf `leuchtfeuer_music`, also gmrender) scheitert dann in `snd_pcm_hw_params_get_min` (leeres Intervall), auch mit festen
   Parametern („Invalid argument“). Das `meter`-Plugin ist für GStreamer transparent, bekommt aber in den Ketten plug/softvol/dmix
   keine Nutzdaten (s16-Puffer bleibt Null, hinten wie vorn). FIFO-Tee oder dmix-Speicher wären riskant für den Hauptton.
-- **Lösung (umgesetzt):** eigenes LADSPA-Plugin als Durchreiche mit Kopie nach `/dev/shm/invoke-viz`; vor ihm wandelt `plug` auf
+- **Lösung (umgesetzt):** eigenes LADSPA-Plugin als Durchreiche mit Kopie nach `/dev/shm/leuchtfeuer-viz`; vor ihm wandelt `plug` auf
   48 kHz Float (sonst leeres Intervall für die Periodendauer 5333,33 µs von dmix, Tidal/PortAudio bricht ab).
 - Ring direkt: I²C-Mitschnitt von mcu-interface per LD_PRELOAD-Shim (Hook auf `ioctl(I2C_RDWR)`): MCU an Adresse `0x36`,
   Muster als `0e 01` + Bilder (ein Bild = statische Anzeige), Herzschlag `24 …` alle 5 s, Front-LED `09 01 …`. `ledAnimate`
@@ -284,7 +286,7 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
 ## Multiroom: Snapcast umgesetzt, AirPlay 2 geprüft (2026-10-01)
 
 **Snapcast** ist eingebaut (`services/snapclient.sh`, `tools/build-snapclient.sh`): snapclient 0.31 statisch (musl), ohne
-ALSA-Ausgabe; der Datei-Player schreibt in eine Pipe, das `aplay` des Geräts spielt über `invoke_snapcast`. So bleibt die
+ALSA-Ausgabe; der Datei-Player schreibt in eine Pipe, das `aplay` des Geräts spielt über `leuchtfeuer_snapcast`. So bleibt die
 Tonkette dieselbe wie bei den anderen Diensten (Quellen-Regler, Klang, Visualizer). Die Verzögerung von `aplay` gleicht
 die Latenz-Einstellung des Clients in snapweb aus (Startwert 100 ms, am Gerät nachmessen). Ohne avahi keine
 automatische Suche: `SNAPCAST_SERVER`.
@@ -312,6 +314,6 @@ Bis dahin: Multiroom über Snapcast oder Music Assistant (Sendspin), AirPlay 1 f
   lauter Musik wird das Aktivierungswort schlechter erkannt (Absenken hilft erst nach der Erkennung).
 - **Watchdog:** ob `/dev/watchdog` existiert und ob ein Hersteller-Dienst (z. B. `device_auto_recovery.sh`) ihn schon hält,
   zeigt `smoke.sh`. Erst danach `WATCHDOG="on"`.
-- **mDNS:** invoked meldet `_leuchtfeuer._tcp` (und `_wyoming._tcp`) mit eigener Antwort auf Port 5353 wie castrecv; ob
-  librespot (libmdns), castrecv, avahi (Tidal) und invoked sich dort vertragen, am Gerät mit `avahi-browse -a` prüfen.
+- **mDNS:** leuchtfeuerd meldet `_leuchtfeuer._tcp` (und `_wyoming._tcp`) mit eigener Antwort auf Port 5353 wie castrecv; ob
+  librespot (libmdns), castrecv, avahi (Tidal) und leuchtfeuerd sich dort vertragen, am Gerät mit `avahi-browse -a` prüfen.
 - **Überblenden:** amixer-Aufrufe je Schritt kosten auf dem BG2CD vermutlich 10-20 ms; bei Knacken `rampSteps` senken.

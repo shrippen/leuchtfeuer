@@ -7,12 +7,12 @@ import (
 	"leuchtfeuer/wamp"
 )
 
-// Anbindung an den Router des Invoke (audio-ui, invoked):
+// Anbindung an den Router des Invoke (audio-ui, leuchtfeuerd):
 //   - Lautstärke und Stumm laufen über audio-ui (com.harman.volumeAdjust / musicMuteSet) statt direkt über den
 //     ALSA-Regler. So bleiben Drehrad, LEDs, Bluetooth und Weboberfläche gleich, und eine Drehung am Rad
 //     erscheint sofort im Lautstärkeregler des Senders (RECEIVER_STATUS).
-//   - Zustand und Titel gehen als "invoke.source.state" ["cast", {...}] an invoked ("Läuft gerade", Home Assistant).
-//   - "invoke.source.claim" [Quelle]: eine andere Quelle beginnt zu spielen, Cast hält an (Quellen-Regel "last").
+//   - Zustand und Titel gehen als "leuchtfeuer.source.state" ["cast", {...}] an leuchtfeuerd ("Läuft gerade", Home Assistant).
+//   - "leuchtfeuer.source.claim" [Quelle]: eine andere Quelle beginnt zu spielen, Cast hält an (Quellen-Regel "last").
 
 type uiLink struct {
 	h     *wamp.Hub
@@ -47,7 +47,7 @@ func (u *uiLink) start() {
 			}
 		}
 	})
-	u.h.Subscribe("invoke.source.claim", func(a []any) {
+	u.h.Subscribe("leuchtfeuer.source.claim", func(a []any) {
 		if len(a) >= 1 {
 			if src, _ := a[0].(string); src != "" && src != "cast" {
 				pl.pause()
@@ -95,7 +95,7 @@ func (u *uiLink) setMute(m bool) {
 	}
 }
 
-// reportState meldet Zustand und Titel an invoked (nur bei Änderung).
+// reportState meldet Zustand und Titel an leuchtfeuerd (nur bei Änderung).
 func (u *uiLink) reportState() {
 	st := pl.report()
 	key := st["state"].(string) + "|" + st["title"].(string) + "|" + st["artist"].(string)
@@ -104,6 +104,6 @@ func (u *uiLink) reportState() {
 	u.last = key
 	u.mu.Unlock()
 	if !same {
-		u.h.Publish("invoke.source.state", "cast", st)
+		u.h.Publish("leuchtfeuer.source.state", "cast", st)
 	}
 }

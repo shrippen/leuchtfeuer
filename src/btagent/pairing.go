@@ -60,7 +60,7 @@ func pairedSet() map[string]bool {
 	return set
 }
 
-// writeState schreibt den Zustand nach /run/invoke-bt-state.json (liest invoked für Weboberfläche und Home Assistant).
+// writeState schreibt den Zustand nach /run/leuchtfeuer-bt-state.json (liest leuchtfeuerd für Weboberfläche und Home Assistant).
 func (p *pairingWindow) writeState() {
 	p.mu.Lock()
 	open := p.always || p.open
@@ -70,9 +70,9 @@ func (p *pairingWindow) writeState() {
 	}
 	p.mu.Unlock()
 	b, _ := json.Marshal(map[string]any{"open": open, "until": until})
-	tmp := "/run/invoke-bt-state.json.new"
+	tmp := "/run/leuchtfeuer-bt-state.json.new"
 	if os.WriteFile(tmp, b, 0o644) == nil {
-		os.Rename(tmp, "/run/invoke-bt-state.json")
+		os.Rename(tmp, "/run/leuchtfeuer-bt-state.json")
 	}
 }
 

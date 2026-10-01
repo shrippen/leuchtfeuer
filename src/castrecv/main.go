@@ -40,7 +40,7 @@ const (
 
 var (
 	name    = flag.String("name", "HK Invoke", "Anzeigename")
-	sink    = flag.String("device", "invoke_music", "ALSA-Gerät")
+	sink    = flag.String("device", "leuchtfeuer_music", "ALSA-Gerät")
 	iface   = flag.String("iface", "wlan0", "Netzwerkschnittstelle für mDNS (leer = alle)")
 	port    = flag.Int("port", 8009, "Cast-Port (TLS)")
 	mixer   = flag.String("mixer", "system", "ALSA-Regler für die Lautstärke (Drehrad)")

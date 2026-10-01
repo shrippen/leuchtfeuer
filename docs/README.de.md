@@ -65,7 +65,7 @@ Der Invoke läuft mit Linux 3.8 (Yocto + Android-Teile) auf einem Marvell BG2CD.
    den ersten Zugang. Es wird mit dem Hersteller-Werkzeug über den Service-USB-Port geflasht, **ohne die
    gerätespezifische Partition `factory_setting` zu löschen**.
 2. `dnsmasq` (läuft beim Start als root) dient über ein paar Zeilen in `/data/dnsmasq.conf` als **Autostart-Haken**
-   und startet `/data/invoke/hook.sh`, einen kleinen Überwacher: SSH und Firewall einrichten, Harman-Dienste
+   und startet `/data/leuchtfeuer/hook.sh`, einen kleinen Überwacher: SSH und Firewall einrichten, Harman-Dienste
    kürzen, die Audiodienste am Laufen halten.
 3. Alle Programme werden mit Docker und Go für das Gerät gebaut (glibc 2.23 / musl, ARMv7), siehe `build.sh`.
 
@@ -93,7 +93,7 @@ Die vollständige Schritt-für-Schritt-Anleitung samt Hardware-Teil steht in **[
 
 ## Konfiguration
 
-`/data/invoke/config` auf dem Lautsprecher (Vorlage: `device/invoke/config.example`): Gerätename, Adresse des
+`/data/leuchtfeuer/config` auf dem Lautsprecher (Vorlage: `device/leuchtfeuer/config.example`): Gerätename, Adresse des
 Music-Assistant-Servers für Sendspin, DHCP-Hostname, welche Dienste laufen (`SERVICE_<NAME>="on|off"`, auch in der
 Weboberfläche), Snapcast-Server, NTP-Server, HTTPS für die Weboberfläche und der öffentliche Schlüssel für signierte
 Updates. Ein erneutes `./install.sh` aktualisiert den Lautsprecher und
@@ -101,9 +101,9 @@ lässt diese Datei unverändert, außer man gibt `--config` an.
 
 ## Notbremse / Deinstallieren
 
-- `ssh root@<ip> 'touch /data/invoke/disable-hook'` und neu starten: Originalverhalten (dann gilt wieder der gesperrte
+- `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'` und neu starten: Originalverhalten (dann gilt wieder der gesperrte
   Hersteller-sshd, und adb ist an).
-- `./uninstall.sh --ip <ip> --key <pub>` entfernt den Autostart-Haken (`--purge` löscht auch `/data/invoke`).
+- `./uninstall.sh --ip <ip> --key <pub>` entfernt den Autostart-Haken (`--purge` löscht auch `/data/leuchtfeuer`).
 
 ## Rechtliches und Risiken
 

@@ -39,9 +39,9 @@ apost(){ api -X POST -d "$2" "$WEB$1" >/dev/null; }
 section "Access" "Zugang"
 S true 2>/dev/null || { bad "SSH with key does not work" "SSH mit Schlüssel geht nicht"; echo; info "Report: $REPORT" "Bericht: $REPORT"; exit 1; }
 pass "SSH with key" "SSH mit Schlüssel"
-if S 'p=$(cat /run/invoke-hook.pid 2>/dev/null); [ -n "$p" ] && kill -0 $p'; then pass "hook is running" "Hook läuft"; else bad "hook is not running" "Hook läuft nicht"; fi
+if S 'p=$(cat /run/leuchtfeuer-hook.pid 2>/dev/null); [ -n "$p" ] && kill -0 $p'; then pass "hook is running" "Hook läuft"; else bad "hook is not running" "Hook läuft nicht"; fi
 if S 'ps | grep -q "[a]dbd"'; then bad "adbd is running" "adbd läuft"; else pass "adbd is off" "adbd aus"; fi
-if S 'iptables -S INVOKE | tail -n 1 | grep -q -- "-j DROP"'; then pass "firewall ends with DROP" "Firewall endet mit DROP"; else bad "firewall chain INVOKE incomplete" "Firewall-Kette INVOKE unvollständig"; fi
+if S 'iptables -S LEUCHTFEUER | tail -n 1 | grep -q -- "-j DROP"'; then pass "firewall ends with DROP" "Firewall endet mit DROP"; else bad "firewall chain LEUCHTFEUER incomplete" "Firewall-Kette LEUCHTFEUER unvollständig"; fi
 if [ -n "$TOKEN" ]; then
   if api "$WEB/api/status" >/dev/null; then pass "web API with key" "Web-API mit Schlüssel"; else bad "web API with key fails" "Web-API mit Schlüssel geht nicht"; TOKEN=""; fi
   if [ -n "$TOKEN" ] && api "$WEB/metrics" | grep -q '^leuchtfeuer_info'; then pass "/metrics" "/metrics"; else [ -n "$TOKEN" ] && bad "/metrics without values" "/metrics ohne Werte"; fi
@@ -54,46 +54,46 @@ else
 fi
 
 section "Services" "Dienste"
-st=$(S 'for f in /run/invoke-svc-*.state; do [ -f "$f" ] || continue; n=${f#/run/invoke-svc-}; n=${n%.state}
-  m=$(cat /run/invoke-svc-$n.mode 2>/dev/null); p=$(cat /run/invoke-svc-$n.pid 2>/dev/null); r=0; [ -n "$p" ] && kill -0 $p 2>/dev/null && r=1
+st=$(S 'for f in /run/leuchtfeuer-svc-*.state; do [ -f "$f" ] || continue; n=${f#/run/leuchtfeuer-svc-}; n=${n%.state}
+  m=$(cat /run/leuchtfeuer-svc-$n.mode 2>/dev/null); p=$(cat /run/leuchtfeuer-svc-$n.pid 2>/dev/null); r=0; [ -n "$p" ] && kill -0 $p 2>/dev/null && r=1
   echo "$n ${m:-on} $r $(cat $f)"; done' 2>/dev/null)
 while read -r n mode run fails _next _started restarts; do
   [ -n "$n" ] || continue
   if [ "$mode" = off ]; then rep "- --: $n $(t off aus)"; continue; fi
   if [ "$run" = 1 ] && [ "${fails:-0}" -lt 2 ]; then pass "$n running (restarts: ${restarts:-0})" "$n läuft (Neustarts: ${restarts:-0})"
   elif [ "$run" = 1 ]; then soft "$n running, but failed $fails times before" "$n läuft, fiel aber vorher $fails-mal aus"
-  else bad "$n not running (failures: ${fails:-?})" "$n läuft nicht (Ausfälle: ${fails:-?})"; detail "$(S "tail -n 30 /data/invoke/log/$n.log" 2>/dev/null)"; fi
+  else bad "$n not running (failures: ${fails:-?})" "$n läuft nicht (Ausfälle: ${fails:-?})"; detail "$(S "tail -n 30 /data/leuchtfeuer/log/$n.log" 2>/dev/null)"; fi
 done <<< "$st"
-v=$(S '/data/invoke/bin/snapclient --version 2>&1 | head -n 1')
+v=$(S '/data/leuchtfeuer/bin/snapclient --version 2>&1 | head -n 1')
 [ -n "$v" ] && pass "snapclient starts ($v)" "snapclient startet ($v)" || soft "snapclient does not start (old kernel? PIE?)" "snapclient startet nicht (alter Kernel? PIE?)"
 
 section "Sound chain" "Tonkette"
-A='export ALSA_CONFIG=/data/invoke/asound-music.conf;'
+A='export ALSA_CONFIG=/data/leuchtfeuer/asound-music.conf;'
 for p in music announce radio spotify upnp cast airplay bluetooth sendspin tidal snapcast; do
-  if S "$A aplay -q -D invoke_$p -d 1 -f S16_LE -r 44100 -c 2 /dev/zero" 2>/dev/null; then pass "PCM invoke_$p opens (44.1 kHz)" "PCM invoke_$p öffnet (44,1 kHz)"
-  else bad "PCM invoke_$p does not open" "PCM invoke_$p öffnet nicht"; detail "$(S "$A aplay -D invoke_$p -d 1 -f S16_LE -r 44100 -c 2 /dev/zero 2>&1")"; fi
+  if S "$A aplay -q -D leuchtfeuer_$p -d 1 -f S16_LE -r 44100 -c 2 /dev/zero" 2>/dev/null; then pass "PCM leuchtfeuer_$p opens (44.1 kHz)" "PCM leuchtfeuer_$p öffnet (44,1 kHz)"
+  else bad "PCM leuchtfeuer_$p does not open" "PCM leuchtfeuer_$p öffnet nicht"; detail "$(S "$A aplay -D leuchtfeuer_$p -d 1 -f S16_LE -r 44100 -c 2 /dev/zero 2>&1")"; fi
 done
 ctl=$(S 'amixer -c 0 scontrols' 2>/dev/null)
-for c in "Invoke Music" "Invoke Announce" "Quelle spotify" "Quelle radio" "Quelle bluetooth"; do
+for c in "Leuchtfeuer Music" "Leuchtfeuer Announce" "Quelle spotify" "Quelle radio" "Quelle bluetooth"; do
   echo "$ctl" | grep -q "'$c'" && pass "control \"$c\"" "Regler \"$c\"" || bad "control \"$c\" missing" "Regler \"$c\" fehlt"
 done
-m=$(S 'head -c 4 /dev/shm/invoke-eq 2>/dev/null')
-[ "$m" = IEQ2 ] && pass "sound settings (IEQ2) for the plugin" "Klang-Einstellungen (IEQ2) für das Plugin" || bad "/dev/shm/invoke-eq missing or old ($m)" "/dev/shm/invoke-eq fehlt oder alt ($m)"
-S 'test -f /dev/shm/invoke-viz' && pass "visualizer tap active" "Visualizer-Abgriff aktiv" || soft "no visualizer tap yet (play something first)" "noch kein Visualizer-Abgriff (erst etwas abspielen)"
-# CPU-Last der Kette: 10 s Wiedergabe über invoke_music, Last vorher/nachher
+m=$(S 'head -c 4 /dev/shm/leuchtfeuer-eq 2>/dev/null')
+[ "$m" = IEQ2 ] && pass "sound settings (IEQ2) for the plugin" "Klang-Einstellungen (IEQ2) für das Plugin" || bad "/dev/shm/leuchtfeuer-eq missing or old ($m)" "/dev/shm/leuchtfeuer-eq fehlt oder alt ($m)"
+S 'test -f /dev/shm/leuchtfeuer-viz' && pass "visualizer tap active" "Visualizer-Abgriff aktiv" || soft "no visualizer tap yet (play something first)" "noch kein Visualizer-Abgriff (erst etwas abspielen)"
+# CPU-Last der Kette: 10 s Wiedergabe über leuchtfeuer_music, Last vorher/nachher
 l0=$(S 'cut -d" " -f1 /proc/loadavg')
-cpu=$(S "$A (aplay -q -D invoke_music -d 10 -f S16_LE -r 44100 -c 2 /dev/urandom >/dev/null 2>&1 &) ; sleep 5; top -b -n 1 2>/dev/null | grep -m1 '[a]play' || ps | grep -m1 '[a]play'")
-rep "- $(t 'aplay on invoke_music (resampling, EQ, viz):' 'aplay über invoke_music (Wandlung, Klang, Visualizer):') \`${cpu:-?}\` (load ${l0})"
+cpu=$(S "$A (aplay -q -D leuchtfeuer_music -d 10 -f S16_LE -r 44100 -c 2 /dev/urandom >/dev/null 2>&1 &) ; sleep 5; top -b -n 1 2>/dev/null | grep -m1 '[a]play' || ps | grep -m1 '[a]play'")
+rep "- $(t 'aplay on leuchtfeuer_music (resampling, EQ, viz):' 'aplay über leuchtfeuer_music (Wandlung, Klang, Visualizer):') \`${cpu:-?}\` (load ${l0})"
 info "  aplay: ${cpu:-?}"
 
 section "Clock and watchdog" "Uhr und Watchdog"
 if S 'busybox ntpd --help >/dev/null 2>&1'; then pass "busybox ntpd available" "busybox ntpd vorhanden"; else soft "no busybox ntpd: clock is not set (alarms depend on it)" "kein busybox ntpd: Uhr wird nicht gestellt (Wecker hängen daran)"; fi
-S 'test -f /run/invoke-ntp.ok' && pass "clock set by NTP since boot" "Uhr seit dem Start per NTP gestellt" || soft "clock not (yet) set by NTP" "Uhr (noch) nicht per NTP gestellt"
+S 'test -f /run/leuchtfeuer-ntp.ok' && pass "clock set by NTP since boot" "Uhr seit dem Start per NTP gestellt" || soft "clock not (yet) set by NTP" "Uhr (noch) nicht per NTP gestellt"
 dev=$(date -u +%s); spk=$(S 'date -u +%s'); d=$((spk - dev)); [ ${d#-} -le 3 ] && pass "clock deviation ${d} s (vs. this computer)" "Abweichung der Uhr ${d} s (zu diesem Rechner)" || soft "clock deviation ${d} s" "Abweichung der Uhr ${d} s"
 wd=$(S 'ls -l /dev/watchdog* 2>/dev/null; for p in /proc/[0-9]*; do ls -l $p/fd 2>/dev/null | grep -q watchdog && echo "offen von $(cat $p/comm 2>/dev/null) (pid ${p#/proc/})"; done')
 if echo "$wd" | grep -q /dev/watchdog; then
   pass "hardware watchdog present" "Hardware-Watchdog vorhanden"; detail "$wd"
-  if echo "$wd" | grep -q "offen von" && ! echo "$wd" | grep -q "offen von invoked"; then soft "watchdog is held by another process (WATCHDOG=on will not work)" "Watchdog ist von einem anderen Prozess belegt (WATCHDOG=on geht nicht)"; fi
+  if echo "$wd" | grep -q "offen von" && ! echo "$wd" | grep -q "offen von leuchtfeuerd"; then soft "watchdog is held by another process (WATCHDOG=on will not work)" "Watchdog ist von einem anderen Prozess belegt (WATCHDOG=on geht nicht)"; fi
 else soft "no /dev/watchdog: WATCHDOG=on has no effect" "kein /dev/watchdog: WATCHDOG=on wirkt nicht"; fi
 
 section "Microphones" "Mikrofone"

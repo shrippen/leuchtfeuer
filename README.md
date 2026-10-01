@@ -62,7 +62,7 @@ survives reboots, so nothing in the read-only system image is changed after the 
    first access. It is flashed over the service USB port with the vendor tool, **without erasing the
    device-specific `factory_setting` partition**.
 2. `dnsmasq` (which runs as root at boot) is used as an **autostart hook** by a few lines in
-   `/data/dnsmasq.conf`; it starts `/data/invoke/hook.sh`, a small supervisor that sets up SSH and the firewall,
+   `/data/dnsmasq.conf`; it starts `/data/leuchtfeuer/hook.sh`, a small supervisor that sets up SSH and the firewall,
    trims the Harman service list and keeps the audio services running.
 3. All programs are cross-built for the device (glibc 2.23 / musl, ARMv7) with Docker and Go, see `build.sh`.
 
@@ -90,16 +90,16 @@ The complete, step-by-step guide including the hardware part is in **[docs/INSTA
 
 ## Configuration
 
-`/data/invoke/config` on the speaker (template: `device/invoke/config.example`): device name, the address of
+`/data/leuchtfeuer/config` on the speaker (template: `device/leuchtfeuer/config.example`): device name, the address of
 your Music Assistant server for Sendspin, the DHCP host name, which services run (`SERVICE_<NAME>="on|off"`, also in the
 web interface), the Snapcast server, the NTP server, HTTPS for the web interface and the public key for signed updates. Re-running `./install.sh` updates the speaker and
 keeps this file unless you pass `--config`.
 
 ## Emergency brake / uninstall
 
-- `ssh root@<ip> 'touch /data/invoke/disable-hook'` and reboot: the original behaviour is back (then SSH is
+- `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'` and reboot: the original behaviour is back (then SSH is
   the vendor's locked sshd and adb is on again).
-- `./uninstall.sh --ip <ip> --key <pub>` removes the autostart hook (`--purge` also deletes `/data/invoke`).
+- `./uninstall.sh --ip <ip> --key <pub>` removes the autostart hook (`--purge` also deletes `/data/leuchtfeuer`).
 
 ## Legal and risks
 

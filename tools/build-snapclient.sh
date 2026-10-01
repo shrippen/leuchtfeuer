@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Baut snapclient (Snapcast-Client, Multiroom) statisch für den Invoke (armv7 musl), ohne ALSA: Ausgabe über den
-# Datei-Player auf stdout, das aplay des Geräts spielt sie über "invoke_snapcast" ab (services/snapclient.sh).
+# Datei-Player auf stdout, das aplay des Geräts spielt sie über "leuchtfeuer_snapcast" ab (services/snapclient.sh).
 # Codecs: FLAC (Standard von snapserver) und PCM; libFLAC, OpenSSL und alsa-lib statisch (snapcast verlangt
 # beide beim Bauen; abgespielt wird trotzdem über den Datei-Player), Boost nur als Header.
 #   tools/build-snapclient.sh [tag]   -> build/snapclient/snapclient

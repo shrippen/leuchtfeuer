@@ -1,5 +1,5 @@
-/* Prüft das Klang-Plugin auf dem Rechner: cc -O2 -o /tmp/eq_test tests/eq_test.c device/src/invoke-eq.c -lm && /tmp/eq_test
- * (tests/run.sh macht das). Schreibt Werte wie invoked in eine Datei und misst Pegel bei verschiedenen Frequenzen. */
+/* Prüft das Klang-Plugin auf dem Rechner: cc -O2 -o /tmp/eq_test tests/eq_test.c device/src/leuchtfeuer-eq.c -lm && /tmp/eq_test
+ * (tests/run.sh macht das). Schreibt Werte wie leuchtfeuerd in eine Datei und misst Pegel bei verschiedenen Frequenzen. */
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,7 +9,7 @@
 
 #include "../device/src/ladspa.h"
 
-static const char *path = "/tmp/invoke-eq-test";
+static const char *path = "/tmp/leuchtfeuer-eq-test";
 static uint32_t seq = 0;
 
 static float peq[6][3];
@@ -59,10 +59,10 @@ static double level(const LADSPA_Descriptor *d, LADSPA_Handle h, double hz, doub
 }
 
 int main(void) {
-    setenv("INVOKE_EQ_PATH", path, 1);
+    setenv("LEUCHTFEUER_EQ_PATH", path, 1);
     unlink(path);
     const LADSPA_Descriptor *d = ladspa_descriptor(0);
-    if (!d || strcmp(d->Label, "invoke_eq")) { puts("kein Deskriptor"); return 1; }
+    if (!d || strcmp(d->Label, "leuchtfeuer_eq")) { puts("kein Deskriptor"); return 1; }
     LADSPA_Handle h = d->instantiate(d, 48000);
     d->activate(h);
     expect("ohne Datei: unverändert 1 kHz", level(d, h, 1000, 0.5), 0, 0.05);

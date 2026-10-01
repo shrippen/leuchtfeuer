@@ -29,7 +29,7 @@ mount -t tmpfs tmpfs /tmp
 ifconfig lo up
 # ADB + ACM ueber den Service-USB
 echo 0d02 > /sys/class/android_usb/android0/idProduct
-echo "INVOKE BACKUP" > /sys/class/android_usb/android0/iProduct
+echo "LEUCHTFEUER BACKUP" > /sys/class/android_usb/android0/iProduct
 echo acm,adb > /sys/class/android_usb/android0/functions
 echo 1 > /sys/class/android_usb/android0/f_acm/instances
 echo 1 > /sys/class/android_usb/android0/enable

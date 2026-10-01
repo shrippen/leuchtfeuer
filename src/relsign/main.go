@@ -1,6 +1,6 @@
 // relsign: Schlüssel erzeugen, Release-Pakete signieren und prüfen (Ed25519).
-// Signiert wird die Zeichenkette "leuchtfeuer-release:" + SHA-256 (hex) des Pakets; das prüft invoked vor einem Update
-// aus der Weboberfläche (src/invoked/update.go) und install.sh --prebuilt.
+// Signiert wird die Zeichenkette "leuchtfeuer-release:" + SHA-256 (hex) des Pakets; das prüft leuchtfeuerd vor einem Update
+// aus der Weboberfläche (src/leuchtfeuerd/update.go) und install.sh --prebuilt.
 //
 //	relsign keygen <geheimer-schlüssel>          Schlüsselpaar erzeugen; gibt den öffentlichen Schlüssel (Base64) aus
 //	relsign pub <geheimer-schlüssel>             öffentlichen Schlüssel ausgeben

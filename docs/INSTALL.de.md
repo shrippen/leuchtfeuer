@@ -117,7 +117,7 @@ Der Installer ist **interaktiv**: Er erklärt jeden Schritt und fragt, was er br
 10. kopiert alle Dateien per SSH (nur geänderte), schließt adb, bietet einen Neustart an und führt zuletzt
     `scripts/verify-install.sh` aus.
 
-Die Meldungen sind je nach `$LANG` englisch oder deutsch (erzwingen mit `INVOKE_LANG=en|de`). Optionen überspringen
+Die Meldungen sind je nach `$LANG` englisch oder deutsch (erzwingen mit `LEUCHTFEUER_LANG=en|de`). Optionen überspringen
 Fragen: `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--dry-run`. **Nicht interaktiv** (Skripte):
 `./install.sh --non-interactive --ip <ip> --key <pub> [--config DATEI] [--no-tidal]`. Späteres erneutes Ausführen
 aktualisiert den Lautsprecher; nur geänderte Dateien werden übertragen, und deine Einstellungen auf dem Lautsprecher
@@ -141,11 +141,11 @@ Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
 | AirPlay | „HK Invoke“ erscheint im AirPlay-Menü von iPhone, iPad und Mac (AirPlay 1, nur Audio) |
 | Weboberfläche | `http://<ip-des-lautsprechers>/` (Port 80): Anmeldeseite, Passwort von `install.sh` gesetzt (oder bei der Erstinstallation ein zufälliges, das am Ende einmal angezeigt wird). Der Lautsprecher speichert nur einen gesalzenen PBKDF2-Hash. Änderbar in den Einstellungen oder später mit `scripts/set-web-password.sh` |
 | Tidal | „HK Invoke“ erscheint in der Tidal-Connect-Liste der Tidal-App |
-| Snapcast | anfangs aus. Einstellungen > Dienste > Snapcast an, und `SNAPCAST_SERVER="host"` in `/data/invoke/config`; der Lautsprecher meldet sich dann als Client bei deinem snapserver an (Multiroom, synchron mit den anderen Räumen). Der Server sollte 48000:16:2 senden (FLAC oder PCM); in snapweb für diesen Client etwa 100 ms Latenz einstellen |
+| Snapcast | anfangs aus. Einstellungen > Dienste > Snapcast an, und `SNAPCAST_SERVER="host"` in `/data/leuchtfeuer/config`; der Lautsprecher meldet sich dann als Client bei deinem snapserver an (Multiroom, synchron mit den anderen Räumen). Der Server sollte 48000:16:2 senden (FLAC oder PCM); in snapweb für diesen Client etwa 100 ms Latenz einstellen |
 
 Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast und Bluetooth bewegt dieselbe Lautstärke
-(UPnP behält zusätzlich seine eigene Software-Lautstärke). Logs liegen unter `/data/invoke/log/` auf dem Lautsprecher
-(`ssh root@<ip> 'tail -f /data/invoke/log/*.log'`).
+(UPnP behält zusätzlich seine eigene Software-Lautstärke). Logs liegen unter `/data/leuchtfeuer/log/` auf dem Lautsprecher
+(`ssh root@<ip> 'tail -f /data/leuchtfeuer/log/*.log'`).
 
 ### Weboberfläche, Wecker, Home Assistant
 
@@ -184,7 +184,7 @@ Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast
 - **Sichern und wiederherstellen** (Einstellungen): eine Datei mit Einstellungen, Kopplungen, Spotify-Anmeldung und
   SSH-Schlüsseln (enthält Geheimnisse); zurückgespielt ist alles wieder da, z. B. nach einem Zurücksetzen. Das
   *Diagnosepaket* (Status, Einstellungen ohne Geheimnisse, Protokolle) ist für Fehlerberichte.
-- **HTTPS:** `WEB_TLS="on"` in `/data/invoke/config` schaltet die Weboberfläche auf HTTPS mit eigenem Zertifikat (der Browser
+- **HTTPS:** `WEB_TLS="on"` in `/data/leuchtfeuer/config` schaltet die Weboberfläche auf HTTPS mit eigenem Zertifikat (der Browser
   warnt einmal); HTTP leitet dann um. Auch MQTT kann TLS nutzen (Reiter Home Assistant).
 - **Uhr:** Der Lautsprecher stellt seine Uhr nach dem Start und alle 6 h per NTP (`NTP_SERVER`); die Übersicht warnt, wenn
   sie mehr als 2 s falsch geht.
@@ -198,11 +198,11 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 ## 6. Wartung
 
 - **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (oder `./install.sh --prebuilt`). Bevor
-  neue Dateien an ihren Platz kommen, werden die alten nach `/data/invoke/.prev` gesichert; fällt danach binnen 10 Minuten
+  neue Dateien an ihren Platz kommen, werden die alten nach `/data/leuchtfeuer/.prev` gesichert; fällt danach binnen 10 Minuten
   ein Dienst wiederholt aus, kehrt der Lautsprecher von selbst zur vorigen Version zurück (Einstellungen > Update zeigt das
   und hat einen Knopf zum Zurücknehmen von Hand).
 - **Update aus der Weboberfläche:** Einstellungen > Update prüft die Release-Seite und installiert ein neueres Release. Dafür
-  braucht es den Signaturschlüssel der Releases in `/data/invoke/config` (`UPDATE_PUBKEY`, setzt `install.sh` aus
+  braucht es den Signaturschlüssel der Releases in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, setzt `install.sh` aus
   `docs/release-key.pub`): nur damit signierte Pakete werden angenommen. Ohne Internet am Lautsprecher dort Paket und `.sig`
   hochladen.
 - **Releases (Betreuer):** einmal einen Schlüssel erzeugen mit `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
@@ -220,16 +220,16 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
   - jedes Aufnahmegerät wird mit Pegel aufgenommen, um das Mikrofon für den Sprachassistenten zu finden
   - mit Schlüssel: API, Sicherheits-Header und Herkunftsprüfung
   - mit `--listen`: Gong, Radio, Absenken, Überblenden und Briefing, einzeln abgefragt
-- **Hardware-Watchdog:** `WATCHDOG="on"` in `/data/invoke/config` (nur wenn `smoke.sh` ein `/dev/watchdog` gefunden hat und
-  es nicht belegt ist). `invoked -watchdog` setzt eine Frist von 60 s und füttert ihn nur, solange der Hook lebt. Nach
-  3 Starts ohne 30 Minuten stabile Laufzeit bleibt er aus; wieder scharf schalten: `/data/invoke/watchdog-unstable`
+- **Hardware-Watchdog:** `WATCHDOG="on"` in `/data/leuchtfeuer/config` (nur wenn `smoke.sh` ein `/dev/watchdog` gefunden hat und
+  es nicht belegt ist). `leuchtfeuerd -watchdog` setzt eine Frist von 60 s und füttert ihn nur, solange der Hook lebt. Nach
+  3 Starts ohne 30 Minuten stabile Laufzeit bleibt er aus; wieder scharf schalten: `/data/leuchtfeuer/watchdog-unstable`
   löschen. Die Notbremse schließt ihn ordentlich.
 - **`mcu-interface` nicht beenden** (Hersteller-Dienst für Ring und Verstärker): Der Hersteller-Überwacher startet dann seinen
   Stapel im Wiederherstellungsmodus neu, `audio-ui` verliert die Verbindung zum Router und der Verstärker bleibt stumm.
   Ein Neustart des Lautsprechers behebt das.
-- **Notbremse:** `ssh root@<ip> 'touch /data/invoke/disable-hook'`, neu starten → Originalverhalten.
+- **Notbremse:** `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'`, neu starten → Originalverhalten.
 - **Deinstallieren:** `./uninstall.sh --ip <ip> --key <pub> [--purge]` (entfernt den Autostart-Haken, stellt
-  `dnsmasq.conf` wieder her, startet neu; `--purge` löscht auch `/data/invoke`).
+  `dnsmasq.conf` wieder her, startet neu; `--purge` löscht auch `/data/leuchtfeuer`).
 - **Werkszustand:** Die Hersteller-Firmware lässt sich mit dem Hersteller-Werkzeug erneut flashen (`l2nand -m 83` mit
   dem Hersteller-Abbild); eine beschädigte `factory_setting` aus der Sicherung wiederherstellen.
 
@@ -240,11 +240,11 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 | `adb shell id` zeigt nicht root | Kein StockRoot (Firmware 12.x hat adbd aus und Port 22 zu) – Teil 2 |
 | `install.sh` langsam oder Zeitüberschreitung | WLAN-Verbindung (Ping-Verlust); Lautsprecher näher stellen, erneut starten – unveränderte Dateien werden übersprungen |
 | SSH verweigert | `--key` muss der öffentliche Schlüssel zum privaten Schlüssel/Agenten sein; zu viele Agent-Schlüssel erschöpfen die 10 Versuche von dropbear → `-o IdentitiesOnly=yes` |
-| Dienst fehlt | `ssh root@<ip> 'ps; tail /data/invoke/log/<dienst>.log'`; der Haken startet tote Dienste alle 30 s neu |
-| Bluetooth nicht sichtbar | `scripts/verify-install.sh`; `/data/invoke/log/bluetooth-*.log`; `hciconfig hci0` muss `UP RUNNING PSCAN ISCAN` zeigen |
+| Dienst fehlt | `ssh root@<ip> 'ps; tail /data/leuchtfeuer/log/<dienst>.log'`; der Haken startet tote Dienste alle 30 s neu |
+| Bluetooth nicht sichtbar | `scripts/verify-install.sh`; `/data/leuchtfeuer/log/bluetooth-*.log`; `hciconfig hci0` muss `UP RUNNING PSCAN ISCAN` zeigen |
 | Music Assistant meldet „Legacy-Modus“ bei Sendspin | Erwartet: sendspin-go 1.8.x spricht den unverschlüsselten Dialekt; wird akzeptiert, solange „Allow legacy clients“ an ist |
-| Kein Ton, „audio-ui nicht erreichbar“ | `scripts/verify-install.sh` (Plugins, `audio-ui`, Quellen-Regler); meist hilft ein Neustart des Lautsprechers. Fehlt `/data/invoke/lib/ladspa/invoke-viz-tap.so` oder `invoke-eq.so`, erneut `install.sh` ausführen (die Tonkette braucht beide) |
+| Kein Ton, „audio-ui nicht erreichbar“ | `scripts/verify-install.sh` (Plugins, `audio-ui`, Quellen-Regler); meist hilft ein Neustart des Lautsprechers. Fehlt `/data/leuchtfeuer/lib/ladspa/leuchtfeuer-viz-tap.so` oder `leuchtfeuer-eq.so`, erneut `install.sh` ausführen (die Tonkette braucht beide) |
 | Eine Quelle ist stumm | Einstellungen > Quellen: steht sie auf *pausiert (andere Quelle)*? Sie kommt 5 s nach dem Ende der anderen zurück, oder *Alle spielen zusammen* wählen. `amixer -c 0 sget "Quelle spotify"` sollte 255 sein |
 | Ein Dienst fällt wiederholt aus | Die Übersicht zeigt es; Einstellungen > Dienste > Protokoll. Nach einem Update geht der Lautsprecher von selbst zurück; sonst den Dienst ausschalten |
-| Wecker zur falschen Zeit | Die Übersicht warnt, wenn die Uhr falsch geht; `NTP_SERVER` prüfen und ob der Lautsprecher ihn erreicht (`/data/invoke/hook.log`) |
+| Wecker zur falschen Zeit | Die Übersicht warnt, wenn die Uhr falsch geht; `NTP_SERVER` prüfen und ob der Lautsprecher ihn erreicht (`/data/leuchtfeuer/hook.log`) |
 | Tidal-Anmeldung scheitert | Das iFi-Zertifikat wurde evtl. gesperrt; hier nicht behebbar |

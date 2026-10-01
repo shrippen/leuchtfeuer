@@ -1,8 +1,8 @@
 'use strict';
-// Prüft die Auswertung der Raummessung (src/invoked/web/roomeq.js): node tests/roomeq_test.js
+// Prüft die Auswertung der Raummessung (src/leuchtfeuerd/web/roomeq.js): node tests/roomeq_test.js
 // Ein Raum mit zwei Moden (+9 dB bei 55 Hz, +6 dB bei 140 Hz) auf rosa Rauschen; der Vorschlag muss beide finden
 // und die Kurve danach im Bass auf höchstens 3 dB bringen, ohne etwas anzuheben.
-const R = require('../src/invoked/web/roomeq.js');
+const R = require('../src/leuchtfeuerd/web/roomeq.js');
 
 let fails = 0;
 const ok = (cond, msg) => { console.log((cond ? 'ok     ' : 'FEHLER ') + msg); if (!cond) fails++; };

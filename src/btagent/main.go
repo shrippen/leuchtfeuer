@@ -3,7 +3,7 @@
 //   - markiert gekoppelte Geräte als vertraut, damit sie sich selbst wieder verbinden dürfen,
 //   - hält den Adapter eingeschaltet, sichtbar und koppelbereit (nach Knopfdruck oder dauerhaft),
 //   - gleicht die Handy-Lautstärke mit dem Drehrad ab (volume.go),
-//   - meldet Titel und Wiedergabezustand des Handys an invoked und hält es auf Befehl an (media.go).
+//   - meldet Titel und Wiedergabezustand des Handys an leuchtfeuerd und hält es auf Befehl an (media.go).
 //
 // Läuft dauerhaft und holt alles nach, wenn bluetoothd neu startet.
 package main
@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	agentPath = dbus.ObjectPath("/invoke/agent")
+	agentPath = dbus.ObjectPath("/leuchtfeuer/agent")
 	bluez     = "org.bluez"
 )
 

@@ -67,23 +67,23 @@ func setupWamp() {
 			}
 		}
 	})
-	// Befehle von invoked (Weboberfläche, Home Assistant)
-	hub.Subscribe("invoke.bt.pairing", func(args []any) {
+	// Befehle von leuchtfeuerd (Weboberfläche, Home Assistant)
+	hub.Subscribe("leuchtfeuer.bt.pairing", func(args []any) {
 		if len(args) >= 1 {
 			if a, _ := args[0].(string); a != "" {
 				pw.Set(a, *window)
 			}
 		}
 	})
-	hub.Subscribe("invoke.bt.control", func(args []any) {
+	hub.Subscribe("leuchtfeuer.bt.control", func(args []any) {
 		if len(args) >= 1 {
 			if a, _ := args[0].(string); a != "" {
 				media.control(a)
 			}
 		}
 	})
-	// Eine andere Quelle beginnt zu spielen (invoked, Quellen-Regel "last"): Handy anhalten.
-	hub.Subscribe("invoke.source.claim", func(args []any) {
+	// Eine andere Quelle beginnt zu spielen (leuchtfeuerd, Quellen-Regel "last"): Handy anhalten.
+	hub.Subscribe("leuchtfeuer.source.claim", func(args []any) {
 		if len(args) >= 1 {
 			if src, _ := args[0].(string); src != "" && src != "bluetooth" {
 				media.control("pause")
@@ -104,7 +104,7 @@ func setupWamp() {
 	go hub.Run()
 }
 
-// onVolume: das Drehrad (oder invoked) hat die Lautstärke geändert.
+// onVolume: das Drehrad (oder leuchtfeuerd) hat die Lautstärke geändert.
 func (s *volState) onVolume(args []any) {
 	if len(args) < 2 {
 		return
