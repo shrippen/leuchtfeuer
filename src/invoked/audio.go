@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // ---------------------------------------------------------------------------------------------------------
@@ -131,21 +132,54 @@ func (v *volumeCtl) ToggleMute() error {
 
 // ---------------------------------------------------------------------------------------------------------
 // Wiedergabe: Webradio über GStreamer, Signaltöne selbst erzeugt über aplay. Immer auf ALSA "invoke_music".
+//
+// Webradio verbindet sich neu, wenn der Stream abbricht (Fehler oder Ende eines Live-Streams): Pause 2, 4, 8, 16, 30 s
+// (Zustand "reconnecting"), nach 8 Fehlversuchen in Folge gibt der Player auf. Lief der Stream länger als eine Minute,
+// beginnt die Zählung neu. Andere Arten (Weckton-Stream, Durchsage, Datei) spielen genau einmal; den Ersatz beim Wecker
+// übernimmt der Wecker selbst (sched.go).
 
 type player struct {
 	mu       sync.Mutex
 	sinks    map[string]string // Art (radio, alarm, ...) -> ALSA-Gerät; "" = alle übrigen
 	cmd      *exec.Cmd
-	stopTone chan struct{}
+	sess     *playSession
 	Kind     string // radio | alarm | timer | ""
 	Name     string
 	URL      string
-	State    string // idle | buffering | playing
+	State    string // idle | buffering | playing | reconnecting
 	Title    string
 	onChange func()
+
+	// austauschbar für Tests
+	gst     func(url, sink string) *exec.Cmd
+	backoff func(n int) time.Duration
+	retries map[string]bool // Arten, die nach einem Abbruch neu verbinden
 }
 
-func newPlayer(sinks map[string]string) *player { return &player{sinks: sinks, State: "idle"} }
+type playSession struct{ stop chan struct{} }
+
+const maxReconnects = 8
+
+func newPlayer(sinks map[string]string) *player {
+	return &player{sinks: sinks, State: "idle", gst: gstCommand, backoff: reconnectDelay, retries: map[string]bool{"radio": true}}
+}
+
+func gstCommand(url, sink string) *exec.Cmd {
+	return exec.Command("gst-launch-1.0", "-e", "-t", "uridecodebin", "uri="+url,
+		"!", "audioconvert", "!", "audioresample", "!", "alsasink", "device="+sink)
+}
+
+// reconnectDelay: Pause vor dem n-ten Neuverbinden (1, 2, ...).
+func reconnectDelay(n int) time.Duration {
+	d := 2 * time.Second
+	for i := 1; i < n && d < 30*time.Second; i++ {
+		d *= 2
+	}
+	if d > 30*time.Second {
+		d = 30 * time.Second
+	}
+	return d
+}
 
 // sink: Webradio spielt über seinen Quellen-Regler ("invoke_radio"), Weckton und Timer daran vorbei.
 func (p *player) sink(kind string) string {
@@ -168,9 +202,9 @@ func (p *player) changed() {
 }
 
 func (p *player) stopLocked() {
-	if p.stopTone != nil {
-		close(p.stopTone)
-		p.stopTone = nil
+	if p.sess != nil {
+		close(p.sess.stop)
+		p.sess = nil
 	}
 	if p.cmd != nil {
 		pid := p.cmd.Process.Pid
@@ -187,59 +221,119 @@ func (p *player) Stop() {
 	p.changed()
 }
 
-// PlayURL spielt einen Stream (Webradio) ab.
+// set ändert Zustand/Titel, falls die Sitzung noch die aktuelle ist.
+func (p *player) set(s *playSession, f func()) bool {
+	p.mu.Lock()
+	ok := p.sess == s
+	if ok {
+		f()
+	}
+	p.mu.Unlock()
+	if ok {
+		p.changed()
+	}
+	return ok
+}
+
+// PlayURL spielt einen Stream (Webradio) oder eine Datei ab.
 func (p *player) PlayURL(kind, name, url string) {
 	p.mu.Lock()
 	p.stopLocked()
-	cmd := exec.Command("gst-launch-1.0", "-e", "-t", "uridecodebin", "uri="+url,
-		"!", "audioconvert", "!", "audioresample", "!", "alsasink", "device="+p.sink(kind))
+	s := &playSession{stop: make(chan struct{})}
+	p.sess = s
+	p.Kind, p.Name, p.URL, p.State, p.Title = kind, name, url, "buffering", ""
+	retry := p.retries[kind]
+	p.mu.Unlock()
+	p.changed()
+	go p.runURL(s, kind, url, retry)
+}
+
+func (p *player) runURL(s *playSession, kind, url string, retry bool) {
+	fails := 0
+	for {
+		t0 := time.Now()
+		res := p.runGst(s, kind, url)
+		if res == "stopped" {
+			return
+		}
+		if time.Since(t0) > time.Minute {
+			fails = 0
+		}
+		fails++
+		// Datei oder einmalige Wiedergabe: Ende ist Ende. Webradio: Ende oder Fehler -> neu verbinden.
+		if !retry || fails > maxReconnects {
+			if retry {
+				log.Printf("Webradio %s: aufgegeben nach %d Versuchen", url, fails-1)
+			}
+			p.set(s, func() {
+				p.sess, p.cmd = nil, nil
+				p.Kind, p.Name, p.URL, p.State, p.Title = "", "", "", "idle", ""
+			})
+			return
+		}
+		wait := p.backoff(fails)
+		log.Printf("Webradio %s: %s, neuer Versuch in %v", url, res, wait)
+		if !p.set(s, func() { p.State, p.cmd = "reconnecting", nil }) {
+			return
+		}
+		select {
+		case <-s.stop:
+			return
+		case <-time.After(wait):
+		}
+	}
+}
+
+// runGst spielt einmal ab: "eos" (Ende), "error" (Abbruch) oder "stopped" (Stop/anderes Stück).
+func (p *player) runGst(s *playSession, kind, url string) string {
+	p.mu.Lock()
+	if p.sess != s {
+		p.mu.Unlock()
+		return "stopped"
+	}
+	cmd := p.gst(url, p.sink(kind))
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "LANG=C")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	out, _ := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
 	if err := cmd.Start(); err != nil {
+		p.mu.Unlock()
 		log.Printf("gst-launch: %v", err)
-		p.mu.Unlock()
-		return
+		return "error"
 	}
-	p.cmd, p.Kind, p.Name, p.URL, p.State = cmd, kind, name, url, "buffering"
+	p.cmd = cmd
 	p.mu.Unlock()
-	p.changed()
-	go func() {
-		sc := bufio.NewScanner(out)
-		sc.Split(splitLines)
-		for sc.Scan() {
-			line := sc.Text()
-			switch {
-			case strings.Contains(line, "Setting pipeline to PLAYING"):
-				p.mu.Lock()
-				if p.cmd == cmd {
-					p.State = "playing"
-				}
-				p.mu.Unlock()
-				p.changed()
-			case strings.Contains(line, "title=(string)"):
-				t := line[strings.Index(line, "title=(string)")+len("title=(string)"):]
-				if i := strings.Index(t, ", "); i >= 0 {
-					t = t[:i]
-				}
-				p.mu.Lock()
-				if p.cmd == cmd {
-					p.Title = strings.TrimSpace(t)
-				}
-				p.mu.Unlock()
-				p.changed()
+	res := ""
+	sc := bufio.NewScanner(out)
+	sc.Split(splitLines)
+	for sc.Scan() {
+		line := sc.Text()
+		switch {
+		case strings.Contains(line, "Setting pipeline to PLAYING"):
+			p.set(s, func() { p.State = "playing" })
+		case strings.Contains(line, "title=(string)"):
+			t := line[strings.Index(line, "title=(string)")+len("title=(string)"):]
+			if i := strings.Index(t, ", "); i >= 0 {
+				t = t[:i]
 			}
+			t = strings.Trim(strings.TrimSpace(t), `"\`)
+			p.set(s, func() { p.Title = t })
+		case strings.Contains(line, "Got EOS"):
+			res = "eos"
+		case strings.HasPrefix(line, "ERROR:"):
+			res = "error"
 		}
-		cmd.Wait()
-		p.mu.Lock()
-		if p.cmd == cmd {
-			p.cmd = nil
-			p.Kind, p.Name, p.URL, p.State, p.Title = "", "", "", "idle", ""
-		}
-		p.mu.Unlock()
-		p.changed()
-	}()
+	}
+	err := cmd.Wait()
+	select {
+	case <-s.stop:
+		return "stopped"
+	default:
+	}
+	if res == "" {
+		res = map[bool]string{true: "error", false: "eos"}[err != nil]
+	}
+	return res
 }
 
 func splitLines(data []byte, atEOF bool) (int, []byte, error) {
@@ -299,8 +393,9 @@ func (p *player) PlayTone(kind, name string, seq []note, repeat bool) {
 		log.Printf("aplay startet nicht")
 		return
 	}
-	stop := make(chan struct{})
-	p.cmd, p.stopTone, p.Kind, p.Name, p.State = cmd, stop, kind, name, "playing"
+	sess := &playSession{stop: make(chan struct{})}
+	stop := sess.stop
+	p.cmd, p.sess, p.Kind, p.Name, p.State = cmd, sess, kind, name, "playing"
 	p.mu.Unlock()
 	p.changed()
 	go func() {
@@ -308,8 +403,8 @@ func (p *player) PlayTone(kind, name string, seq []note, repeat bool) {
 			in.Close()
 			cmd.Wait()
 			p.mu.Lock()
-			if p.cmd == cmd {
-				p.cmd, p.stopTone = nil, nil
+			if p.sess == sess {
+				p.cmd, p.sess = nil, nil
 				p.Kind, p.Name, p.State = "", "", "idle"
 			}
 			p.mu.Unlock()

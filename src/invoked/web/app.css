@@ -1,7 +1,9 @@
 /* App-spezifisches Layout. Farben, Schriften und Formen kommen ausschließlich aus Kante (kante/shrippen.css). */
 .app{max-width:var(--max-w-wide);margin:0 auto;padding:1.2rem var(--gutter) 4rem}
 .app-conn{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-right:1rem}
-.tabs{margin-bottom:1.4rem;overflow-x:auto}
+.tabs{margin-bottom:1.4rem;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+/* zehn Reiter: eine Zeile (Kantes Anzeige-Balken setzt eine Zeile voraus), schmaler; auf dem Handy waagrecht scrollen */
+.tabs button{flex:none;padding:0 .85rem}
 .grid{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start}
 .grid.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.2rem 1.6rem;margin-bottom:1.4rem}
 .card{background:var(--bg-panel);border-top:4px solid var(--bg2);padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.8rem;min-width:0}
@@ -44,3 +46,20 @@
 .brand-logo{display:inline-block;vertical-align:-.3rem;margin-right:.55rem}
 /* Handy: Verbindungsanzeige ausblenden, damit Kopfzeile und Sprachwahl nicht über den Rand ragen */
 @media (max-width:600px){.app-conn{display:none}}
+/* Frequenzgang der Raummessung (Farben aus Kante) */
+.chart{width:100%;height:auto;background:var(--bg-hard);border:1px solid var(--bg2)}
+.chart polyline{fill:none;stroke-width:2;vector-effect:non-scaling-stroke}
+.chart .chart-before{stroke:var(--fg3)}
+.chart .chart-after{stroke:var(--primary)}
+.chart .chart-zero{stroke:var(--fg3);stroke-width:1;opacity:.5}
+.chart .chart-grid{stroke:var(--bg2);stroke-width:1}
+.chart .chart-label{fill:var(--fg3);font-family:var(--font-mono);font-size:11px}
+.chart-key{display:inline-block;width:1.4rem;height:3px;vertical-align:middle;margin:0 .4rem 0 .2rem}
+.chart-key.chart-before{background:var(--fg3)}
+.chart-key.chart-after{background:var(--primary)}
+textarea.input{resize:vertical;min-height:2.6rem;font-family:inherit}
+textarea.input.mono{font-family:var(--font-mono);font-size:.78rem}
+.btn[disabled]{opacity:.45;pointer-events:none}
+/* Quellen-Liste: Name nicht zerbrechen, Zahlenfelder knapp */
+.item .t{min-width:4.6rem}
+.item .row .input[type=number]{padding-left:.5rem;padding-right:.3rem}

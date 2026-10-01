@@ -80,7 +80,7 @@ func TestAlarmSkipsHolidays(t *testing.T) {
 
 func TestAlarmRadioAndURLSource(t *testing.T) {
 	ta := newTestApp(t, "2026-10-01 07:30:00")
-	ta.st.Update(func(s *Settings) { s.Radio = []Preset{{"A", "http://a"}} })
+	ta.st.Update(func(s *Settings) { s.Radio = []Preset{{Name: "A", URL: "http://a"}} })
 	addAlarm(ta, Alarm{ID: "a", Time: "07:30", Enabled: true, Source: "radio:0"})
 	addAlarm(ta, Alarm{ID: "b", Time: "07:31", Enabled: true, Source: "url:https://server/datei.mp3"})
 	ta.sch.tick()

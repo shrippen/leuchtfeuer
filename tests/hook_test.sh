@@ -32,6 +32,7 @@ printf '#!/bin/sh\n# title: A\n# group: airplay\n# process: a\n# ports: tcp 5000
 printf '#!/bin/sh\n# title: S\n# group: snapcast\n# process: s\n# ports: tcp 1780\n# default: off\nexit 0\n' > $T/d/services/snapclient.sh
 chmod 755 $T/d/services/*.sh
 printf 'tcp 9999\n# Kommentar\nunsinn 1\n' > $T/d/ports.local
+printf '# von invoked\ntcp 10700 sprachassistent\n' > $T/d/ports.invoked
 : > $T/d/config
 
 . "$ROOT/device/invoke/hook.sh"
@@ -41,6 +42,7 @@ check "Port eines eingeschalteten Dienstes offen" 'echo "$r" | grep -q -- "-p tc
 check "Portbereich" 'echo "$r" | grep -q -- "-p udp --dport 6001:6011 -j RETURN"'
 check "ausgeschalteter Dienst (Vorgabe off) bleibt zu" '! echo "$r" | grep -q 1780'
 check "ports.local wirkt, Unsinn nicht" 'echo "$r" | grep -q 9999 && ! echo "$r" | grep -q unsinn'
+check "ports.invoked (Sprachassistent) wirkt" 'echo "$r" | grep -q -- "-p tcp --dport 10700 -j RETURN"'
 check "Weboberfläche Port 80" 'echo "$r" | grep -q -- "--dport 80 -j RETURN"'
 check "DROP am Ende" '[ "$(echo "$r" | tail -n 1)" = "-j DROP" ]'
 echo 'AIRPLAY="off"' > $T/d/config
@@ -83,5 +85,36 @@ check "absichtliches Beenden zählt nicht" '[ "$fails" = 0 ] && [ ! -e $T/r/invo
 head -c 1100000 /dev/zero | tr '\0' 'x' > $T/d/log/big.log
 rotate_logs
 check "Protokoll gekürzt" '[ "$(wc -c < $T/d/log/big.log)" -lt 1000 ] && [ "$(wc -c < $T/d/log/big.log.1)" = 262144 ]'
+
+# Watchdog: nur mit WATCHDOG=on und Gerät; nach 3 unruhigen Starts bleibt er aus
+mkdir -p $T/d/bin
+printf '#!/bin/sh\necho "$@" > %s/wd.args\nexec sleep 30\n' "$T" > $T/d/bin/invoked
+chmod 755 $T/d/bin/invoked
+cat > $T/bin/setsid <<'S'
+#!/bin/sh
+exec "$@"
+S
+chmod 755 $T/bin/setsid
+export INVOKE_WATCHDOG_DEV=$T/watchdog
+: > $T/d/config
+watchdog_ctl
+check "Watchdog aus ohne WATCHDOG=on" '[ ! -e $T/r/invoke-watchdog.pid ]'
+echo 'WATCHDOG="on"' > $T/d/config
+watchdog_ctl
+check "Watchdog aus ohne Gerät" '[ ! -e $T/r/invoke-watchdog.pid ]'
+: > $T/watchdog
+WDDEV=$T/watchdog
+watchdog_ctl; sleep 0.3
+check "Watchdog scharf, Lebenszeichen-Datei übergeben" '[ -s $T/r/invoke-watchdog.pid ] && grep -q -- "-watchdog $T/r/invoke-hook.alive" $T/wd.args && [ "$(cat $T/d/watchdog-unstable)" = 1 ]'
+kill "$(cat $T/r/invoke-watchdog.pid)"; sleep 0.2
+watchdog_ctl; kill "$(cat $T/r/invoke-watchdog.pid)"; sleep 0.2
+check "Neustart des Hooks zählt nicht als Gerätestart" '[ "$(cat $T/d/watchdog-unstable)" = 1 ]'
+rm -f $T/r/invoke-watchdog.boot; watchdog_ctl; kill "$(cat $T/r/invoke-watchdog.pid)"; sleep 0.2
+rm -f $T/r/invoke-watchdog.boot; watchdog_ctl; kill "$(cat $T/r/invoke-watchdog.pid)"; sleep 0.2
+rm -f $T/r/invoke-watchdog.pid $T/r/invoke-watchdog.boot
+watchdog_ctl
+check "nach 3 unruhigen Starts bleibt er aus" '[ ! -e $T/r/invoke-watchdog.pid ] && [ -e $T/r/invoke-watchdog.blocked ]'
+echo 'WATCHDOG="off"' > $T/d/config
+watchdog_ctl
 
 exit $fail

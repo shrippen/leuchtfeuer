@@ -30,6 +30,23 @@ Leuchtring als Licht, Läuft gerade, Temperatur, WLAN, Tasten-Ereignisse; auf Wu
 (Visualizer: Spektrum, Pegel oder Puls; Lampe in jeder Farbe; Timer-Fortschritt), **Dienste an/aus**, **Sichern und
 Wiederherstellen**, ein **Diagnosepaket** und **signierte Updates mit automatischem Rückfall**.
 
+Außerdem in der Weboberfläche:
+- ein **Morgen-Briefing**: Begrüßung, Wetter, Unwetterwarnungen, Pollenflug, Kalender (ICS, auch Müllabfuhr),
+  Nachrichten wie die *tagesschau in 100 Sekunden*, Vorlagen aus Home Assistant; gesprochen über die Sprachausgabe von
+  Home Assistant; auch als Weckton
+- eine **Sendersuche** (radio-browser.info) mit Lieblingssendern auf Tasten (Doppel-/Dreifachdruck)
+- eine **Raumkorrektur**: mit dem Handy messen, der Lautsprecher schlägt Filter gegen Dröhnen vor
+- ein **Pegelausgleich** je Quelle, und Quellen **blenden über**, wenn eine andere übernimmt
+- ein **Sprach-Satellit** für Home Assistant Assist (Wyoming, optional)
+- eine Übersicht **anderer Leuchtfeuer** (Einstellungen kopieren, Updates anstoßen)
+- **API-Schlüssel**, **SSH-Schlüssel**, **Prometheus-Metriken**, ein **Live-Protokoll** und die Weitergabe an **Syslog**
+
+Die Weboberfläche schickt strenge Sicherheits-Header und prüft die Herkunft jeder Anfrage. Streams verbinden sich von
+selbst neu; fällt der Sender eines Weckers aus, klingelt der eingebaute Ton. Ein optionaler **Hardware-Watchdog** startet
+einen hängenden Lautsprecher neu.
+Home-Assistant-Integration mit echtem Mediaplayer: [HOMEASSISTANT.md](HOMEASSISTANT.md).
+API: [API.md](API.md).
+
 Alles läuft über die eigene DSP-/Verstärkerkette des Lautsprechers. Das **Drehrad** regelt alle Quellen und bleibt
 über Bluetooth in beide Richtungen mit der Handy-Lautstärke synchron.
 
@@ -37,7 +54,7 @@ Außerdem: SSH nur mit Schlüssel (eigenes dropbear), die offene Root-Shell auf 
 lässt nur die nötigen Ports herein, und die Harman-Clouddienste (Cortana, OTA-Updates, Absturzberichte, totes
 Harman-Spotify) sind abgeschaltet.
 
-**Kein Ziel:** Cortana, das Wake-Word oder einen Sprachassistenten wiederherzustellen.
+**Kein Ziel:** Cortana wiederherzustellen. Der optionale Sprach-Satellit reicht nur das Mikrofon an das eigene Home Assistant weiter.
 
 ## Funktionsweise (kurz)
 

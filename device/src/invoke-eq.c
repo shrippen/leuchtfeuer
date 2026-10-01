@@ -1,16 +1,19 @@
 /*
  * LADSPA-Plugin "invoke_eq": Klang für alle Musikdienste (asound-music.conf, nach dem Visualizer-Abgriff):
- * Bass (Kuhschwanz unten), Höhen (Kuhschwanz oben), Vorverstärkung gegen Übersteuern, Kompressor (Nachtmodus)
- * und eine weiche Begrenzung am Ende.
+ * Bass (Kuhschwanz unten), Höhen (Kuhschwanz oben), bis zu 6 Glockenfilter (Raumkorrektur), Vorverstärkung gegen
+ * Übersteuern, Kompressor (Nachtmodus) und eine weiche Begrenzung am Ende.
  *
  * Die Werte setzt invoked live in /dev/shm/invoke-eq (src/invoked/eq.go); das Plugin blendet die Datei nur lesend ein
  * und übernimmt neue Werte, sobald sich der Folgezähler ändert (ungerade = wird gerade geschrieben: warten).
  * Fehlt die Datei, reicht es den Ton unverändert durch und sieht etwa jede Sekunde nach. Es wartet nie und ruft im
  * Tonpfad nichts auf, das blockieren kann. INVOKE_EQ_PATH ersetzt den Pfad (Tests).
  *
- * Dateiaufbau (little endian, 64 Byte): u32 Magie "IEQ1", u32 Folgezähler, float: Bass dB, Bass Hz, Höhen dB,
- * Höhen Hz, Vorverstärkung dB, Kompressor (0/1), Schwelle dB, Verhältnis, Aufholverstärkung dB.
+ * Dateiaufbau (little endian, 128 Byte): u32 Magie "IEQ2", u32 Folgezähler, float: Bass dB, Bass Hz, Höhen dB,
+ * Höhen Hz, Vorverstärkung dB, Kompressor (0/1), Schwelle dB, Verhältnis, Aufholverstärkung dB, Anzahl Raumfilter,
+ * je Raumfilter Hz, dB, Güte (6 Plätze). Ältere Dateien ("IEQ1", 64 Byte) gelten nicht: Durchreichen, bis invoked die
+ * neue schreibt (beide kommen mit demselben Update).
  */
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdint.h>
@@ -22,12 +25,14 @@
 #include "ladspa.h"
 
 #define EQ_PATH "/dev/shm/invoke-eq"
-#define EQ_MAGIC 0x31514549u /* "IEQ1" */
-#define EQ_SIZE 64
+#define EQ_MAGIC 0x32514549u /* "IEQ2" */
+#define EQ_SIZE 128
+#define MAX_PEQ 6
 
 struct eq_shm {
     uint32_t magic, seq;
-    float bass_db, bass_hz, treble_db, treble_hz, preamp_db, comp, thr_db, ratio, makeup_db;
+    float bass_db, bass_hz, treble_db, treble_hz, preamp_db, comp, thr_db, ratio, makeup_db, npeq;
+    float peq[MAX_PEQ][3]; /* Hz, dB, Güte */
 };
 
 struct biquad {
@@ -44,7 +49,8 @@ struct eq {
     unsigned long retry; /* Abtastwerte bis zum nächsten Versuch, die Datei einzublenden */
     uint32_t seq;
     int active;          /* 0 = Durchreichen */
-    struct biquad bass, treble;
+    struct biquad bass, treble, peq[MAX_PEQ];
+    int npeq;
     float pre;           /* lineare Vorverstärkung */
     int comp;
     float thr_db, slope, makeup, env, gain, att, rel;
@@ -75,6 +81,18 @@ static void shelf(struct biquad *f, int high, float db, float hz, float rate) {
     f->b0 = b0 / a0; f->b1 = b1 / a0; f->b2 = b2 / a0; f->a1 = a1 / a0; f->a2 = a2 / a0;
 }
 
+/* RBJ-Kochbuch: Glockenfilter */
+static void peaking(struct biquad *f, float hz, float db, float q, float rate) {
+    if (hz < 10.0f) hz = 10.0f;
+    if (hz > rate * 0.45f) hz = rate * 0.45f;
+    if (q < 0.1f) q = 0.1f;
+    float A = powf(10.0f, db / 40.0f), w = 2.0f * (float)M_PI * hz / rate;
+    float c = cosf(w), alpha = sinf(w) / (2.0f * q);
+    float a0 = 1 + alpha / A;
+    f->b0 = (1 + alpha * A) / a0; f->b1 = -2 * c / a0; f->b2 = (1 - alpha * A) / a0;
+    f->a1 = -2 * c / a0; f->a2 = (1 - alpha / A) / a0;
+}
+
 static inline float bq(struct biquad *f, int ch, float x) {
     float y = f->b0 * x + f->z1[ch];
     f->z1[ch] = f->b1 * x - f->a1 * y + f->z2[ch];
@@ -87,6 +105,8 @@ static void map_shm(struct eq *e) {
     int fd = open(p && *p ? p : EQ_PATH, O_RDONLY | O_CLOEXEC);
     e->retry = (unsigned long)e->rate; /* nächster Versuch in etwa 1 s */
     if (fd < 0) return;
+    struct stat st;
+    if (fstat(fd, &st) != 0 || st.st_size < EQ_SIZE) { close(fd); return; } /* sonst SIGBUS beim Lesen */
     void *m = mmap(NULL, EQ_SIZE, PROT_READ, MAP_SHARED, fd, 0);
     close(fd);
     if (m == MAP_FAILED) return;
@@ -112,7 +132,17 @@ static void load(struct eq *e) {
     e->thr_db = v.thr_db;
     e->slope = v.ratio > 1.0f ? 1.0f - 1.0f / v.ratio : 0.0f;
     e->makeup = powf(10.0f, v.makeup_db / 20.0f);
-    e->active = fabsf(v.bass_db) > 0.05f || fabsf(v.treble_db) > 0.05f || fabsf(v.preamp_db) > 0.05f || e->comp;
+    int n = (int)(v.npeq + 0.5f), used = 0;
+    if (n < 0) n = 0;
+    if (n > MAX_PEQ) n = MAX_PEQ;
+    for (int i = 0; i < n; i++) {
+        if (fabsf(v.peq[i][1]) < 0.05f) continue;
+        peaking(&e->peq[used], v.peq[i][0], v.peq[i][1], v.peq[i][2], e->rate); /* Zustand bleibt: kein Knacken */
+        if (used >= e->npeq) { memset(e->peq[used].z1, 0, sizeof e->peq[used].z1); memset(e->peq[used].z2, 0, sizeof e->peq[used].z2); }
+        used++;
+    }
+    e->npeq = used;
+    e->active = fabsf(v.bass_db) > 0.05f || fabsf(v.treble_db) > 0.05f || fabsf(v.preamp_db) > 0.05f || e->comp || used > 0;
 }
 
 static LADSPA_Handle instantiate(const LADSPA_Descriptor *d, unsigned long rate) {
@@ -134,6 +164,7 @@ static void activate(LADSPA_Handle h) {
     struct eq *e = h;
     memset(e->bass.z1, 0, sizeof e->bass.z1); memset(e->bass.z2, 0, sizeof e->bass.z2);
     memset(e->treble.z1, 0, sizeof e->treble.z1); memset(e->treble.z2, 0, sizeof e->treble.z2);
+    for (int i = 0; i < MAX_PEQ; i++) { memset(e->peq[i].z1, 0, sizeof e->peq[i].z1); memset(e->peq[i].z2, 0, sizeof e->peq[i].z2); }
     e->env = 0.0f; e->gain = 1.0f;
     if (!e->shm) map_shm(e);
 }
@@ -163,6 +194,7 @@ static void run(LADSPA_Handle h, unsigned long n) {
         float x0 = l[i] * e->pre, x1 = r[i] * e->pre;
         x0 = bq(&e->treble, 0, bq(&e->bass, 0, x0));
         x1 = bq(&e->treble, 1, bq(&e->bass, 1, x1));
+        for (int k = 0; k < e->npeq; k++) { x0 = bq(&e->peq[k], 0, x0); x1 = bq(&e->peq[k], 1, x1); }
         if (e->comp) {
             float pk = fmaxf(fabsf(x0), fabsf(x1));
             e->env += (pk > e->env ? e->att : e->rel) * (pk - e->env);
@@ -180,6 +212,7 @@ static void run(LADSPA_Handle h, unsigned long n) {
     for (int c = 0; c < 2; c++) {
         if (fabsf(e->bass.z1[c]) < 1e-15f) e->bass.z1[c] = e->bass.z2[c] = 0;
         if (fabsf(e->treble.z1[c]) < 1e-15f) e->treble.z1[c] = e->treble.z2[c] = 0;
+        for (int k = 0; k < e->npeq; k++) if (fabsf(e->peq[k].z1[c]) < 1e-15f) e->peq[k].z1[c] = e->peq[k].z2[c] = 0;
     }
 }
 
@@ -200,7 +233,7 @@ static const LADSPA_Descriptor desc = {
     .UniqueID = 0x1e5a2, /* privat, nur auf dem Lautsprecher benutzt */
     .Label = "invoke_eq",
     .Properties = LADSPA_PROPERTY_HARD_RT_CAPABLE,
-    .Name = "Invoke tone (bass, treble, loudness, night mode)",
+    .Name = "Invoke tone (bass, treble, room correction, loudness, night mode)",
     .Maker = "Leuchtfeuer",
     .Copyright = "MIT",
     .PortCount = P_COUNT,

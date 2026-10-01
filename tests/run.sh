@@ -22,7 +22,9 @@ step "Shell-Syntax" sh -c 'for f in device/invoke/*.sh device/invoke/services/*.
 if command -v shellcheck >/dev/null; then
   step "shellcheck (Gerät, POSIX sh)" shellcheck -s sh -S warning -e SC3043 device/invoke/*.sh device/invoke/services/*.sh
 fi
-step "Weboberfläche (Syntax)" sh -c "node --check src/invoked/web/app.js"
+step "Weboberfläche (Syntax)" sh -c "node --check src/invoked/web/app.js && node --check src/invoked/web/roomeq.js && node --check src/invoked/web/login.js"
+step "Raum einmessen (Auswertung)" node tests/roomeq_test.js
+step "Home-Assistant-Integration" sh tests/homeassistant/run.sh
 echo
 [ $fail = 0 ] && echo "Alles in Ordnung." || echo "Es gibt Fehler."
 exit $fail

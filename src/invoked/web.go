@@ -21,8 +21,9 @@ var webFS embed.FS
 var wrapAuth = func(w *webServer, h http.Handler) http.Handler { return w.auth(h) }
 
 type webServer struct {
-	app   *app
-	login *loginState
+	app    *app
+	login  *loginState
+	tokens *tokenStore
 }
 
 func randomPassword() string {
@@ -79,6 +80,8 @@ type statusResp struct {
 	Clock      clockStatus     `json:"clock"`
 	Update     updateInfo      `json:"update"`
 	Holiday    string          `json:"holiday"` // heute Feiertag (Name) in der eingestellten Region
+	Voice      voiceStatus     `json:"voice"`
+	Briefing   bool            `json:"briefing"` // Briefing läuft
 }
 
 type timerView struct {
@@ -104,6 +107,14 @@ func (w *webServer) status() statusResp {
 		Update: a.updateStatus(), Holiday: holidayName(set.Holidays, a.sch.Now()),
 	}
 	s.Sys.Services = a.svcFn()
+	if a.voice != nil {
+		s.Voice = a.voice.Status()
+	} else {
+		s.Voice = voiceStatus{State: "off"}
+	}
+	if a.brief != nil {
+		s.Briefing = a.brief.Running()
+	}
 	if a.viz != nil {
 		s.Viz = a.viz.Status()
 	}
@@ -142,8 +153,7 @@ func (w *webServer) device() deviceSettings {
 }
 
 func (w *webServer) settings() map[string]any {
-	set := w.app.st.Snapshot()
-	set.MQTT.Pass = "" // Passwörter nie ausliefern
+	set := w.app.st.Redacted() // Passwörter und Schlüssel nie ausliefern
 	if set.Radio == nil {
 		set.Radio = []Preset{}
 	}
@@ -158,7 +168,7 @@ func (w *webServer) settings() map[string]any {
 	}
 	return map[string]any{
 		"settings": set, "device": w.device(), "actions": actionNames, "holidayRegions": holidayRegions,
-		"sourceNames": sourceNames, "version": currentVersion(),
+		"sourceNames": sourceNames, "version": currentVersion(), "podcasts": podcastPresets, "copySections": copySections,
 		"services": serviceDefs(), "groups": serviceGroups(w.app.cfg),
 	}
 }
@@ -282,8 +292,8 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		v.DuckDB = clamp(v.DuckDB, 0, 40)
 		lim := map[string]SourceLimit{}
 		for n, l := range v.Limits {
-			l.Max, l.Start = clamp(l.Max, 0, 100), clamp(l.Start, 0, 100)
-			if l.Max > 0 || l.Start > 0 {
+			l.Max, l.Start, l.TrimDB = clamp(l.Max, 0, 100), clamp(l.Start, 0, 100), clamp(l.TrimDB, 0, 20)
+			if l.Max > 0 || l.Start > 0 || l.TrimDB > 0 {
 				lim[n] = l
 			}
 		}
@@ -295,7 +305,80 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			return err
 		}
 		v.Version, v.Bass, v.Treble = 1, clamp(v.Bass, -12, 12), clamp(v.Treble, -12, 12)
+		v.Room = cleanPEQ(v.Room)
 		return a.st.Update(func(s *Settings) { s.Eq = v })
+	case "briefing":
+		var v BriefingSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if v.Lang != "en" {
+			v.Lang = "de"
+		}
+		if v.Lat < -90 || v.Lat > 90 || v.Lon < -180 || v.Lon > 180 {
+			return fmt.Errorf("Ort: Koordinaten ungültig")
+		}
+		if len(v.Items) > 20 {
+			return fmt.Errorf("höchstens 20 Bausteine")
+		}
+		for i, it := range v.Items {
+			if !briefTypes[it.Type] {
+				return fmt.Errorf("Baustein %d: unbekannte Art %q", i+1, it.Type)
+			}
+			if (it.Type == "calendar" || it.Type == "podcast") && it.On && !(strings.HasPrefix(it.URL, "http://") || strings.HasPrefix(it.URL, "https://") || strings.HasPrefix(it.URL, "webcal://")) {
+				return fmt.Errorf("Baustein %d (%s): Adresse nötig", i+1, it.Name)
+			}
+			v.Items[i].Days = clamp(it.Days, 0, 7)
+		}
+		if v.TTS != "" && v.TTS != "ha" && v.TTS != "url" {
+			return fmt.Errorf("Sprachausgabe: ha, url oder leer")
+		}
+		if v.TTS == "url" && !strings.Contains(v.TTSURL, "{text}") {
+			return fmt.Errorf("Sprachausgabe: Adresse braucht {text}")
+		}
+		if v.Then != "" && !strings.HasPrefix(v.Then, "radio:") {
+			return fmt.Errorf("danach: leer oder radio:<Nummer>")
+		}
+		return a.st.Update(func(s *Settings) { s.Briefing = v })
+	case "homeAssistant":
+		var v HASettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		v.URL = strings.TrimRight(strings.TrimSpace(v.URL), "/")
+		if v.URL != "" && !strings.HasPrefix(v.URL, "http://") && !strings.HasPrefix(v.URL, "https://") {
+			return fmt.Errorf("Home Assistant: Adresse mit http:// oder https://")
+		}
+		return a.st.Update(func(s *Settings) {
+			if v.Token == "" { // leer = unverändert
+				v.Token = s.HA.Token
+			}
+			s.HA = v
+		})
+	case "voice":
+		var v VoiceSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if v.Port == 0 {
+			v.Port = 10700
+		}
+		v.Port = clamp(v.Port, 1024, 65535)
+		v.DuckDB = clamp(v.DuckDB, 0, 40)
+		if v.Mode != "button" {
+			v.Mode = "wake"
+		}
+		v.Mic = strings.TrimSpace(v.Mic)
+		if strings.ContainsAny(v.Mic, " \t'\"$`;|&") {
+			return fmt.Errorf("Mikrofon: ALSA-Gerätename wie plughw:1,0")
+		}
+		if err := a.st.Update(func(s *Settings) { s.Voice = v }); err != nil {
+			return err
+		}
+		if a.voice != nil {
+			go a.voice.Apply()
+		}
+		return nil
 	case "holidays":
 		var v struct {
 			Region string `json:"region"`
@@ -320,6 +403,26 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			return fmt.Errorf("Release-Adresse muss mit https:// beginnen")
 		}
 		return a.st.Update(func(s *Settings) { s.Update = v })
+	case "syslog":
+		var v SyslogSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		v.Host = strings.TrimSpace(v.Host)
+		if v.Enabled && v.Host == "" {
+			return fmt.Errorf("Syslog: Adresse nötig")
+		}
+		if strings.ContainsAny(v.Host, " /:") && !strings.HasPrefix(v.Host, "[") {
+			return fmt.Errorf("Syslog: nur Name oder IP-Adresse, Port extra")
+		}
+		if v.Port == 0 {
+			v.Port = 514
+		}
+		v.Port = clamp(v.Port, 1, 65535)
+		if v.Proto != "tcp" {
+			v.Proto = "udp"
+		}
+		return a.st.Update(func(s *Settings) { s.Syslog = v })
 	case "timezone":
 		var v struct {
 			Timezone string `json:"timezone"`
@@ -428,7 +531,20 @@ func (w *webServer) routes() http.Handler {
 		}
 		return a.RadioPlay(v.Index)
 	})
-	post("/api/radio/stop", func(r *http.Request) error { a.pl.Stop(); return nil })
+	post("/api/radio/url", func(r *http.Request) error { // beliebigen Stream als Webradio (Home Assistant, Sendersuche)
+		var v struct{ Name, URL, UUID string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.PlayStream(v.Name, v.URL, v.UUID)
+	})
+	post("/api/radio/stop", func(r *http.Request) error { // stoppt auch ein laufendes Briefing
+		if a.brief != nil {
+			a.brief.Stop()
+		}
+		a.pl.Stop()
+		return nil
+	})
 	post("/api/alarm/stop", func(r *http.Request) error { a.sch.StopAlarm(); return nil })
 	post("/api/alarm/snooze", func(r *http.Request) error { a.sch.Snooze(); return nil })
 	post("/api/timers", func(r *http.Request) error {
@@ -485,6 +601,182 @@ func (w *webServer) routes() http.Handler {
 			return err
 		}
 		return restartService(v.Name)
+	})
+	mux.HandleFunc("/metrics", w.metrics)
+	getJ := func(path string, f func(r *http.Request) (any, error)) {
+		mux.HandleFunc(path, func(rw http.ResponseWriter, r *http.Request) {
+			v, err := f(r)
+			if err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			writeJSON(rw, v)
+		})
+	}
+	// Sendersuche
+	getJ("/api/radio/search", func(r *http.Request) (any, error) {
+		return a.rb.Search(r.URL.Query().Get("q"), r.URL.Query().Get("country"))
+	})
+	// Raum einmessen
+	post("/api/measure/start", func(r *http.Request) error {
+		var v struct{ Seconds int }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.meas.Start(v.Seconds)
+	})
+	post("/api/measure/stop", func(r *http.Request) error { a.meas.Stop(); return nil })
+	// Briefing
+	getJ("/api/briefing/preview", func(r *http.Request) (any, error) {
+		if a.brief == nil {
+			return nil, fmt.Errorf("Briefing nicht verfügbar")
+		}
+		return a.brief.Build(a.sch.Now(), false), nil
+	})
+	post("/api/briefing/start", func(r *http.Request) error {
+		if a.brief == nil {
+			return fmt.Errorf("Briefing nicht verfügbar")
+		}
+		return a.brief.Start("api")
+	})
+	post("/api/briefing/stop", func(r *http.Request) error {
+		if a.brief != nil {
+			a.brief.Stop()
+		}
+		if k, _, _, _ := a.pl.Info(); k == "briefing" {
+			a.pl.Stop()
+		}
+		return nil
+	})
+	getJ("/api/briefing/geocode", func(r *http.Request) (any, error) {
+		return a.brief.Geocode(r.URL.Query().Get("q"), r.URL.Query().Get("lang"))
+	})
+	getJ("/api/briefing/pollen-regions", func(r *http.Request) (any, error) { return a.brief.PollenRegions() })
+	// Sprachassistent
+	post("/api/voice/listen", func(r *http.Request) error {
+		if a.voice == nil {
+			return fmt.Errorf("Sprachassistent nicht verfügbar")
+		}
+		return a.voice.PushToTalk()
+	})
+	// andere Leuchtfeuer
+	getJ("/api/peers", func(r *http.Request) (any, error) {
+		if a.peers == nil {
+			return map[string]any{"peers": []peerStatus{}, "found": []foundPeer{}}, nil
+		}
+		return map[string]any{"peers": a.peers.Status(), "found": a.peers.Found()}, nil
+	})
+	post("/api/peers/add", func(r *http.Request) error {
+		var v struct{ Name, URL, Token string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		_, err := a.peers.Add(v.Name, v.URL, v.Token)
+		return err
+	})
+	post("/api/peers/delete", func(r *http.Request) error {
+		var v struct{ URL string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.peers.Delete(v.URL)
+	})
+	post("/api/peers/copy", func(r *http.Request) error {
+		var v struct {
+			URL      string
+			Sections []string
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.peers.Copy(v.URL, v.Sections)
+	})
+	post("/api/peers/update", func(r *http.Request) error {
+		var v struct{ URL string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.peers.Update(v.URL)
+	})
+	post("/api/peers/action", func(r *http.Request) error {
+		var v struct{ URL, Action string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.peers.Action(v.URL, v.Action)
+	})
+	mux.HandleFunc("/api/logs/stream", func(rw http.ResponseWriter, r *http.Request) {
+		if a.logs == nil {
+			fail(rw, 503, fmt.Errorf("Protokolle nicht verfügbar"))
+			return
+		}
+		a.logs.stream(rw, r)
+	})
+	mux.HandleFunc("/api/logs/names", func(rw http.ResponseWriter, r *http.Request) { writeJSON(rw, logNames()) })
+	mux.HandleFunc("/api/tokens", func(rw http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(rw, w.tokens.List())
+		case http.MethodPost:
+			var v struct{ Name, Scope string }
+			if err := decode(r, &v); err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			tok, t, err := w.tokens.Create(v.Name, v.Scope)
+			if err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			log.Printf("API-Schlüssel %q (%s) angelegt", t.Name, t.Scope)
+			writeJSON(rw, map[string]any{"token": tok, "info": t})
+		default:
+			http.Error(rw, "GET oder POST", http.StatusMethodNotAllowed)
+		}
+	})
+	post("/api/tokens/delete", func(r *http.Request) error {
+		var v struct{ ID string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return w.tokens.Delete(v.ID)
+	})
+	mux.HandleFunc("/api/ssh-keys", func(rw http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			k, err := listSSHKeys()
+			if err != nil {
+				fail(rw, 500, err)
+				return
+			}
+			writeJSON(rw, k)
+		case http.MethodPost:
+			var v struct{ Key string }
+			if err := decode(r, &v); err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			k, err := addSSHKey(v.Key)
+			if err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			log.Printf("SSH-Schlüssel %s (%s) eingetragen", k.Fingerprint, k.Comment)
+			writeJSON(rw, k)
+		default:
+			http.Error(rw, "GET oder POST", http.StatusMethodNotAllowed)
+		}
+	})
+	post("/api/ssh-keys/delete", func(r *http.Request) error {
+		var v struct{ Fingerprint string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if err := deleteSSHKey(v.Fingerprint); err != nil {
+			return err
+		}
+		log.Printf("SSH-Schlüssel %s entfernt", v.Fingerprint)
+		return nil
 	})
 	mux.HandleFunc("/api/logs", func(rw http.ResponseWriter, r *http.Request) {
 		t, err := tailLog(r.URL.Query().Get("name"), 200)

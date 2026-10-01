@@ -5,7 +5,8 @@
 #  - authorized_keys aus /data/invoke nach /home/root/.ssh (tmpfs über dem ro-SquashFS)
 #  - Firewall (Kette INVOKE vor INPUT): SSH, mDNS, DHCP-Antworten, ICMP, bestehende Verbindungen, die Weboberfläche
 #    und die Ports der EINGESCHALTETEN Dienste (Kopfzeile "# ports:" der Dienstskripte); am Setup-AP (p2p0)
-#    zusätzlich die Einrichtungs-Ports; eigene Ports aus /data/invoke/ports.local ("tcp 1234" / "udp 5678").
+#    zusätzlich die Einrichtungs-Ports; eigene Ports aus /data/invoke/ports.local ("tcp 1234" / "udp 5678") und die von
+#    invoked geschriebenen aus /data/invoke/ports.invoked (Sprachassistent).
 #    Ändert sich etwas (Dienst an/aus, ports.local), wird die Kette neu aufgebaut, offene Ports schließen sich wieder.
 #  - IPv6 aus (Kernel ohne ip6tables)
 #  - adbd (Port 5555, root ohne Anmeldung) aus, sobald /data/invoke/disable-adb existiert
@@ -25,6 +26,10 @@
 #    bei laufenden Diensten, die Datei bleibt dieselbe.
 #  - Update-Rückfall: Nach einem Update (/data/invoke/update-pending) beobachtet der Hook 10 Minuten lang die Dienste;
 #    fällt einer wiederholt aus, stellt apply-update.sh den vorigen Stand wieder her.
+#  - Hardware-Watchdog (WATCHDOG="on" in config, falls /dev/watchdog da ist): "invoked -watchdog" setzt die Frist auf
+#    60 s und füttert ihn nur, solange dieser Hook läuft (Lebenszeichen $R/invoke-hook.alive je Durchlauf). Hängt das
+#    System oder der Hook, startet das Gerät neu. Schutz vor einer Neustart-Schleife: Nach 3 Starts mit scharfem
+#    Watchdog ohne 30 Minuten stabile Laufzeit bleibt er aus (zurücksetzen: /data/invoke/watchdog-unstable löschen).
 # Notbremse: /data/invoke/disable-hook anlegen -> Skript macht nichts.
 D=${INVOKE_DIR:-/data/invoke}
 R=${INVOKE_RUN:-/run}   # Laufzeit-Dateien (Tests setzen beides um)
@@ -91,8 +96,10 @@ fw_rules(){
       case $proto in tcp|udp) echo "-p $proto --dport $port -j RETURN" ;; esac
     done
   done
-  [ -f $D/ports.local ] && grep -E '^(tcp|udp) [0-9:]+' $D/ports.local | while read -r proto port _; do
-    echo "-p $proto --dport $port -j RETURN"
+  for f in $D/ports.local $D/ports.invoked; do
+    [ -f $f ] && grep -E '^(tcp|udp) [0-9:]+' $f | while read -r proto port _; do
+      echo "-p $proto --dport $port -j RETURN"
+    done
   done
   echo "-j DROP"
 }
@@ -224,6 +231,37 @@ update_watch(){
   if [ $((now - t)) -gt 600 ]; then rm -f $D/update-pending; log "Update bestätigt (10 Minuten ohne Ausfall)"; fi
 }
 
+# ---- Hardware-Watchdog ----
+WDDEV=${INVOKE_WATCHDOG_DEV:-/dev/watchdog}
+uptime_s(){ cut -d' ' -f1 /proc/uptime | cut -d. -f1; }
+watchdog_ctl(){
+  pf=$R/invoke-watchdog.pid
+  p=$(cat $pf 2>/dev/null); running=0
+  [ -n "$p" ] && kill -0 "$p" 2>/dev/null && running=1
+  if [ "$(cfg WATCHDOG)" != on ] || [ ! -e "$WDDEV" ]; then
+    if [ $running = 1 ]; then kill "$p"; log "Watchdog aus"; fi
+    rm -f $pf; return 0
+  fi
+  if [ $running = 1 ]; then
+    # 30 Minuten stabil: Zähler der unruhigen Starts zurücksetzen
+    if [ "$(uptime_s)" -gt 1800 ] && [ "$(cat $D/watchdog-unstable 2>/dev/null || echo 0)" != 0 ]; then echo 0 > $D/watchdog-unstable; fi
+    return 0
+  fi
+  n=$(cat $D/watchdog-unstable 2>/dev/null); n=${n:-0}
+  case $n in ''|*[!0-9]*) n=0 ;; esac
+  if [ "$n" -ge 3 ]; then
+    [ -e $R/invoke-watchdog.blocked ] || { log "Watchdog: 3 Starts ohne stabile Laufzeit - bleibt aus (zurücksetzen: rm $D/watchdog-unstable)"; touch $R/invoke-watchdog.blocked; }
+    return 0
+  fi
+  [ -x $D/bin/invoked ] || return 0
+  # einmal je Gerätestart zählen (ein Neustart des Hooks oder ein Update zählt nicht)
+  [ -e $R/invoke-watchdog.boot ] || { echo $((n + 1)) > $D/watchdog-unstable; touch $R/invoke-watchdog.boot; }
+  mkdir -p $D/log
+  setsid $D/bin/invoked -watchdog "$R/invoke-hook.alive" -watchdog-dev "$WDDEV" >>$D/log/watchdog.log 2>&1 </dev/null &
+  echo $! > $pf
+  log "Watchdog scharf (pid $!)"
+}
+
 podium_trim(){
   [ -s $D/podium.conf ] || return 0
   grep -q ' /etc/podium/podium.conf ' /proc/mounts && return 0
@@ -241,6 +279,13 @@ ca_bundle(){
   log "CA-Bestand aus $D eingebunden"
 }
 
+# Watchdog ordentlich schließen (Notbremse): SIGTERM -> "V" -> kein Neustart
+watchdog_stop(){
+  p=$(cat $R/invoke-watchdog.pid 2>/dev/null)
+  [ -n "$p" ] && kill "$p" 2>/dev/null && log "Watchdog geschlossen"
+  rm -f $R/invoke-watchdog.pid
+}
+
 # Nur beim Laden als Bibliothek (Tests: HOOK_LIB=1) hier aufhören
 [ -n "${HOOK_LIB:-}" ] && return 0 2>/dev/null
 
@@ -248,13 +293,15 @@ podium_trim
 ca_bundle
 tick=0
 while :; do
-  [ -e $D/disable-hook ] && { log "disable-hook gesetzt – Ende"; exit 0; }
+  [ -e $D/disable-hook ] && { watchdog_stop; log "disable-hook gesetzt – Ende"; exit 0; }
   setup_home
   ssh_up && adb_off
   firewall
   ipv6_off
+  uptime_s > $R/invoke-hook.alive
   services
   update_watch
+  watchdog_ctl
   # beim ersten Durchlauf mit Adresse, danach alle 6 h (720 x 30 s); Protokolle alle 5 Minuten
   if [ $tick -le 0 ]; then dhcp_name && { time_sync; tick=720; }; fi
   [ $((tick % 10)) = 0 ] && rotate_logs

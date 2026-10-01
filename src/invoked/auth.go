@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -293,10 +294,68 @@ func (l *loginState) logout(rw http.ResponseWriter, r *http.Request) {
 	writeJSON(rw, map[string]bool{"ok": true})
 }
 
+// sameOrigin: Schreibende Anfragen mit Sitzungs-Cookie müssen von der eigenen Seite kommen (Origin bzw. Referer
+// passt zum Host). Fehlen beide (curl, alte Programme), gilt die Anfrage als gleich: Browser schicken bei fetch/POST
+// immer Origin mit, und nur Browser hängen das Cookie ungefragt an.
+func sameOrigin(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+		return true
+	}
+	o := r.Header.Get("Origin")
+	if o == "" || o == "null" {
+		ref := r.Header.Get("Referer")
+		if ref == "" {
+			return o == ""
+		}
+		o = ref
+	}
+	u, err := url.Parse(o)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
+}
+
+// securityHeaders: strenge Richtlinie für die Oberfläche. Skripte nur aus eigenen Dateien; Stile auch inline
+// (die Oberfläche setzt style-Attribute); Mikrofon nur für die eigene Seite (Raum einmessen).
+func securityHeaders(h http.Header) {
+	h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "+
+		"connect-src 'self'; media-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("Referrer-Policy", "same-origin")
+	h.Set("Permissions-Policy", "microphone=(self), geolocation=(self), camera=()")
+}
+
 // auth lässt nur die Anmeldeseite samt Gestaltung ohne Sitzung durch; die API antwortet mit 401, Seiten leiten um.
+// API-Schlüssel (Authorization: Bearer) gelten nur für /api/ und /metrics, nicht für die Zugangsverwaltung.
 func (w *webServer) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		securityHeaders(rw.Header())
 		p := r.URL.Path
+		deny := func(code int, msg string) {
+			rw.Header().Set("Content-Type", "application/json; charset=utf-8")
+			rw.WriteHeader(code)
+			json.NewEncoder(rw).Encode(map[string]string{"error": msg})
+		}
+		if tok := bearer(r); tok != "" && w.tokens != nil {
+			scope := w.tokens.Check(tok)
+			switch {
+			case scope == "":
+				deny(http.StatusUnauthorized, "API-Schlüssel ungültig / invalid API key")
+			case !(strings.HasPrefix(p, "/api/") || p == "/metrics") || sessionOnly(p) || p == "/api/login" || p == "/api/logout":
+				deny(http.StatusForbidden, "mit API-Schlüssel nicht erlaubt / not allowed with an API key")
+			case scope == "read" && !readOnlyOK(r):
+				deny(http.StatusForbidden, "Schlüssel darf nur lesen / read-only key")
+			default:
+				next.ServeHTTP(rw, r)
+			}
+			return
+		}
+		if !sameOrigin(r) {
+			deny(http.StatusForbidden, "fremde Herkunft / cross-origin request")
+			return
+		}
 		switch {
 		case p == "/api/login":
 			w.login.login(rw, r)
@@ -304,17 +363,15 @@ func (w *webServer) auth(next http.Handler) http.Handler {
 		case p == "/api/logout":
 			w.login.logout(rw, r)
 			return
-		case p == "/login.html" || p == "/favicon.svg" || p == "/app.css" || strings.HasPrefix(p, "/kante/"):
+		case p == "/login.html" || p == "/login.js" || p == "/favicon.svg" || p == "/app.css" || strings.HasPrefix(p, "/kante/"):
 			next.ServeHTTP(rw, r)
 			return
 		case w.login.valid(r):
 			next.ServeHTTP(rw, r)
 			return
 		}
-		if strings.HasPrefix(p, "/api/") {
-			rw.Header().Set("Content-Type", "application/json; charset=utf-8")
-			rw.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(rw).Encode(map[string]string{"error": "login"})
+		if strings.HasPrefix(p, "/api/") || p == "/metrics" {
+			deny(http.StatusUnauthorized, "login")
 			return
 		}
 		http.Redirect(rw, r, "/login.html", http.StatusFound)

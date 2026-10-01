@@ -142,12 +142,18 @@ pauses on `invoke.source.claim`. Senders that verify the device certificate
 |---|---|
 | Volume, mute | through the vendor `audio-ui` over its WAMP router (`com.harman.volumeGet`, `volumeAdjust`, `musicMuteSet`, `musicMuteToggle`; events `volumeChanged`, `musicMuteChanged`), so the ALSA controls and LEDs stay consistent |
 | Buttons | subscribes to `com.harman.test.inputEvent [name, value]` (mic, volumeup/down, bluetooth); maps them to actions (settings) and forwards them to Home Assistant |
-| Web radio, alarm and timer tones | `gst-launch-1.0` (streams) or generated beeps piped to `aplay`, always on ALSA `invoke_music` |
+| Web radio, alarm and timer tones | `gst-launch-1.0` (streams) or generated beeps piped to `aplay`, always on ALSA `invoke_music`. Web radio reconnects after an error or the end of a live stream (2, 4, 8, 16, 30 s; gives up after 8 tries in a row, state `reconnecting`). An alarm whose stream does not play within 15 s or ends while it rings switches to the built-in alarm tone. |
+| Station search | `radiosearch.go`: radio-browser.info through invoked (server list from `all.api.radio-browser.info`, failover); `POST /api/radio/url` plays any stream without saving it |
+| Briefing | `briefing.go`, `ical.go`. Sources: Open-Meteo (weather, place search), Bright Sky (DWD warnings), DWD pollen JSON, ICS calendars (own parser: RRULE, EXDATE, RECURRENCE-ID, TZID incl. Windows names), podcast RSS (newest enclosure), Home Assistant `/api/template`. All are fetched in parallel, at most 8 s each. Consecutive texts are merged and spoken through HA `/api/tts_get_url` or an own TTS address, then played one after the other as player kind `briefing`. As an alarm sound: chime, briefing, then a station (with the alarm fallback). It is prepared 4 min ahead. |
+| Voice assistant | `voice.go`, `wyoming.go`: Wyoming satellite on TCP 10700, announced as `_wyoming._tcp`. Microphone `arecord` 16 kHz/16 bit/mono, 1024 samples per chunk. Mode `wake`: streams continuously, wake word on HA. Mode `button`: pipeline from `asr`. The answer goes to `invoke_announce` while the music is lowered; the microphone sends silence meanwhile (no echo cancellation). Ring scene in Cortana blue. The port goes to `/data/invoke/ports.invoked` for the hook's firewall. |
+| Other speakers | `peers.go`: mDNS `_leuchtfeuer._tcp` (announce and browse, grandcat/zeroconf as in castrecv). Peers are added with their API key; https peers get their certificate fingerprint pinned (TOFU). invoked itself fetches status, copies settings sections (`PUT /api/settings/<section>` on the peer), starts updates and runs actions. |
+| Access, logs, metrics | `tokens.go` (API keys `lf_…`, SHA-256 stored, scopes `read`/`full`, access management session-only), `sshkeys.go` (`authorized_keys` list/add/delete, never the last key), `auth.go` (origin check for cookie requests, CSP and other headers), `logs.go` (tails all service logs every second, copytruncate-aware; SSE live log; syslog RFC 5424 over UDP/TCP; counts `underrun` lines), `metrics.go` (Prometheus text format). See [API.md](API.md). |
+| Room measurement | `measure.go`: pink noise (Kellet filter) through `invoke_music` while the EQ is neutral and other sources paused. Analysis in the browser (`web/roomeq.js`, tested with node): 1/6-octave smoothing, reference 200 Hz–2 kHz, up to 4 cut-only peaking filters for peaks of 3 dB or more between 35 and 350 Hz. |
 | Alarms, timers | scheduler in the configured IANA time zone; fade-in through `volumeAdjust`; light ring animations `L_111_c_alarm`, `L_112_c_timer` via `com.harman.ledAnimate` |
 | Wi-Fi guard | `wpa_cli` (`status`, `signal_poll`, `scan_results`, `roam`) + `ping` to the default gateway; per-access-point penalty list |
 | Home Assistant | MQTT 3.1.1 (paho), discovery topics under `homeassistant/`, state under `invoke/<mac>/…`, availability via last will |
 | Sources | `sources.go`: who plays what. Spotify and AirPlay report through `invoked -source-event ...` (librespot `--onevent`, shairport-sync session commands) over the Unix socket `/run/invoke-events.sock`; AirPlay titles from the metadata pipe; Bluetooth and Cast over WAMP `invoke.source.state`; UPnP, Sendspin, Tidal and Snapcast count as playing while one of their processes has an ALSA playback device open (`/proc/*/fd`, matched to the service by its parent processes). **Source rule** `last`: when a source starts, `invoke.source.claim` makes Bluetooth and Cast pause, web radio stops, the others are muted through their source control; 5 s after the newest one ends they come back. Volume limits (overall, per source) and a start volume per source |
-| Sound | `eq.go` -> `/dev/shm/invoke-eq` for the LADSPA plugin (see *Audio path*) |
+| Sound | `eq.go` -> `/dev/shm/invoke-eq` (layout `IEQ2`, 128 bytes: bass/treble shelves, compressor, up to 6 peaking filters for room correction) for the LADSPA plugin (see *Audio path*). The plugin checks the file size before mapping it; an old `IEQ1` file means pass-through. |
 | Announcements | `announce.go`: URL (TTS, door bell) or built-in tones on `invoke_announce`, sources lowered by `DuckDB` meanwhile, one after the other |
 | Sleep timer | fades out over 30 s, then stops every source (radio stops, Bluetooth/Cast pause, the rest muted until they start again) |
 | Light ring scenes | before the visualizer: sunrise light (an alarm's `sunriseMin`), remaining time of the next timer; lamp mode (`static`) and own colour; Home Assistant light |
@@ -182,6 +188,21 @@ from the start LED) or pulse (bass). The rate conversion must happen before the 
 (PortAudio/Tidal aborts with `snd_interval_empty`). Earlier attempts (ALSA `multi` tee to the Loopback card, `meter`
 plugin) failed, see RESEARCH-NOTES.md.
 
+### Fades and level trim
+
+A source that yields fades out, and a released source fades back in. `mixer.go` moves the softvol control `Quelle <src>`
+in 8 steps of 60 ms, linear in dB. Softvol has 256 steps over −51…0 dB, and the value 0 is silence. A per-source trim
+(`trimDB`, 0–20 dB) lowers loud sources permanently and adds to the announcement ducking.
+
+### Watchdog
+
+`WATCHDOG="on"` in config: the hook starts `invoked -watchdog <alive file>` once.
+
+- It sets WDIOC_SETTIMEOUT 60 s and sends WDIOC_KEEPALIVE every 5 s, but only while the hook has written its uptime
+  within the last 150 s. On SIGTERM it writes `V` (magic close).
+- Boot-loop guard: `/data/invoke/watchdog-unstable` counts boots with the watchdog armed. It is reset after 30 minutes
+  of uptime. At 3 the watchdog stays off.
+
 ## Updates and rollback
 
 `device/invoke/apply-update.sh apply <stage>` puts a staged update in place: files that are replaced or removed (`.remove`)
@@ -211,6 +232,8 @@ Outputs go to `build/` (not in git).
 
 ## Security notes
 
+- Web: strict CSP (scripts only from own files), origin check for cookie requests, API keys for programs (never for
+  access management), `X-Frame-Options: DENY`.
 - SSH: public-key only. adb (root shell without login on 5555) is stopped by the hook and filtered.
 - The firewall allows only the service ports; the vendor's WAMP router (9998/9999) is internal only.
 - The vendor cloud endpoints for OTA are blocked in `/etc/hosts` (StockRoot); Cortana/OTA/crash upload are not started.

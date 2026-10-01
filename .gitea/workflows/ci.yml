@@ -16,6 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
       - name: Werkzeuge
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck build-essential
       - name: tests/run.sh

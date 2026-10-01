@@ -14,6 +14,7 @@ import (
 type Preset struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
+	UUID string `json:"uuid,omitempty"` // aus der Sendersuche (radio-browser.info)
 }
 
 type Alarm struct {
@@ -78,24 +79,31 @@ type Settings struct {
 	Eq       EqSettings                   `json:"eq"`       // Klang (eq.go)
 	Holidays string                       `json:"holidays"` // Feiertage für Wecker: "" = aus, "DE" oder "DE-<Land>" (holidays.go)
 	Update   UpdateSettings               `json:"update"`   // Updates aus der Oberfläche (update.go)
+	Syslog   SyslogSettings               `json:"syslog"`   // Protokolle an einen Syslog-Server (logs.go)
+	Briefing BriefingSettings             `json:"briefing"` // Morgen-Briefing (briefing.go)
+	HA       HASettings                   `json:"homeAssistant"`
+	Voice    VoiceSettings                `json:"voice"` // Sprachassistent (voice.go)
+	Peers    []Peer                       `json:"peers"` // andere Leuchtfeuer (peers.go)
 }
 
 func defaultSettings() Settings {
 	return Settings{
 		Timezone: "Europe/Berlin",
 		Radio: []Preset{
-			{"SomaFM Groove Salad", "http://ice1.somafm.com/groovesalad-128-mp3"},
-			{"Radio Paradise", "http://stream.radioparadise.com/mp3-128"},
-			{"Deutschlandfunk", "https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3"},
+			{Name: "SomaFM Groove Salad", URL: "http://ice1.somafm.com/groovesalad-128-mp3"},
+			{Name: "Radio Paradise", URL: "http://stream.radioparadise.com/mp3-128"},
+			{Name: "Deutschlandfunk", URL: "https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3"},
 		},
 		Buttons: map[string]map[string]string{
 			"mic": {"short": "mute_toggle"},
 		},
-		MQTT:    MQTTSettings{Port: 1883, Discovery: "homeassistant"},
-		Wifi:    WifiSettings{Enabled: true, IntervalSec: 20, LossPct: 20, RttMs: 150, Prefer5GHz: false, PenaltyMins: 30},
-		Viz:     VizSettings{Mode: "off", Color: "rainbow", Brightness: 60, TimerRing: true},
-		Sources: SourceSettings{Policy: "last", Limits: map[string]SourceLimit{}, DuckDB: 15},
-		Eq:      defaultEq(),
+		MQTT:     MQTTSettings{Port: 1883, Discovery: "homeassistant"},
+		Wifi:     WifiSettings{Enabled: true, IntervalSec: 20, LossPct: 20, RttMs: 150, Prefer5GHz: false, PenaltyMins: 30},
+		Viz:      VizSettings{Mode: "off", Color: "rainbow", Brightness: 60, TimerRing: true},
+		Sources:  SourceSettings{Policy: "last", Limits: map[string]SourceLimit{}, DuckDB: 15},
+		Eq:       defaultEq(),
+		Briefing: defaultBriefing(),
+		Voice:    defaultVoice(),
 	}
 }
 
@@ -150,6 +158,12 @@ func mergeDefaults(s Settings) Settings {
 	if s.Eq.Version == 0 {
 		s.Eq = d.Eq
 	}
+	if s.Briefing.Items == nil {
+		s.Briefing = d.Briefing
+	}
+	if s.Voice.Port == 0 {
+		s.Voice = d.Voice
+	}
 	return s
 }
 
@@ -175,6 +189,18 @@ func (st *store) Viz() VizSettings {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	return st.S.Viz
+}
+
+// Redacted liefert eine Kopie ohne Geheimnisse (für die Oberfläche und das Diagnosepaket).
+// Leere Geheimnisse bedeuten beim Speichern "unverändert".
+func (st *store) Redacted() Settings {
+	s := st.Snapshot()
+	s.MQTT.Pass = ""
+	s.HA.Token = ""
+	for i := range s.Peers {
+		s.Peers[i].Token = ""
+	}
+	return s
 }
 
 // Snapshot liefert eine Kopie (JSON-Rundlauf, damit Slices/Maps nicht geteilt werden).

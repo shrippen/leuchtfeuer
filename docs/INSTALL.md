@@ -203,6 +203,19 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
   package; locally: `./build.sh --no-tidal && tools/make-release.sh --key <file>`.
 - **Tests without a speaker:** `tests/run.sh` (also run by the CI).
 - **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>` (also checks the audio chain plugins, the source controls and the vendor `audio-ui`).
+- **Device test:** `scripts/smoke.sh --ip <ip> --key <pub> [--token lf_…] [--listen]`. It goes deeper than verify and
+  writes a Markdown report:
+  - each source PCM opens
+  - controls and the sound plugin file are there
+  - CPU of the audio chain
+  - clock, NTP and watchdog
+  - every capture device is recorded with its level, to find the microphone for the voice assistant
+  - with a key: API, security headers and origin check
+  - with `--listen`: chime, radio, ducking, cross-fade and briefing, asked one by one
+- **Hardware watchdog:** `WATCHDOG="on"` in `/data/invoke/config` (only if `smoke.sh` found `/dev/watchdog` and nothing else
+  holds it). `invoked -watchdog` sets a 60 s timeout and feeds it only while the hook is alive. After 3 boots without
+  30 minutes of stable uptime it stays off; to re-arm, delete `/data/invoke/watchdog-unstable`. The emergency brake
+  closes it cleanly.
 - **Do not kill `mcu-interface`** (vendor ring/amplifier controller): the vendor supervisor then restarts its stack in recovery
   mode, `audio-ui` drops off the router and the amplifier stays muted. A reboot of the speaker fixes it.
 - **Emergency brake:** `ssh root@<ip> 'touch /data/invoke/disable-hook'`, reboot → original behaviour.

@@ -20,6 +20,10 @@ import (
 // (asound-music.conf). Darüber kann invoked eine Quelle stummschalten (Quellen-Regel: die neueste Quelle hat Vorrang)
 // oder alle Quellen für eine Durchsage absenken (Ducking), ohne die Lautstärke des Geräts anzufassen.
 // Weckton, Timer und Durchsage laufen an den Quellen-Reglern vorbei.
+//
+// Wechsel blenden über (rampSteps x rampStep, etwa eine halbe Sekunde): die verdrängte Quelle wird leiser, statt hart zu
+// verstummen, und kommt danach ebenso weich zurück. Der Pegelausgleich je Quelle (Settings.Sources.Limits[].TrimDB)
+// senkt laute Quellen dauerhaft ab, damit alle etwa gleich laut sind.
 
 var sourceNames = []string{"spotify", "upnp", "cast", "airplay", "bluetooth", "sendspin", "tidal", "snapcast", "radio"}
 
@@ -66,15 +70,42 @@ type mixSync struct {
 	mu      sync.Mutex
 	kick    chan struct{}
 	muted   map[string]bool
-	duck    int // dB, 0 = aus
-	annPct  int // Lautstärke der Durchsage in % des Reglerbereichs, 0 = wie "system"
+	duck    int            // dB, 0 = aus
+	annPct  int            // Lautstärke der Durchsage in % des Reglerbereichs, 0 = wie "system"
+	trim    map[string]int // dauerhafte Absenkung je Quelle in dB
 	written map[string]int
 	lastAll time.Time
 	ready   map[string]bool
+	step    time.Duration // Pause zwischen den Überblend-Schritten (0 = ohne Überblenden)
 }
 
+const (
+	rampSteps = 8
+	rampStep  = 60 * time.Millisecond
+)
+
 func newMixSync(m mixerCtl) *mixSync {
-	return &mixSync{m: m, kick: make(chan struct{}, 1), muted: map[string]bool{}, written: map[string]int{}, ready: map[string]bool{}}
+	return &mixSync{m: m, kick: make(chan struct{}, 1), muted: map[string]bool{}, trim: map[string]int{}, written: map[string]int{},
+		ready: map[string]bool{}, step: rampStep}
+}
+
+// SetTrims setzt den Pegelausgleich (dB Absenkung je Quelle, 0 ... 20).
+func (x *mixSync) SetTrims(t map[string]int) {
+	x.mu.Lock()
+	ch := len(t) != len(x.trim)
+	nt := map[string]int{}
+	for k, v := range t {
+		if v = clamp(v, 0, 20); v > 0 {
+			nt[k] = v
+		}
+		ch = ch || x.trim[k] != nt[k]
+	}
+	ch = ch || len(nt) != len(x.trim)
+	x.trim = nt
+	x.mu.Unlock()
+	if ch {
+		x.Kick()
+	}
 }
 
 // Kick löst einen Abgleich aus (gebündelt).
@@ -132,7 +163,7 @@ func (x *mixSync) target(src string) int {
 	if x.muted[src] {
 		return 0
 	}
-	return softvolForDB(x.duck)
+	return softvolForDB(x.duck + x.trim[src])
 }
 
 // ensure legt die Softvol-Regler an: ALSA erzeugt sie erst beim ersten Öffnen des PCM.
@@ -166,21 +197,48 @@ func (x *mixSync) sync(full bool) {
 			x.written["Invoke Announce"] = av
 		}
 	}
+	type ramp struct {
+		ctl      string
+		from, to int
+	}
+	var ramps []ramp
 	for _, s := range sourceNames {
 		ctl := "Quelle " + s
 		want := x.target(s)
-		if !full {
-			if w, ok := x.written[ctl]; ok && w == want {
-				continue
-			}
+		w, known := x.written[ctl]
+		if !full && known && w == want {
+			continue
 		}
 		if !x.ensure(ctl, "invoke_"+s) {
+			continue
+		}
+		if known && x.step > 0 && abs(want-w) > 16 {
+			ramps = append(ramps, ramp{ctl, w, want})
 			continue
 		}
 		if err := x.m.Set(ctl, want); err == nil {
 			x.written[ctl] = want
 		}
 	}
+	// Überblenden: alle betroffenen Regler gemeinsam in gleichen Schritten (linear in dB)
+	for i := 1; i <= rampSteps && len(ramps) > 0; i++ {
+		for _, r := range ramps {
+			v := r.from + (r.to-r.from)*i/rampSteps
+			if x.m.Set(r.ctl, v) == nil {
+				x.written[r.ctl] = v
+			}
+		}
+		if i < rampSteps {
+			time.Sleep(x.step)
+		}
+	}
+}
+
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 // Run gleicht bei jedem Anstoß und alle 5 s ab; alle 60 s werden alle Quellen-Regler neu geschrieben.

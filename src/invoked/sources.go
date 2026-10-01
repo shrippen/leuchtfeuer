@@ -37,8 +37,20 @@ type sourceInfo struct {
 }
 
 type SourceLimit struct {
-	Max   int `json:"max"`   // höchste Lautstärke in %, 0 = keine Grenze
-	Start int `json:"start"` // Lautstärke beim Start der Quelle, 0 = unverändert
+	Max    int `json:"max"`    // höchste Lautstärke in %, 0 = keine Grenze
+	Start  int `json:"start"`  // Lautstärke beim Start der Quelle, 0 = unverändert
+	TrimDB int `json:"trimDB"` // Pegelausgleich: dauerhaft so viele dB leiser (0 ... 20)
+}
+
+// Trims liefert den Pegelausgleich je Quelle (für mixSync.SetTrims).
+func (s SourceSettings) Trims() map[string]int {
+	t := map[string]int{}
+	for n, l := range s.Limits {
+		if l.TrimDB > 0 {
+			t[n] = l.TrimDB
+		}
+	}
+	return t
 }
 
 type SourceSettings struct {

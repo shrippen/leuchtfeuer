@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Baut die LADSPA-Plugins der Tonkette (asound-music.conf) gegen glibc 2.23 armhf (Xenial-Cross):
 #   invoke-viz-tap.so  Tonabgriff für den Leuchtring-Visualizer (device/src/invoke-viz-tap.c)
-#   invoke-eq.so       Klang: Bass, Höhen, Loudness, Nachtmodus (device/src/invoke-eq.c)
+#   invoke-eq.so       Klang: Bass, Höhen, Raumkorrektur, Loudness, Nachtmodus (device/src/invoke-eq.c)
 # Beide sind Pflicht: asound-music.conf bindet sie ein, ohne sie gibt es keinen Ton.
 #   tools/build-viztap.sh   -> build/viztap/invoke-viz-tap.so, build/viztap/invoke-eq.so
 set -euo pipefail

@@ -169,6 +169,14 @@ func (m *mqttBridge) command(name, payload string) {
 		a.sch.DismissTimer()
 	case "chime":
 		a.ann.Play(announceReq{Tone: "chime"})
+	case "briefing":
+		if err := a.Do("briefing"); err != nil {
+			log.Printf("MQTT-Briefing: %v", err)
+		}
+	case "voice":
+		if err := a.Do("voice"); err != nil {
+			log.Printf("MQTT-Sprachassistent: %v", err)
+		}
 	case "sleep_minutes":
 		if v, err := strconv.ParseFloat(payload, 64); err == nil {
 			a.sch.SetSleep(clamp(int(v), 0, 600))
@@ -380,6 +388,8 @@ func (m *mqttBridge) discover(prefix string) {
 		"min": 0, "max": 180, "step": 5, "unit_of_measurement": "min", "icon": "mdi:sleep", "mode": "box"})
 	put("text", "announce", map[string]any{"name": "Durchsage", "command_topic": T("announce/set"), "mode": "text", "max": 255, "icon": "mdi:bullhorn"})
 	put("button", "chime", map[string]any{"name": "Gong", "command_topic": T("chime/press"), "icon": "mdi:bell-ring"})
+	put("button", "briefing", map[string]any{"name": "Briefing abspielen", "command_topic": T("briefing/press"), "icon": "mdi:weather-sunset-up"})
+	put("button", "voice", map[string]any{"name": "Sprachassistent zuhören", "command_topic": T("voice/press"), "icon": "mdi:microphone"})
 	put("light", "ring", map[string]any{"name": "Leuchtring", "schema": "json", "state_topic": T("ring"), "command_topic": T("ring/set"),
 		"brightness": true, "brightness_scale": 100, "supported_color_modes": []string{"rgb"}, "effect": true,
 		"effect_list": ringEffectNames(), "icon": "mdi:led-strip-variant"})

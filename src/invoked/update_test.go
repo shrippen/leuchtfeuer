@@ -8,6 +8,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,8 +124,27 @@ func TestEqEffectiveAndEncode(t *testing.T) {
 	w.write(p, true)
 	w.write(eqEffective(EqSettings{Bass: 2}, 0), false)
 	b, _ := os.ReadFile(path)
-	if len(b) != eqSize || b[0] != 'I' || b[3] != '1' || b[4]&1 != 0 || b[4] != 4 {
+	if len(b) != eqSize || b[0] != 'I' || b[3] != '2' || b[4]&1 != 0 || b[4] != 4 {
 		t.Fatalf("Datei %x", b[:8])
+	}
+	// Raumkorrektur: nur mit RoomOn, begrenzt; eine Anhebung senkt die Vorverstärkung
+	room := []PEQBand{{Hz: 55, DB: -6.6, Q: 4.3}, {Hz: 2000, DB: 9, Q: 50}, {Hz: 5, DB: -30, Q: 0}}
+	if p := eqEffective(EqSettings{Room: room}, 50); p.NPEQ != 0 {
+		t.Fatalf("Raumkorrektur ohne RoomOn: %+v", p)
+	}
+	p = eqEffective(EqSettings{RoomOn: true, Room: room}, 50)
+	if p.NPEQ != 3 || p.PEQ[1].DB != 6 || p.PEQ[1].Q != 10 || p.PEQ[2].Hz != 20 || p.PEQ[2].DB != -15 || p.PreampDB != -6 {
+		t.Fatalf("Raumfilter: %+v", p)
+	}
+	enc := p.encode(2)
+	if f := math.Float32frombits(binary.LittleEndian.Uint32(enc[8+4*9:])); f != 3 {
+		t.Fatalf("Anzahl im Puffer: %v", f)
+	}
+	if f := math.Float32frombits(binary.LittleEndian.Uint32(enc[8+4*10:])); f != 55 {
+		t.Fatalf("erster Filter: %v", f)
+	}
+	if len(cleanPEQ(make([]PEQBand, 9))) != maxPEQ {
+		t.Fatal("zu viele Filter")
 	}
 }
 

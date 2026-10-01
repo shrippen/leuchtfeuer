@@ -302,3 +302,16 @@ automatische Suche: `SNAPCAST_SERVER`.
   shairport-sync 4.x mit `--with-airplay-2` als Test neben dem alten (anderer Name, andere Ports) starten und mit zwei
   AirPlay-2-Geräten gruppieren.
 Bis dahin: Multiroom über Snapcast oder Music Assistant (Sendspin), AirPlay 1 für einzelne Räume.
+
+## Runde 2 (2026-10-01): offen am Gerät
+
+- **Mikrofone für den Sprachassistenten:** Welches ALSA-Gerät die (bearbeiteten) Mikrofone liefert, ist unbekannt. Cortana
+  bekam sie vermutlich über `dsp-client` (Echounterdrückung im DSP?) oder die Loopback-Karte. `scripts/smoke.sh` nimmt von
+  jedem Aufnahmegerät 3 s auf und misst den Pegel (mit `--listen` beim Sprechen); das Gerät mit klarem Unterschied gehört
+  nach Home Assistant > Sprachassistent. Ohne Echounterdrückung schickt der Satellit während der Antwort Stille; bei
+  lauter Musik wird das Aktivierungswort schlechter erkannt (Absenken hilft erst nach der Erkennung).
+- **Watchdog:** ob `/dev/watchdog` existiert und ob ein Hersteller-Dienst (z. B. `device_auto_recovery.sh`) ihn schon hält,
+  zeigt `smoke.sh`. Erst danach `WATCHDOG="on"`.
+- **mDNS:** invoked meldet `_leuchtfeuer._tcp` (und `_wyoming._tcp`) mit eigener Antwort auf Port 5353 wie castrecv; ob
+  librespot (libmdns), castrecv, avahi (Tidal) und invoked sich dort vertragen, am Gerät mit `avahi-browse -a` prüfen.
+- **Überblenden:** amixer-Aufrufe je Schritt kosten auf dem BG2CD vermutlich 10-20 ms; bei Knacken `rampSteps` senken.

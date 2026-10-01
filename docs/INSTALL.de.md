@@ -211,6 +211,19 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
   `v*` baut, signiert und veröffentlicht dann das Paket; von Hand: `./build.sh --no-tidal && tools/make-release.sh --key <datei>`.
 - **Tests ohne Lautsprecher:** `tests/run.sh` (läuft auch in der CI).
 - **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>` (prüft auch die Plugins der Tonkette, die Quellen-Regler und den Hersteller-Dienst `audio-ui`).
+- **Gerätetest:** `scripts/smoke.sh --ip <ip> --key <pub> [--token lf_…] [--listen]`. Geht tiefer als verify und schreibt
+  einen Bericht als Markdown:
+  - jedes Quellen-PCM öffnet
+  - Regler und die Datei des Klang-Plugins sind da
+  - CPU-Last der Tonkette
+  - Uhr, NTP und Watchdog
+  - jedes Aufnahmegerät wird mit Pegel aufgenommen, um das Mikrofon für den Sprachassistenten zu finden
+  - mit Schlüssel: API, Sicherheits-Header und Herkunftsprüfung
+  - mit `--listen`: Gong, Radio, Absenken, Überblenden und Briefing, einzeln abgefragt
+- **Hardware-Watchdog:** `WATCHDOG="on"` in `/data/invoke/config` (nur wenn `smoke.sh` ein `/dev/watchdog` gefunden hat und
+  es nicht belegt ist). `invoked -watchdog` setzt eine Frist von 60 s und füttert ihn nur, solange der Hook lebt. Nach
+  3 Starts ohne 30 Minuten stabile Laufzeit bleibt er aus; wieder scharf schalten: `/data/invoke/watchdog-unstable`
+  löschen. Die Notbremse schließt ihn ordentlich.
 - **`mcu-interface` nicht beenden** (Hersteller-Dienst für Ring und Verstärker): Der Hersteller-Überwacher startet dann seinen
   Stapel im Wiederherstellungsmodus neu, `audio-ui` verliert die Verbindung zum Router und der Verstärker bleibt stumm.
   Ein Neustart des Lautsprechers behebt das.

@@ -203,6 +203,25 @@ func runDemo(listen string) {
 			s.Alarms = append(s.Alarms, Alarm{ID: fmt.Sprintf("a%d", i+1), Name: a.Name.in(lang), Time: a.Time, Days: a.Days, Enabled: a.Enabled,
 				Source: a.Source, Volume: a.Volume, RampSecs: a.RampSecs, Snooze: a.Snooze, MaxMins: a.MaxMins})
 		}
+		de := lang == "de"
+		pick := func(en, d string) string {
+			if de {
+				return d
+			}
+			return en
+		}
+		s.Briefing = BriefingSettings{Lang: lang, Place: "Hamburg", Lat: 53.55, Lon: 9.99, TTS: "ha", Then: "radio:0", Items: []BriefItem{
+			{Type: "greeting", On: true}, {Type: "weather", On: true}, {Type: "warnings", On: true},
+			{Type: "calendar", On: true, Name: pick("Studio", "Studio"), URL: "https://cloud.weber-studio.example/remote.php/dav/public-calendars/studio?export", Days: 0},
+			{Type: "calendar", On: true, Name: pick("Waste collection", "Müllabfuhr"), URL: "https://www.stadtreinigung.example/abfuhr.ics", Days: 1},
+			{Type: "ha", On: true, Text: pick("Travel time to the studio: {{ states('sensor.travel_time') }} minutes.", "Fahrzeit ins Studio: {{ states('sensor.fahrzeit') }} Minuten.")},
+			{Type: "podcast", On: true, Name: podcastPresets[0].Name, URL: podcastPresets[0].URL},
+		}}
+		s.HA = HASettings{URL: "http://homeassistant.local:8123", Token: "x", TTSEngine: "tts.piper"}
+		s.Voice = VoiceSettings{Enabled: true, Port: 10700, Mic: "plughw:1,0", Mode: "wake", Area: pick("Studio", "Studio"), DuckDB: 20}
+		s.Eq = EqSettings{Version: 1, Bass: 2, Loudness: true, RoomOn: true, Room: []PEQBand{{Hz: 52, DB: -6.4, Q: 4.6}, {Hz: 118, DB: -3.8, Q: 3.2}}}
+		s.Sources.Limits = map[string]SourceLimit{"bluetooth": {Max: 80, TrimDB: 4}, "radio": {Start: 25}}
+		s.Syslog = SyslogSettings{Enabled: true, Host: "192.168.178.20", Port: 514, Proto: "udp"}
 		s.Timers = nil
 		for i, t := range sp.Timers {
 			s.Timers = append(s.Timers, Timer{ID: fmt.Sprintf("t%d", i+1), Name: t.Name.in(lang), Total: t.Total,
@@ -251,7 +270,48 @@ func runDemo(listen string) {
 	}
 	wrapAuth = func(_ *webServer, h http.Handler) http.Handler { return h }
 	a.ann = newAnnouncer(a, "null")
-	w := &webServer{app: a, login: newLoginState("")}
+	a.brief = newBriefing(a)
+	// Sprachassistent: mit Home Assistant verbunden, letzte Frage
+	a.voice = newVoice(a)
+	a.voice.active, a.voice.state = &wyConn{}, "idle"
+	if lang == "de" {
+		a.voice.heard, a.voice.answer = "Wie warm ist es im Studio?", "Im Studio sind es 21,5 Grad."
+	} else {
+		a.voice.heard, a.voice.answer = "How warm is it in the studio?", "It is 21.5 degrees in the studio."
+	}
+	// andere Lautsprecher
+	a.peers = newPeerHub(a)
+	st.Update(func(s *Settings) {
+		s.Peers = []Peer{{Name: "Küche", URL: "http://invoke-kueche.lan"}, {Name: "Lager", URL: "https://invoke-lager.lan"}}
+	})
+	a.peers.statusFn = func() []peerStatus {
+		return []peerStatus{
+			{Peer: Peer{Name: "Küche", URL: "http://invoke-kueche.lan"}, Online: true, Version: currentVersion(), Volume: 22, TempC: 61, Playing: "spotify: Nils Frahm – Says"},
+			{Peer: Peer{Name: "Lager", URL: "https://invoke-lager.lan"}, Error: "Lager: dial tcp 192.168.178.47:443: i/o timeout"},
+		}
+	}
+	a.peers.found = map[string]foundPeer{"aabbccddeeff": {Name: "Empfang", URL: "http://192.168.178.53", Version: currentVersion(), ID: "aabbccddeeff"}}
+	// Protokolle, Schlüssel
+	invokeDir, logDir, hookLog = dir, dir+"/log", dir+"/hook.log"
+	os.MkdirAll(logDir, 0o755)
+	for _, n := range []string{"invoked", "librespot", "shairport", "bluetooth-4-aplay"} {
+		os.WriteFile(logDir+"/"+n+".log", nil, 0o644)
+	}
+	a.logs = newLogHub(nil)
+	for _, l := range []logLine{
+		{now.Add(-95 * time.Second), "hook", "Dienst librespot gestartet (pid 2817)"},
+		{now.Add(-80 * time.Second), "librespot", "[INFO librespot_playback::player] Loading <Says> with Spotify URI <spotify:track:1C1Z1Ry9Lo6pKyx1Rj5DnN>"},
+		{now.Add(-62 * time.Second), "invoked", "Quelle radio stumm (andere Quelle hat Vorrang)"},
+		{now.Add(-41 * time.Second), "bluetooth-4-aplay", "underrun!!! (at least 3.412 ms long)"},
+		{now.Add(-12 * time.Second), "invoked", "Webradio http://stream.example/radio: error, neuer Versuch in 2s"},
+		{now.Add(-9 * time.Second), "invoked", "Briefing für 06:45 vorbereitet (4 Abschnitte)"},
+	} {
+		a.logs.publish(l)
+	}
+	os.WriteFile(dir+"/authorized_keys", []byte(demoKeys), 0o600)
+	w := &webServer{app: a, login: newLoginState(""), tokens: loadTokens(dir + "/tokens.json")}
+	w.tokens.Create("Home Assistant", "full")
+	w.tokens.Create("Prometheus", "read")
 	log.Printf("Demo (%s) auf %s", lang, listen)
 	w.Run(listen)
 }
@@ -265,3 +325,7 @@ func toStrings(v any) []string {
 	}
 	return out
 }
+
+// Beispielschlüssel im richtigen Format (Zufallsbytes, keine echten Schlüssel)
+const demoKeys = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLvR49qGA+o0okpI4l2wDksoS1Vptf26qrGl9IK/0uh anna@studio-mac\n" +
+	"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFcHtOPWPaWZCXPIgw0tkATbFTkDx1MQn982m5FMFiI7 backup@nas\n"

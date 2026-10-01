@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,6 +52,12 @@ type app struct {
 	mix     *mixSync // nil im Demo-Modus
 	ann     *announcer
 	eq      *eqWriter
+	brief   *briefing // Morgen-Briefing (briefing.go)
+	rb      *radioBrowser
+	meas    *measurer // Raum einmessen (measure.go)
+	voice   *voiceSat // Sprachassistent (voice.go)
+	peers   *peerHub  // andere Leuchtfeuer (peers.go)
+	logs    *logHub   // Protokolle live, Syslog, Aussetzer (logs.go)
 	started time.Time
 	version string
 
@@ -66,6 +73,7 @@ type app struct {
 	mu       sync.Mutex
 	buttons  []buttonEvent
 	lastRadi int
+	presses  map[string]*pressState
 	listener map[int]func(kind string, data map[string]any)
 	nextL    int
 }
@@ -94,6 +102,8 @@ func newApp(cfg *shellConfig, st *store) *app {
 	a.pl = pl
 	a.ann = newAnnouncer(a, "invoke_announce")
 	a.led = &ledHW{h: a.h}
+	a.rb = newRadioBrowser()
+	a.meas = newMeasurer(a)
 	a.sch = newScheduler(a)
 	a.wifi = newWifiWatch(a)
 	a.mq = newMQTT(a)
@@ -147,6 +157,25 @@ func (a *app) RadioPlay(idx int) error {
 	a.mu.Unlock()
 	a.vol.SetMute(false)
 	a.pl.PlayURL("radio", set.Radio[idx].Name, set.Radio[idx].URL)
+	if a.rb != nil {
+		a.rb.Click(set.Radio[idx].UUID)
+	}
+	return nil
+}
+
+// PlayStream spielt eine Adresse als Webradio, ohne sie zu speichern (Home Assistant, Vorhören in der Sendersuche).
+func (a *app) PlayStream(name, url, uuid string) error {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return fmt.Errorf("Adresse muss mit http:// oder https:// beginnen")
+	}
+	if strings.TrimSpace(name) == "" {
+		name = url
+	}
+	a.vol.SetMute(false)
+	a.pl.PlayURL("radio", name, url)
+	if a.rb != nil {
+		a.rb.Click(uuid)
+	}
 	return nil
 }
 
@@ -170,8 +199,53 @@ func (a *app) onButton(args []any) {
 		val = fmt.Sprint(args[1])
 	}
 	set := a.st.Snapshot()
+	// Mehrfachdruck: Sind "double"/"triple" belegt, wartet ein kurzer Druck pressWindow auf weitere
+	if val == "short" && (set.Buttons[name]["double"] != "" || set.Buttons[name]["triple"] != "") {
+		a.multiPress(name)
+		return
+	}
+	a.runButton(name, val, set)
+}
+
+// pressWindow: so lange nach einem kurzen Druck auf den nächsten warten (Doppel-/Dreifachdruck).
+var pressWindow = 450 * time.Millisecond
+
+func (a *app) multiPress(name string) {
+	a.mu.Lock()
+	if a.presses == nil {
+		a.presses = map[string]*pressState{}
+	}
+	p := a.presses[name]
+	if p == nil {
+		p = &pressState{}
+		a.presses[name] = p
+	}
+	p.n++
+	if p.t != nil {
+		p.t.Stop()
+	}
+	p.t = time.AfterFunc(pressWindow, func() {
+		a.mu.Lock()
+		n := p.n
+		p.n, p.t = 0, nil
+		a.mu.Unlock()
+		val := map[int]string{1: "short", 2: "double"}[n]
+		if n >= 3 {
+			val = "triple"
+		}
+		a.runButton(name, val, a.st.Snapshot())
+	})
+	a.mu.Unlock()
+}
+
+type pressState struct {
+	n int
+	t *time.Timer
+}
+
+func (a *app) runButton(name, val string, set Settings) {
 	action := set.Buttons[name][val]
-	if action == "" {
+	if action == "" && val != "double" && val != "triple" {
 		action = set.Buttons[name]["short"]
 	}
 	// Drehrad und Bluetooth-Knopf bearbeiten audio-ui bzw. btagent selbst
@@ -231,6 +305,9 @@ func (a *app) Do(action string) error {
 	case "timers_cancel":
 		a.sch.CancelTimer("*")
 	case "stop_all":
+		if a.brief != nil {
+			a.brief.Stop()
+		}
 		a.sch.StopAlarm()
 		a.sch.DismissTimer()
 		a.RadioStop()
@@ -249,6 +326,23 @@ func (a *app) Do(action string) error {
 		}
 	case "chime":
 		return a.ann.Play(announceReq{Tone: "chime"})
+	case "radio_1", "radio_2", "radio_3", "radio_4", "radio_5":
+		return a.RadioPlay(int(action[len(action)-1] - '1'))
+	case "briefing":
+		if a.brief == nil {
+			return fmt.Errorf("Briefing nicht verfügbar")
+		}
+		return a.brief.Start("button")
+	case "voice":
+		if a.voice == nil {
+			return fmt.Errorf("Sprachassistent nicht eingerichtet")
+		}
+		return a.voice.PushToTalk()
+	case "voice_mute":
+		if a.voice == nil {
+			return fmt.Errorf("Sprachassistent nicht eingerichtet")
+		}
+		return a.voice.ToggleMute()
 	default:
 		return fmt.Errorf("unbekannte Aktion %q", action)
 	}
@@ -256,4 +350,5 @@ func (a *app) Do(action string) error {
 }
 
 var actionNames = []string{"none", "smart", "mute_toggle", "volume_up", "volume_down", "radio_toggle", "radio_next",
-	"alarm_stop", "alarm_snooze", "timer_dismiss", "timers_cancel", "stop_all", "bt_pairing", "sleep_toggle", "chime"}
+	"alarm_stop", "alarm_snooze", "timer_dismiss", "timers_cancel", "stop_all", "bt_pairing", "sleep_toggle", "chime",
+	"radio_1", "radio_2", "radio_3", "radio_4", "radio_5", "briefing", "voice", "voice_mute"}

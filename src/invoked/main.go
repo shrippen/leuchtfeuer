@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,7 +24,13 @@ func main() {
 	listen := flag.String("listen", ":80", "Adresse der Weboberfläche")
 	sessPath := flag.String("sessions", "/data/invoke/sessions.json", "Ablage der Anmelde-Sitzungen")
 	setPass := flag.Bool("set-password", false, "Passwort der Weboberfläche aus der ersten Zeile von stdin setzen (gehasht) und beenden")
+	wdAlive := flag.String("watchdog", "", "Hardware-Watchdog füttern, solange diese Lebenszeichen-Datei frisch ist (vom Hook)")
+	wdDev := flag.String("watchdog-dev", "/dev/watchdog", "Watchdog-Gerät")
 	flag.Parse()
+	if *wdAlive != "" {
+		runWatchdog(*wdAlive, *wdDev)
+		return
+	}
 	if *setPass {
 		if err := setPasswordFromStdin(*cfgPath); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -66,6 +75,12 @@ func main() {
 	a.mix = newMixSync(amixer{card: "0"})
 	a.h.Subscribe("com.harman.volumeChanged", func([]any) { a.mix.Kick() })
 	a.h.Subscribe("com.harman.musicMuteChanged", func([]any) { a.mix.Kick() })
+	a.mix.SetTrims(st.Snapshot().Sources.Trims())
+	a.Listen(func(kind string, _ map[string]any) {
+		if kind == "settings" {
+			a.mix.SetTrims(a.st.Snapshot().Sources.Trims())
+		}
+	})
 	go a.mix.Run()
 	// Zustand und Titel von Bluetooth (btagent) und Cast (castrecv)
 	a.h.Subscribe("invoke.source.state", func(args []any) {
@@ -97,7 +112,7 @@ func main() {
 	a.eq = newEqWriter(a, eqPath)
 	go a.eq.Run()
 	a.viz = newVisualizer(a)
-	a.viz.scenes = []ringScene{a.sunriseScene, a.timerScene}
+	a.viz.scenes = []ringScene{a.voiceScene, a.sunriseScene, a.timerScene}
 	a.led = holdLED{ledAPI: a.led, v: a.viz}
 	go a.viz.Run()
 	// abgelaufene Timer nach Neustart nicht erneut klingeln lassen
@@ -110,8 +125,31 @@ func main() {
 		}
 		s.Timers = keep
 	})
-	w := &webServer{app: a, login: newLoginState(hash)}
+	a.logs = newLogHub(a)
+	go a.logs.Run()
+	a.brief = newBriefing(a)
+	go a.brief.Run()
+	a.peers = newPeerHub(a)
+	webPort, _ := strconv.Atoi(strings.TrimPrefix(*listen, ":"))
+	tlsOn := cfg.Get("WEB_TLS", "") == "on"
+	if tlsOn {
+		webPort, _ = strconv.Atoi(cfg.Get("WEB_TLS_PORT", "443"))
+	}
+	if webPort > 0 {
+		go a.peers.Announce(webPort, tlsOn)
+	}
+	go a.peers.Browse()
+	a.voice = newVoice(a)
+	a.voice.zc = a.peers.WyomingZeroconf
+	a.voice.Apply()
+	go a.voice.Run()
+	w := &webServer{app: a, login: newLoginState(hash), tokens: loadTokens(filepath.Join(invokeDir, "tokens.json"))}
 	w.login.load(*sessPath)
 	go w.login.janitor()
+	go func() {
+		for range time.Tick(10 * time.Minute) {
+			w.tokens.flush()
+		}
+	}()
 	w.Run(*listen)
 }

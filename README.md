@@ -29,6 +29,21 @@ timers, sleep timer, alarm buttons, announcements, the light ring as a light, no
 events; optionally over TLS), the **light ring** (visualizer: spectrum, level or pulse; lamp in any colour; timer progress),
 **services on/off**, **backup and restore**, a **diagnostics package** and **signed updates with automatic rollback**.
 
+Also in the web interface:
+- a **morning briefing**: greeting, weather, severe weather warnings, pollen, calendars (ICS, also waste collection), news
+  such as *tagesschau in 100 Sekunden*, Home Assistant templates; spoken via Home Assistant TTS; also as an alarm sound
+- a **station search** (radio-browser.info) with favourites on buttons (double/triple press)
+- **room correction**: measure with your phone, the speaker suggests filters that cut room modes
+- a **level trim** per source, and sources **fade over** when one takes over
+- a **voice satellite** for Home Assistant Assist (Wyoming, optional)
+- an overview of **other Leuchtfeuer speakers** (copy settings, start updates)
+- **API keys**, **SSH keys**, **Prometheus metrics**, a **live log** and **syslog** forwarding
+
+The web interface sends strict security headers and checks the origin of every request. Streams reconnect by themselves;
+an alarm whose station fails rings with the built-in tone. An optional **hardware watchdog** restarts a hung speaker.
+Home Assistant integration with a real media player: [custom_components/leuchtfeuer](docs/HOMEASSISTANT.md).
+API: [docs/API.md](docs/API.md).
+
 Everything plays through the speaker's own DSP/amplifier chain; the **volume knob** controls all sources
 and stays in sync with the phone volume over Bluetooth in both directions.
 
@@ -36,7 +51,7 @@ Additionally: SSH with key only (own dropbear), the insecure root shell on port 
 only lets the needed ports in, and the Harman cloud services (Cortana, OTA updates, crash upload, dead Harman
 Spotify) are switched off.
 
-**Not a goal:** restoring Cortana, the wake word or any voice assistant.
+**Not a goal:** restoring Cortana. The optional voice satellite only passes the microphone to your own Home Assistant.
 
 ## How it works (short)
 

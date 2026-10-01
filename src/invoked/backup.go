@@ -27,7 +27,7 @@ import (
 // Diagnose (tar.gz): Status, Einstellungen ohne Geheimnisse, Protokolle (je die letzten 256 KiB), dmesg, Firewall,
 // Prozesse, freier Speicher. Zum Anhängen an ein Issue.
 
-var backupFiles = []string{"config", "invoked.json", "authorized_keys", "host_ed25519", "host_ecdsa", "sessions.json"}
+var backupFiles = []string{"config", "invoked.json", "authorized_keys", "host_ed25519", "host_ecdsa", "sessions.json", "tokens.json"}
 var backupDirs = []string{"bluez/var", "librespot-cache"}
 
 func backupAllowed(p string) bool {
@@ -177,8 +177,7 @@ func (w *webServer) writeDiag(out io.Writer) error {
 	tw := tar.NewWriter(gz)
 	st, _ := json.MarshalIndent(w.status(), "", "  ")
 	tarFile(tw, "status.json", st, 0o644)
-	set := w.app.st.Snapshot()
-	set.MQTT.Pass = ""
+	set := w.app.st.Redacted()
 	sb, _ := json.MarshalIndent(set, "", "  ")
 	tarFile(tw, "invoked.json", sb, 0o644)
 	if b, err := os.ReadFile(w.app.cfg.path); err == nil {

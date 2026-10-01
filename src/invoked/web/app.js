@@ -16,6 +16,10 @@ const ICON = {
   restart: '<path d="M4 12a8 8 0 1 0 3-6.2M4 4v5h5"/>', pause: '<path d="M8 5v14M16 5v14"/>', next: '<path d="M6 5l9 7-9 7zM18 5v14"/>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/>', moon: '<path d="M20 14A8 8 0 1 1 10 4a7 7 0 0 0 10 10z"/>',
   down: '<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>', up: '<path d="M12 20V8M7 13l5-5 5 5M5 4h14"/>', skip: '<path d="M5 5l14 14M12 3a9 9 0 1 0 0 18"/>',
+  sun: '<circle cx="12" cy="13" r="4"/><path d="M12 3v3M4.9 6.9l2.1 2.1M19.1 6.9 17 9M2 13h3M19 13h3M3 19h18"/>', mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  search: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>', key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>',
+  copy: '<rect x="9" y="9" width="11" height="11"/><path d="M5 15V4h11"/>', arrowUp: '<path d="M12 19V5M6 11l6-6 6 6"/>', arrowDown: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  wave: '<path d="M3 12h3l2-6 4 12 3-9 2 3h4"/>',
 };
 const ico = n => `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
 
@@ -56,7 +60,8 @@ async function act(fn, okMsg) {
 }
 
 // ---------------------------------------------------------------- Bausteine
-const stateLabel = st => ({ playing: ['playing', 'spielt'], paused: ['paused', 'pausiert'], stopped: ['stopped', 'gestoppt'], idle: ['idle', 'bereit'], buffering: ['buffering', 'lädt'] }[st] ? T(...{ playing: ['playing', 'spielt'], paused: ['paused', 'pausiert'], stopped: ['stopped', 'gestoppt'], idle: ['idle', 'bereit'], buffering: ['buffering', 'lädt'] }[st]) : esc(st));
+const STATES = { playing: ['playing', 'spielt'], paused: ['paused', 'pausiert'], stopped: ['stopped', 'gestoppt'], idle: ['idle', 'bereit'], buffering: ['buffering', 'lädt'], reconnecting: ['reconnecting …', 'verbindet neu …'] };
+const stateLabel = st => (STATES[st] ? T(...STATES[st]) : esc(st));
 const sw = (id, on, en, de) => `<button class="switch" role="switch" id="${id}" aria-checked="${!!on}" type="button"><span class="switch-track"></span><span class="switch-label">${T(en, de)}</span></button>`;
 const fld = (id, en, de, val, extra = '') => `<div class="field"><label for="${id}">${T(en, de)}</label><input class="input" id="${id}" value="${esc(val)}" ${extra}></div>`;
 const kpi = (v, en, de) => `<div class="kpi"><b>${v}</b><span>${T(en, de)}</span></div>`;
@@ -99,11 +104,12 @@ function viewOverview() {
     <div class="card" data-tier="cyan" id="c-time"></div>
     <div class="card" id="c-bt"></div>
     <div class="card" id="c-ann"></div>
+    <div class="card hidden" data-tier="cyan" id="c-voice"></div>
   </div>
   <h3 class="mono muted small" style="margin:1.6rem 0 .6rem">${T('SERVICES', 'DIENSTE')}</h3>
   <div class="grid kpis" id="c-svc"></div>`;
 }
-const SRC = { spotify: 'Spotify', upnp: 'UPnP/DLNA', cast: 'Cast', airplay: 'AirPlay', bluetooth: 'Bluetooth', sendspin: 'Sendspin', tidal: 'Tidal', snapcast: 'Snapcast', radio: ['Web radio', 'Webradio'], alarm: ['Alarm', 'Wecker'], announce: ['Announcement', 'Durchsage'] };
+const SRC = { spotify: 'Spotify', upnp: 'UPnP/DLNA', cast: 'Cast', airplay: 'AirPlay', bluetooth: 'Bluetooth', sendspin: 'Sendspin', tidal: 'Tidal', snapcast: 'Snapcast', radio: ['Web radio', 'Webradio'], alarm: ['Alarm', 'Wecker'], announce: ['Announcement', 'Durchsage'], briefing: 'Briefing', measure: ['Room measurement', 'Raummessung'] };
 const srcName = n => { const v = SRC[n]; return Array.isArray(v) ? T(v[0], v[1]) : esc(v || n); };
 const srcNameT = n => { const v = SRC[n]; return Array.isArray(v) ? tt(v[0], v[1]) : (v || n); };
 function nowHTML() {
@@ -139,7 +145,11 @@ function fillOverview() {
       ${al.state === 'ringing' ? `<button class="btn btn-outline btn-sm" id="a-snooze">${ico('snooze')}${T('Snooze', 'Schlummern')}</button>` : ''}</div>` : ''}
     ${pl.kind ? `<p class="mono">${T('Now playing', 'Läuft')}: <b class="muted">${esc(pl.name)}</b> ${pl.title ? '— ' + esc(pl.title) : ''}<br><span class="small">${stateLabel(pl.state)}</span></p>
       <button class="btn btn-outline btn-sm" id="p-stop">${ico('stop')}${T('Stop', 'Stopp')}</button>` :
-      `<p>${T('Sources play through the speaker: Spotify, UPnP/DLNA, Cast, AirPlay, Bluetooth, Sendspin. Web radio, alarms and timers start from here.', 'Quellen spielen über den Lautsprecher: Spotify, UPnP/DLNA, Cast, AirPlay, Bluetooth, Sendspin. Webradio, Wecker und Timer starten hier.')}</p>`}`;
+      `<p>${T('Sources play through the speaker: Spotify, UPnP/DLNA, Cast, AirPlay, Bluetooth, Sendspin. Web radio, alarms and timers start from here.', 'Quellen spielen über den Lautsprecher: Spotify, UPnP/DLNA, Cast, AirPlay, Bluetooth, Sendspin. Webradio, Wecker und Timer starten hier.')}</p>`}
+    <div class="row"><button class="btn btn-outline btn-sm" id="br-go">${ico('sun')}${T('Briefing', 'Briefing')}</button>
+      ${S.voice && S.voice.state !== 'off' ? `<button class="btn btn-outline btn-sm" id="vo-go" ${S.voice.connected && !S.voice.muted ? '' : 'disabled'}>${ico('mic')}${T('Listen', 'Zuhören')}</button>` : ''}</div>`;
+  $('#c-voice').classList.toggle('hidden', !(S.voice && S.voice.state !== 'off'));
+  $('#c-voice').innerHTML = voiceHTML();
   $('#c-warn').innerHTML = warnHTML();
   $('#c-now').innerHTML = nowHTML();
   $('#c-ann').innerHTML = `<h3>${T('Announcement', 'Durchsage')}</h3>
@@ -187,6 +197,17 @@ function bindOverview() {
   bindNow();
   $$('[data-sleep]').forEach(b => b.onclick = () => act(() => api('/api/sleep', 'POST', { minutes: +b.dataset.sleep }), +b.dataset.sleep ? tt('Sleep timer set', 'Schlummertimer gesetzt') : tt('Sleep timer off', 'Schlummertimer aus')));
   $$('[data-ann]').forEach(b => b.onclick = () => act(() => api('/api/announce', 'POST', { tone: b.dataset.ann })));
+  f('#br-go', () => act(() => api('/api/briefing/start', 'POST', {}), tt('Briefing starts', 'Briefing beginnt')));
+  f('#vo-go', () => act(() => api('/api/voice/listen', 'POST', {})));
+}
+const VSTATE = { off: ['off', 'aus'], idle: ['waiting for the wake word', 'wartet auf das Aktivierungswort'], listening: ['listening …', 'hört zu …'], thinking: ['thinking …', 'denkt nach …'], speaking: ['answering', 'antwortet'] };
+function voiceHTML(head = true) {
+  const v = S.voice || { state: 'off' };
+  const st = v.state === 'idle' && (CFG.settings.voice || {}).mode === 'button' ? T('ready (button)', 'bereit (Taste)') : T(...(VSTATE[v.state] || [v.state, v.state]));
+  return `${head ? `<h3>${T('Voice assistant', 'Sprachassistent')}</h3>` : ''}
+    <p class="mono">${v.state === 'off' ? T('off', 'aus') : v.connected ? st : T('Home Assistant not connected', 'Home Assistant nicht verbunden')}${v.muted ? ' · ' + T('microphone off', 'Mikrofon aus') : ''}</p>
+    ${v.lastHeard ? `<p><b class="muted">${T('Heard', 'Gehört')}:</b> ${esc(v.lastHeard)}<br><b class="muted">${T('Answer', 'Antwort')}:</b> ${esc(v.lastAnswer || '–')}</p>` : ''}
+    ${v.error ? `<p class="small">${esc(v.error)}</p>` : ''}`;
 }
 function bindNow() {
   $$('[data-btc]').forEach(b => b.onclick = () => act(() => api('/api/bluetooth/control', 'POST', { action: b.dataset.btc })));
@@ -195,34 +216,72 @@ function bindNow() {
 function viewRadio() {
   const R = draft.radio || (draft.radio = JSON.parse(JSON.stringify(CFG.settings.radio)));
   const cur = S.player.kind === 'radio' ? S.player.name : '';
-  return `<div class="card" data-tier="yellow">
+  return `<div class="grid">
+  <div class="card" data-tier="yellow">
     <h3>${T('Web radio', 'Webradio')}</h3>
-    <p>${T('Stations are plain stream addresses (MP3/AAC over http or https). They play through the speaker like every other source.', 'Sender sind einfache Stream-Adressen (MP3/AAC über http oder https). Sie spielen wie jede andere Quelle über den Lautsprecher.')}</p>
+    <p>${T('Stations are plain stream addresses (MP3/AAC over http or https). The first five are favourites for the buttons (actions "Favourite 1 … 5"). If a stream breaks off, the speaker reconnects by itself.', 'Sender sind einfache Stream-Adressen (MP3/AAC über http oder https). Die ersten fünf sind Lieblingssender für die Tasten (Aktionen „Lieblingssender 1 … 5“). Bricht ein Stream ab, verbindet sich der Lautsprecher von selbst neu.')}</p>
     <div class="list">${R.map((p, i) => `<div class="item" data-i="${i}">
-      <div class="stack"><div class="field"><label>${T('Name', 'Name')}</label><input class="input r-name" value="${esc(p.name)}"></div>
+      <div class="stack"><div class="field"><label>${i < 5 ? `<span class="pill" data-state="applied">${i + 1}</span> ` : ''}${T('Name', 'Name')}</label><input class="input r-name" value="${esc(p.name)}"></div>
       <div class="field"><label>URL</label><input class="input r-url" value="${esc(p.url)}"></div>
-      ${cur === p.name ? `<span class="pill" data-state="applied">${T('playing', 'läuft')}</span>` : ''}</div>
+      ${cur === p.name ? `<span class="pill" data-state="applied">${stateLabel(S.player.state)}</span>` : ''}</div>
       <div class="stack"><button class="btn btn-accent btn-sm" data-play="${i}">${ico('play')}${T('Play', 'Abspielen')}</button>
-      <button class="btn btn-outline btn-sm" data-del="${i}">${ico('trash')}</button></div></div>`).join('')}</div>
+      <div class="row"><button class="btn btn-outline btn-sm" data-mv="${i}" data-d="-1" aria-label="${tt('Up', 'Nach oben')}" ${i ? '' : 'disabled'}>${ico('arrowUp')}</button>
+      <button class="btn btn-outline btn-sm" data-mv="${i}" data-d="1" aria-label="${tt('Down', 'Nach unten')}" ${i < R.length - 1 ? '' : 'disabled'}>${ico('arrowDown')}</button>
+      <button class="btn btn-outline btn-sm" data-del="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div></div>`).join('')}</div>
     <div class="row"><button class="btn btn-outline btn-sm" id="r-add">${ico('plus')}${T('Add station', 'Sender hinzufügen')}</button>
       <button class="btn btn-accent btn-sm" id="r-save">${ico('save')}${T('Save', 'Speichern')}</button>
-      <button class="btn btn-outline btn-sm" id="r-stop">${ico('stop')}${T('Stop', 'Stopp')}</button></div></div>`;
+      <button class="btn btn-outline btn-sm" id="r-stop">${ico('stop')}${T('Stop', 'Stopp')}</button></div></div>
+  <div class="card" data-tier="cyan">
+    <h3>${T('Find stations', 'Sender suchen')}</h3>
+    <p>${T('Search the free directory radio-browser.info (only stations that worked at the last check). Listen first, then add.', 'Sucht im freien Verzeichnis radio-browser.info (nur Sender, die bei der letzten Prüfung liefen). Erst anhören, dann hinzufügen.')}</p>
+    <div class="row"><input class="input" id="rs-q" placeholder="${tt('Name, e.g. jazz or Deutschlandfunk', 'Name, z. B. Jazz oder Deutschlandfunk')}" style="flex:1;min-width:10rem">
+      <select class="select" id="rs-c" style="width:7rem"><option value="">${tt('All', 'Alle')}</option>${['DE', 'AT', 'CH', 'GB', 'US', 'FR', 'NL'].map(c => `<option ${c === 'DE' && document.documentElement.lang === 'de' ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      <button class="btn btn-accent btn-sm" id="rs-go">${ico('search')}${T('Search', 'Suchen')}</button></div>
+    <div class="list" id="rs-list"></div></div></div>`;
 }
 function collectRadio() {
-  return $$('#view .item[data-i]').map(it => ({ name: $('.r-name', it).value, url: $('.r-url', it).value }));
+  return $$('#view .item[data-i]').map(it => { const old = draft.radio[+it.dataset.i] || {}; return { name: $('.r-name', it).value, url: $('.r-url', it).value, uuid: old.url === $('.r-url', it).value ? old.uuid : undefined }; });
 }
+let rsResults = [], rsQ = null;
 function bindRadio() {
   const keep = () => { draft.radio = collectRadio(); };
   $('#r-add').onclick = () => { keep(); draft.radio.push({ name: '', url: 'https://' }); render(); };
   $('#r-save').onclick = () => act(async () => { keep(); await api('/api/settings/radio', 'PUT', draft.radio); delete draft.radio; await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#r-stop').onclick = () => act(() => api('/api/radio/stop', 'POST', {}));
   $$('[data-del]').forEach(b => b.onclick = () => { keep(); draft.radio.splice(+b.dataset.del, 1); render(); });
+  $$('[data-mv]').forEach(b => b.onclick = () => {
+    keep(); const i = +b.dataset.mv, j = i + +b.dataset.d;
+    if (j < 0 || j >= draft.radio.length) return;
+    [draft.radio[i], draft.radio[j]] = [draft.radio[j], draft.radio[i]]; dirty = true; render();
+  });
   $$('[data-play]').forEach(b => b.onclick = () => act(async () => {
     keep();
     const saved = JSON.stringify(CFG.settings.radio.map(p => [p.name, p.url])) === JSON.stringify(draft.radio.map(p => [p.name, p.url]));
     if (!saved) { await api('/api/settings/radio', 'PUT', draft.radio); await loadCfg(); }
     await api('/api/radio/play', 'POST', { index: +b.dataset.play });
   }));
+  const showResults = () => {
+    const box = $('#rs-list');
+    box.innerHTML = rsResults.map((r, i) => `<div class="item"><div><div class="t">${esc(r.name)}</div>
+      <div class="s">${esc(r.countrycode || '')} · ${esc(r.codec || '?')} ${r.bitrate ? r.bitrate + ' kbit/s' : ''}${r.tags ? ' · ' + esc(r.tags.split(',').slice(0, 3).join(', ')) : ''}</div></div>
+      <div class="row"><button class="btn btn-outline btn-sm" data-rsplay="${i}" aria-label="${tt('Listen', 'Anhören')}">${ico('play')}</button>
+      <button class="btn btn-outline btn-sm" data-rsadd="${i}" ${draft.radio.some(p => p.url === r.url) ? 'disabled' : ''}>${ico('plus')}${T('Add', 'Hinzufügen')}</button></div></div>`).join('') || `<p>${T('Nothing found.', 'Nichts gefunden.')}</p>`;
+    $$('[data-rsplay]', box).forEach(b => b.onclick = () => { const r = rsResults[+b.dataset.rsplay]; act(() => api('/api/radio/url', 'POST', { name: r.name, url: r.url, uuid: r.stationuuid })); });
+    $$('[data-rsadd]', box).forEach(b => b.onclick = () => {
+      const r = rsResults[+b.dataset.rsadd]; keep();
+      draft.radio.push({ name: r.name, url: r.url, uuid: r.stationuuid }); dirty = true; render();
+      toast(tt('Added - save to keep it', 'Hinzugefügt - speichern, damit er bleibt'), 'ok');
+    });
+  };
+  const search = async () => {
+    rsQ = { q: $('#rs-q').value, c: $('#rs-c').value };
+    $('#rs-list').innerHTML = `<p>${T('Searching …', 'Suche läuft …')}</p>`;
+    try { rsResults = await api('/api/radio/search?q=' + encodeURIComponent(rsQ.q) + '&country=' + rsQ.c); showResults(); }
+    catch (e) { rsResults = []; $('#rs-list').innerHTML = ''; toast(e.message, 'error'); }
+  };
+  if (rsQ) { $('#rs-q').value = rsQ.q; $('#rs-c').value = rsQ.c; if (rsResults.length) showResults(); }
+  $('#rs-go').onclick = search;
+  $('#rs-q').onkeydown = e => { if (e.key === 'Enter') search(); };
 }
 
 const DAYS = [[1, 'Mo', 'Mo'], [2, 'Tu', 'Di'], [3, 'We', 'Mi'], [4, 'Th', 'Do'], [5, 'Fr', 'Fr'], [6, 'Sa', 'Sa'], [0, 'Su', 'So']];
@@ -237,6 +296,7 @@ function viewAlarms() {
       ${fld('a-name-' + i, 'Name', 'Name', a.name)}
       <div class="field"><label for="a-src-${i}">${T('Sound', 'Ton')}</label><select class="select a-src" id="a-src-${i}"><option value="tone">${tt('Beeps', 'Signalton')}</option>
         ${radios.map((r, k) => `<option value="radio:${k}" ${a.source === 'radio:' + k ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
+        <option value="briefing" ${a.source === 'briefing' ? 'selected' : ''}>${tt('Briefing (chime, briefing, then station)', 'Briefing (Gong, Briefing, danach Sender)')}</option>
         <option value="url" ${(a.source || '').startsWith('url:') ? 'selected' : ''}>${tt('Address (stream or file) …', 'Adresse (Stream oder Datei) …')}</option></select></div>
       <div class="field ${(a.source || '').startsWith('url:') ? '' : 'hidden'}" id="a-urlf-${i}"><label for="a-url-${i}">${T('Address', 'Adresse')}</label><input class="input" id="a-url-${i}" value="${esc((a.source || '').startsWith('url:') ? a.source.slice(4) : '')}" placeholder="https://"></div>
       <div class="field wide"><span class="field-label">${T('Days (none = every day)', 'Tage (keine = täglich)')}</span>
@@ -268,6 +328,7 @@ function viewAlarms() {
         <button class="btn btn-outline btn-sm" id="hol-save">${ico('save')}${T('Save', 'Speichern')}</button></div>${S.holiday ? `<p class="small">${T('Today', 'Heute')}: ${esc(S.holiday)}</p>` : ''}</div></div>
   </div>
   <h3 class="mono muted small" style="margin:1.6rem 0 .6rem">${T('ALARMS', 'WECKER')}</h3>
+  <p class="hint">${T('If a station does not start within 15 s or stops early, the built-in alarm tone rings instead.', 'Startet ein Sender nicht binnen 15 s oder bricht er ab, klingelt stattdessen der eingebaute Weckton.')}</p>
   <div class="grid">${A.map(alarmCard).join('')}</div>
   <div class="row" style="margin-top:1.2rem"><button class="btn btn-outline btn-sm" id="a-add">${ico('plus')}${T('Add alarm', 'Wecker hinzufügen')}</button>
     <button class="btn btn-accent btn-sm" id="a-save">${ico('save')}${T('Save alarms', 'Wecker speichern')}</button></div>`;
@@ -298,8 +359,119 @@ function bindAlarms() {
   $$('[data-askip]').forEach(b => b.onclick = () => act(async () => { await api('/api/alarms/skip', 'POST', { id: b.dataset.askip, skip: b.dataset.v === '1' }); delete draft.alarms; await loadCfg(); render(); }));
 }
 
+// ---------------------------------------------------------------- Briefing
+const BTYPES = {
+  greeting: ['Greeting, date, holiday', 'Begrüßung, Datum, Feiertag'], weather: ['Weather (Open-Meteo)', 'Wetter (Open-Meteo)'],
+  warnings: ['Severe weather warnings (DWD)', 'Unwetterwarnungen (DWD)'], pollen: ['Pollen (DWD)', 'Pollenflug (DWD)'],
+  calendar: ['Calendar (ICS)', 'Kalender (ICS)'], podcast: ['News / podcast', 'Nachrichten / Podcast'],
+  ha: ['Home Assistant template', 'Home-Assistant-Vorlage'], text: ['Own text', 'Eigener Text'],
+};
+let pollenRegions = null;
+function briefItemHTML(it, i, n) {
+  const head = `<div class="row between"><b>${T(...BTYPES[it.type])}</b><div class="row">${sw('bi-on-' + i, it.on, 'On', 'An')}
+    <button class="btn btn-outline btn-sm" data-bmv="${i}" data-d="-1" ${i ? '' : 'disabled'} aria-label="${tt('Up', 'Nach oben')}">${ico('arrowUp')}</button>
+    <button class="btn btn-outline btn-sm" data-bmv="${i}" data-d="1" ${i < n - 1 ? '' : 'disabled'} aria-label="${tt('Down', 'Nach unten')}">${ico('arrowDown')}</button>
+    <button class="btn btn-outline btn-sm" data-bdel2="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div>`;
+  let body = '';
+  if (it.type === 'calendar') body = `<div class="alarm">${fld('bi-name-' + i, 'Name (spoken)', 'Name (wird gesprochen)', it.name)}
+      <div class="field"><label for="bi-days-${i}">${T('Day', 'Tag')}</label><select class="select" id="bi-days-${i}">${[[0, 'today', 'heute'], [1, 'tomorrow (e.g. waste collection)', 'morgen (z. B. Müllabfuhr)'], [2, 'in 2 days', 'übermorgen']].map(([v, en, de]) => `<option value="${v}" ${+it.days === v ? 'selected' : ''}>${tt(en, de)}</option>`).join('')}</select></div>
+      <div class="field wide"><label for="bi-url-${i}">${T('Calendar address (ICS / webcal)', 'Kalender-Adresse (ICS / webcal)')}</label><input class="input" id="bi-url-${i}" value="${esc(it.url)}" placeholder="https://…/basic.ics"></div></div>`;
+  else if (it.type === 'podcast') body = `<div class="alarm"><div class="field wide"><label for="bi-pre-${i}">${T('Podcast', 'Podcast')}</label><select class="select bi-pre" id="bi-pre-${i}" data-i="${i}">
+      ${CFG.podcasts.map(p => `<option value="${esc(p.url)}" ${p.url === it.url ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}<option value="" ${CFG.podcasts.some(p => p.url === it.url) ? '' : 'selected'}>${tt('Other feed …', 'Anderer Feed …')}</option></select></div>
+      <div class="field wide ${CFG.podcasts.some(p => p.url === it.url) ? 'hidden' : ''}" id="bi-urlf-${i}"><label for="bi-url-${i}">${T('Feed address (RSS)', 'Feed-Adresse (RSS)')}</label><input class="input" id="bi-url-${i}" value="${esc(it.url)}" placeholder="https://"></div></div>`;
+  else if (it.type === 'ha') body = `<div class="field"><label for="bi-text-${i}">${T('Template (Jinja), e.g. travel time', 'Vorlage (Jinja), z. B. Fahrzeit')}</label><textarea class="input" rows="2" id="bi-text-${i}" placeholder="Bis zur Arbeit: {{ states('sensor.fahrzeit') }} Minuten.">${esc(it.text)}</textarea></div>`;
+  else if (it.type === 'text') body = `<div class="field"><label for="bi-text-${i}">${T('Text', 'Text')}</label><textarea class="input" rows="2" id="bi-text-${i}">${esc(it.text)}</textarea></div>`;
+  else if (it.type === 'pollen') body = `<div class="field"><label for="bi-reg-${i}">${T('Region', 'Region')}</label><select class="select bi-reg" id="bi-reg-${i}" data-v="${it.region || 0}">
+      ${pollenRegions ? pollenRegions.map(r => `<option value="${r.id}" ${r.id === it.region ? 'selected' : ''}>${esc(r.name)}</option>`).join('') : `<option value="${it.region || 0}">${it.region ? tt('Region ', 'Region ') + it.region : tt('loading …', 'lädt …')}</option>`}</select></div>`;
+  return `<div class="item" data-bi2="${i}"><div class="stack" style="width:100%">${head}${body}</div></div>`;
+}
+function viewBriefing() {
+  const B = draft.briefing || (draft.briefing = JSON.parse(JSON.stringify(CFG.settings.briefing)));
+  const H = CFG.settings.homeAssistant || {};
+  const radios = CFG.settings.radio;
+  return `<div class="grid">
+  <div class="card" data-tier="yellow"><h3>${T('Briefing', 'Briefing')}</h3>
+    <p>${T('A short morning overview: greeting, weather, warnings, appointments, news. It plays from a button (action "Play briefing"), from here, from Home Assistant or as an alarm sound (Alarms > Sound > Briefing).', 'Ein kurzer Überblick am Morgen: Begrüßung, Wetter, Warnungen, Termine, Nachrichten. Er spielt per Taste (Aktion „Briefing abspielen“), von hier, aus Home Assistant oder als Weckton (Wecker > Ton > Briefing).')}</p>
+    <div class="list" id="bi-list">${B.items.map((it, i) => briefItemHTML(it, i, B.items.length)).join('')}</div>
+    <div class="row"><select class="select" id="bi-new" style="max-width:16rem">${Object.keys(BTYPES).map(k => `<option value="${k}">${tt(...BTYPES[k])}</option>`).join('')}</select>
+      <button class="btn btn-outline btn-sm" id="bi-add">${ico('plus')}${T('Add', 'Hinzufügen')}</button></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="bi-save">${ico('save')}${T('Save', 'Speichern')}</button>
+      <button class="btn btn-outline btn-sm" id="bi-play">${ico('play')}${T('Play now', 'Jetzt abspielen')}</button>
+      <button class="btn btn-outline btn-sm" id="bi-stop">${ico('stop')}${T('Stop', 'Stopp')}</button></div></div>
+  <div class="stack" style="gap:1.2rem">
+  <div class="card" data-tier="cyan"><h3>${T('Place and language', 'Ort und Sprache')}</h3>
+    <p class="mono">${B.place ? esc(B.place) + ` <span class="muted small">(${(+B.lat).toFixed(2)}, ${(+B.lon).toFixed(2)})</span>` : T('No place set.', 'Kein Ort eingestellt.')}</p>
+    <div class="row"><input class="input" id="bi-geo" placeholder="${tt('Search a place', 'Ort suchen')}" style="flex:1;min-width:9rem"><button class="btn btn-outline btn-sm" id="bi-geo-go">${ico('search')}${T('Search', 'Suchen')}</button></div>
+    <div class="list" id="bi-geo-list"></div>
+    <div class="field"><span class="field-label">${T('Language', 'Sprache')}</span>${seg('bi-lang', [['de', 'German', 'Deutsch'], ['en', 'English', 'Englisch']], B.lang || 'de')}</div>
+    <div class="field"><label for="bi-then">${T('Afterwards', 'Danach')}</label><select class="select" id="bi-then"><option value="">${tt('Nothing', 'Nichts')}</option>${radios.map((r, k) => `<option value="radio:${k}" ${B.then === 'radio:' + k ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></div></div>
+  <div class="card"><h3>${T('Speech', 'Sprachausgabe')}</h3>
+    <p>${T('Texts are spoken by a text-to-speech service. Without one, the briefing plays only the news and shows the texts in the preview.', 'Texte spricht ein Sprachausgabe-Dienst. Ohne ihn spielt das Briefing nur die Nachrichten und zeigt die Texte in der Vorschau.')}</p>
+    ${seg('bi-tts', [['', 'None', 'Keine'], ['ha', 'Home Assistant', 'Home Assistant'], ['url', 'Own address', 'Eigene Adresse']], B.tts || '')}
+    <p class="small ${B.tts === 'ha' ? '' : 'hidden'}" id="bi-tts-ha">${H.url && H.ttsEngine ? T('Uses ', 'Nutzt ') + esc(H.ttsEngine) + ' @ ' + esc(H.url) : T('Set address, token and TTS entity under Home Assistant.', 'Adresse, Token und TTS-Entität unter Home Assistant eintragen.')}</p>
+    <div class="field ${B.tts === 'url' ? '' : 'hidden'}" id="bi-tts-urlf"><label for="bi-tts-url">${T('Address with {text} (and {lang})', 'Adresse mit {text} (und {lang})')}</label><input class="input" id="bi-tts-url" value="${esc(B.ttsUrl || '')}" placeholder="http://piper.lan:5000/?text={text}"></div></div>
+  <div class="card"><h3>${T('Preview', 'Vorschau')}</h3>
+    <p>${T('What the briefing would say right now (data is fetched fresh).', 'Was das Briefing jetzt sagen würde (Daten werden frisch geholt).')}</p>
+    <div class="row"><button class="btn btn-outline btn-sm" id="bi-prev">${ico('test')}${T('Show preview', 'Vorschau zeigen')}</button></div>
+    <div class="list" id="bi-prev-list"></div></div></div></div>`;
+}
+function collectBriefing() {
+  const B = draft.briefing;
+  B.items = $$('#view [data-bi2]').map(el => {
+    const i = +el.dataset.bi2, it = { ...B.items[i] };
+    it.on = swVal('bi-on-' + i);
+    const v = id => { const e = $(`#${id}-${i}`); return e ? e.value : undefined; };
+    if (it.type === 'calendar') { it.name = v('bi-name'); it.days = +v('bi-days'); it.url = v('bi-url').trim(); }
+    if (it.type === 'podcast') { const pre = v('bi-pre'); it.url = pre || v('bi-url').trim(); const p = CFG.podcasts.find(x => x.url === it.url); it.name = p ? p.name : (it.name || 'Podcast'); }
+    if (it.type === 'ha' || it.type === 'text') it.text = v('bi-text');
+    if (it.type === 'pollen') it.region = +v('bi-reg') || 0;
+    return it;
+  });
+  B.lang = segVal('bi-lang') || 'de'; B.then = $('#bi-then').value; B.tts = segVal('bi-tts'); B.ttsUrl = $('#bi-tts-url').value.trim();
+  return B;
+}
+async function loadPollenRegions() {
+  if (pollenRegions || !$('.bi-reg')) return;
+  try { pollenRegions = await api('/api/briefing/pollen-regions'); } catch (e) { toast(e.message, 'error'); return; }
+  $$('.bi-reg').forEach(sel => { const v = +sel.dataset.v; sel.innerHTML = `<option value="0">${tt('Choose …', 'Wählen …')}</option>` + pollenRegions.map(r => `<option value="${r.id}" ${r.id === v ? 'selected' : ''}>${esc(r.name)}</option>`).join(''); });
+}
+function bindBriefing() {
+  bindSw($('#view')); bindSeg($('#view'));
+  const keep = () => collectBriefing();
+  $('#bi-add').onclick = () => { keep(); const t = $('#bi-new').value; draft.briefing.items.push({ type: t, on: true, name: t === 'calendar' ? tt('Calendar', 'Kalender') : '', url: t === 'podcast' ? CFG.podcasts[0].url : '', days: 0, text: '', region: 0 }); dirty = true; render(); };
+  $$('[data-bdel2]').forEach(b => b.onclick = () => { keep(); draft.briefing.items.splice(+b.dataset.bdel2, 1); dirty = true; render(); });
+  $$('[data-bmv]').forEach(b => b.onclick = () => { keep(); const L = draft.briefing.items, i = +b.dataset.bmv, j = i + +b.dataset.d; if (j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]]; dirty = true; render(); });
+  $$('.bi-pre').forEach(sel => sel.onchange = () => $('#bi-urlf-' + sel.dataset.i).classList.toggle('hidden', sel.value !== ''));
+  $('#bi-tts').addEventListener('change', () => { const v = segVal('bi-tts'); $('#bi-tts-ha').classList.toggle('hidden', v !== 'ha'); $('#bi-tts-urlf').classList.toggle('hidden', v !== 'url'); });
+  const save = async () => { await api('/api/settings/briefing', 'PUT', keep()); delete draft.briefing; await loadCfg(); };
+  $('#bi-save').onclick = () => act(save, tt('Saved', 'Gespeichert'));
+  $('#bi-play').onclick = () => act(async () => { if (dirty) await save(); await api('/api/briefing/start', 'POST', {}); }, tt('Briefing starts', 'Briefing beginnt'));
+  $('#bi-stop').onclick = () => act(() => api('/api/briefing/stop', 'POST', {}));
+  const geo = async () => {
+    const box = $('#bi-geo-list'); box.innerHTML = `<p>${T('Searching …', 'Suche läuft …')}</p>`;
+    try {
+      const r = await api('/api/briefing/geocode?lang=' + document.documentElement.lang + '&q=' + encodeURIComponent($('#bi-geo').value));
+      box.innerHTML = r.map((p, i) => `<div class="item"><div><div class="t">${esc(p.name)}</div><div class="s">${esc([p.admin, p.country].filter(Boolean).join(', '))}</div></div><button class="btn btn-outline btn-sm" data-geo="${i}">${T('Choose', 'Wählen')}</button></div>`).join('') || `<p>${T('Nothing found.', 'Nichts gefunden.')}</p>`;
+      $$('[data-geo]', box).forEach(b => b.onclick = () => { keep(); const p = r[+b.dataset.geo]; Object.assign(draft.briefing, { place: p.name, lat: p.lat, lon: p.lon }); dirty = true; render(); });
+    } catch (e) { box.innerHTML = ''; toast(e.message, 'error'); }
+  };
+  $('#bi-geo-go').onclick = geo;
+  $('#bi-geo').onkeydown = e => { if (e.key === 'Enter') geo(); };
+  $('#bi-prev').onclick = async () => {
+    const box = $('#bi-prev-list'); box.innerHTML = `<p>${T('Fetching …', 'Wird geholt …')}</p>`;
+    try {
+      if (dirty) await save();
+      const segs = await api('/api/briefing/preview');
+      box.innerHTML = segs.map(x => `<div class="item"><div><div class="s">${esc(x.type)}</div><div class="t">${x.audio ? ico('play') + ' ' + esc(x.audio) : esc(x.text || '')}</div>${x.error ? `<div class="s">${esc(x.error)}</div>` : ''}</div></div>`).join('') || `<p>${T('Nothing to say right now.', 'Gerade nichts zu sagen.')}</p>`;
+    } catch (e) { box.innerHTML = ''; toast(e.message, 'error'); }
+  };
+  loadPollenRegions();
+}
+
 function actionLabel(a) {
-  const m = { sleep_toggle: ['Sleep timer 30 min on/off', 'Schlummertimer 30 Min. an/aus'], chime: ['Chime', 'Gong'], none: ['Nothing', 'Nichts'], smart: ['Smart: snooze alarm / end timer / mute', 'Smart: Wecker schlummern / Timer beenden / Stumm'], mute_toggle: ['Toggle mute', 'Stumm umschalten'], volume_up: ['Volume +5', 'Lauter +5'], volume_down: ['Volume −5', 'Leiser −5'], radio_toggle: ['Radio on/off', 'Radio an/aus'], radio_next: ['Next station', 'Nächster Sender'], alarm_stop: ['Stop alarm', 'Wecker stoppen'], alarm_snooze: ['Snooze alarm', 'Wecker schlummern'], timer_dismiss: ['End ringing timer', 'Klingelnden Timer beenden'], timers_cancel: ['Cancel all timers', 'Alle Timer abbrechen'], stop_all: ['Stop everything', 'Alles stoppen'], bt_pairing: ['Bluetooth pairing window', 'Bluetooth-Kopplungsfenster'] }[a];
+  const m = { sleep_toggle: ['Sleep timer 30 min on/off', 'Schlummertimer 30 Min. an/aus'], chime: ['Chime', 'Gong'], none: ['Nothing', 'Nichts'], smart: ['Smart: snooze alarm / end timer / mute', 'Smart: Wecker schlummern / Timer beenden / Stumm'], mute_toggle: ['Toggle mute', 'Stumm umschalten'], volume_up: ['Volume +5', 'Lauter +5'], volume_down: ['Volume −5', 'Leiser −5'], radio_toggle: ['Radio on/off', 'Radio an/aus'], radio_next: ['Next station', 'Nächster Sender'], alarm_stop: ['Stop alarm', 'Wecker stoppen'], alarm_snooze: ['Snooze alarm', 'Wecker schlummern'], timer_dismiss: ['End ringing timer', 'Klingelnden Timer beenden'], timers_cancel: ['Cancel all timers', 'Alle Timer abbrechen'], stop_all: ['Stop everything', 'Alles stoppen'], bt_pairing: ['Bluetooth pairing window', 'Bluetooth-Kopplungsfenster'],
+    radio_1: ['Favourite 1', 'Lieblingssender 1'], radio_2: ['Favourite 2', 'Lieblingssender 2'], radio_3: ['Favourite 3', 'Lieblingssender 3'], radio_4: ['Favourite 4', 'Lieblingssender 4'], radio_5: ['Favourite 5', 'Lieblingssender 5'],
+    briefing: ['Play briefing', 'Briefing abspielen'], voice: ['Voice assistant: listen', 'Sprachassistent: zuhören'], voice_mute: ['Voice assistant: microphone on/off', 'Sprachassistent: Mikrofon an/aus'] }[a];
   return m ? tt(m[0], m[1]) : a;
 }
 function evListHTML() {
@@ -315,7 +487,8 @@ function viewButtons() {
       <div class="field" style="width:8rem"><label>${T('Press / value', 'Druck / Wert')}</label><input class="input b-press" list="b-press" value="${esc(r.p)}"></div></div>
       <div class="field"><label>${T('Action', 'Aktion')}</label><select class="select b-act">${CFG.actions.map(a => `<option value="${a}" ${a === r.a ? 'selected' : ''}>${esc(actionLabel(a))}</option>`).join('')}</select></div></div>
       <button class="btn btn-outline btn-sm" data-bdel="${i}">${ico('trash')}</button></div>`).join('')}</div>
-    <datalist id="b-seen">${seen.map(n => `<option value="${esc(n)}">`).join('')}<option value="mic"></datalist><datalist id="b-press"><option value="short"><option value="long"><option value="0"><option value="1"></datalist>
+    <datalist id="b-seen">${seen.map(n => `<option value="${esc(n)}">`).join('')}<option value="mic"></datalist><datalist id="b-press"><option value="short"><option value="double"><option value="triple"><option value="long"><option value="0"><option value="1"></datalist>
+    <p class="small">${T('"double" and "triple" are counted by this program: once one of them is mapped, a short press waits a moment for more.', '„double“ und „triple“ zählt dieses Programm selbst: Ist eins davon belegt, wartet ein kurzer Druck einen Moment auf weitere.')}</p>
     <div class="row"><button class="btn btn-outline btn-sm" id="b-add">${ico('plus')}${T('Add mapping', 'Belegung hinzufügen')}</button>
       <button class="btn btn-accent btn-sm" id="b-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
     <div class="card"><h3>${T('Recent button events', 'Letzte Tasten-Ereignisse')}</h3>
@@ -379,8 +552,30 @@ function bindNetwork() {
 }
 
 function viewHA() {
-  const m = CFG.settings.mqtt;
-  return `<div class="card" data-tier="yellow" style="max-width:40rem"><h3>Home Assistant (MQTT)</h3>
+  const m = CFG.settings.mqtt, H = CFG.settings.homeAssistant || {}, V = CFG.settings.voice || {};
+  return `<div class="grid">
+  <div class="card" data-tier="yellow"><h3>${T('Integration', 'Integration')}</h3>
+    <p>${T('The Leuchtfeuer integration for Home Assistant (folder custom_components/leuchtfeuer, also via HACS) finds the speaker by itself and offers a real media player, buttons and sensors. It needs an API key (System > Access, scope "full").', 'Die Leuchtfeuer-Integration für Home Assistant (Ordner custom_components/leuchtfeuer, auch über HACS) findet den Lautsprecher von selbst und bietet einen echten Mediaplayer, Knöpfe und Sensoren. Sie braucht einen API-Schlüssel (System > Zugang, Umfang „voll“).')}</p>
+    <p>${T('MQTT (below) keeps working in addition.', 'MQTT (unten) funktioniert weiterhin zusätzlich.')}</p>
+    <div class="row"><a class="btn btn-outline btn-sm" href="#/system">${ico('key')}${T('Create API key', 'API-Schlüssel anlegen')}</a></div></div>
+  <div class="card" data-tier="cyan"><h3>${T('Voice assistant (Assist)', 'Sprachassistent (Assist)')}</h3>
+    <p>${T('The speaker becomes a voice satellite for Home Assistant (Wyoming protocol, port 10700). Home Assistant finds it in the Wyoming integration. Wake word, speech recognition and answers come from Home Assistant.', 'Der Lautsprecher wird ein Sprach-Satellit für Home Assistant (Wyoming-Protokoll, Port 10700). Home Assistant findet ihn in der Wyoming-Integration. Aktivierungswort, Spracherkennung und Antworten kommen von Home Assistant.')}</p>
+    <div id="vo-st">${voiceHTML(false)}</div>
+    ${sw('vo-en', V.enabled, 'Enabled', 'Aktiv')}${sw('vo-mute', V.muted, 'Microphone off', 'Mikrofon aus')}
+    <div class="field"><span class="field-label">${T('Listening', 'Zuhören')}</span>${seg('vo-mode', [['wake', 'Wake word (Home Assistant)', 'Aktivierungswort (Home Assistant)'], ['button', 'Only after a button press', 'Nur nach Tastendruck']], V.mode || 'wake')}</div>
+    <div class="alarm">${fld('vo-mic', 'Microphone (ALSA device, see scripts/smoke.sh)', 'Mikrofon (ALSA-Gerät, siehe scripts/smoke.sh)', V.mic || '', 'placeholder="plughw:1,0"')}
+      ${fld('vo-area', 'Area in Home Assistant', 'Bereich in Home Assistant', V.area || '')}
+      ${fld('vo-duck', 'Lower music meanwhile (dB)', 'Musik solange absenken (dB)', V.duckDB ?? 20, 'type="number" min="0" max="40"')}
+      ${fld('vo-port', 'Port', 'Port', V.port || 10700, 'type="number" min="1024" max="65535"')}</div>
+    <p class="small">${T('No echo cancellation: while it answers, the microphone sends silence. Map the action "Voice assistant: listen" to a button for push-to-talk.', 'Keine Echounterdrückung: Während der Antwort schickt das Mikrofon Stille. Für Drücken-und-Sprechen die Aktion „Sprachassistent: zuhören“ auf eine Taste legen.')}</p>
+    <div class="row"><button class="btn btn-accent btn-sm" id="vo-save">${ico('save')}${T('Save', 'Speichern')}</button><button class="btn btn-outline btn-sm" id="vo-listen">${ico('mic')}${T('Listen now', 'Jetzt zuhören')}</button></div></div>
+  <div class="card"><h3>${T('Home Assistant for the speaker', 'Home Assistant für den Lautsprecher')}</h3>
+    <p>${T('So that the briefing can speak (text-to-speech) and read templates, the speaker needs the address of Home Assistant and a long-lived access token (profile > security; for templates of an administrator).', 'Damit das Briefing sprechen (Sprachausgabe) und Vorlagen lesen kann, braucht der Lautsprecher die Adresse von Home Assistant und ein langlebiges Zugriffstoken (Profil > Sicherheit; für Vorlagen von einem Administrator).')}</p>
+    ${fld('ha-url', 'Address', 'Adresse', H.url || '', 'placeholder="http://homeassistant.local:8123"')}
+    <div class="field"><label for="ha-tok">${T('Token (empty = keep)', 'Token (leer = behalten)')}</label><input class="input" id="ha-tok" type="password" autocomplete="off"></div>
+    ${fld('ha-tts', 'Text-to-speech entity', 'Sprachausgabe-Entität', H.ttsEngine || '', 'placeholder="tts.piper"')}
+    <div class="row"><button class="btn btn-accent btn-sm" id="ha-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
+  <div class="card"><h3>Home Assistant (MQTT)</h3>
     <p><span id="mq-st">${mqttHTML()}</span>
     ${T('Enter the broker that Home Assistant uses (Mosquitto add-on). The speaker then shows up automatically as a device with volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, sensors (temperature, Wi-Fi, uptime) and button events.', 'Trage den Broker ein, den Home Assistant nutzt (Mosquitto-Add-on). Der Lautsprecher erscheint dann automatisch als Gerät mit Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timern, Wecker-Tasten, Sensoren (Temperatur, WLAN, Laufzeit) und Tasten-Ereignissen.')}</p>
     ${sw('m-en', m.enabled, 'Enabled', 'Aktiv')}
@@ -388,15 +583,21 @@ function viewHA() {
       ${fld('m-user', 'User', 'Benutzer', m.user)}<div class="field"><label for="m-pass">${T('Password (empty = keep)', 'Passwort (leer = behalten)')}</label><input class="input" id="m-pass" type="password" autocomplete="new-password"></div>
       ${fld('m-disc', 'Discovery prefix', 'Erkennungs-Präfix', m.discovery)}</div>
     ${sw('m-tls', m.tls, 'Encrypted (TLS, port 8883)', 'Verschlüsselt (TLS, Port 8883)')}${sw('m-ins', m.insecure, 'Accept self-signed broker certificate', 'Selbst signiertes Broker-Zertifikat annehmen')}
-    <p>${T('Also offered: the light ring as a light (colour, brightness, effects), announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing (source, title, artist).', 'Außerdem: der Leuchtring als Licht (Farbe, Helligkeit, Effekte), Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“ (Quelle, Titel, Interpret).')}</p>
-    <div class="row"><button class="btn btn-accent btn-sm" id="m-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>`;
+    <p>${T('Also offered: the light ring as a light (colour, brightness, effects), announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: der Leuchtring als Licht (Farbe, Helligkeit, Effekte), Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.')}</p>
+    <div class="row"><button class="btn btn-accent btn-sm" id="m-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>`;
 }
 function bindHA() {
-  bindSw($('#view'));
+  bindSw($('#view')); bindSeg($('#view'));
   $('#m-save').onclick = () => act(async () => {
     await api('/api/settings/mqtt', 'PUT', { enabled: swVal('m-en'), host: $('#m-host').value.trim(), port: +$('#m-port').value || 1883, user: $('#m-user').value, pass: $('#m-pass').value, discovery: $('#m-disc').value.trim() || 'homeassistant', tls: swVal('m-tls'), insecure: swVal('m-ins') });
     await loadCfg();
   }, tt('Saved', 'Gespeichert'));
+  $('#ha-save').onclick = () => act(async () => { await api('/api/settings/homeAssistant', 'PUT', { url: $('#ha-url').value.trim(), token: $('#ha-tok').value.trim(), ttsEngine: $('#ha-tts').value.trim() }); $('#ha-tok').value = ''; await loadCfg(); }, tt('Saved', 'Gespeichert'));
+  $('#vo-save').onclick = () => act(async () => {
+    await api('/api/settings/voice', 'PUT', { enabled: swVal('vo-en'), muted: swVal('vo-mute'), mode: segVal('vo-mode'), mic: $('#vo-mic').value.trim(), area: $('#vo-area').value.trim(), duckDB: +$('#vo-duck').value || 0, port: +$('#vo-port').value || 10700 });
+    await loadCfg();
+  }, tt('Saved', 'Gespeichert'));
+  $('#vo-listen').onclick = () => act(() => api('/api/voice/listen', 'POST', {}));
 }
 
 const vizHTML = () => !S.viz.tap ? T('No music signal found yet (play something; needs the current installation).', 'Noch kein Musiksignal gefunden (etwas abspielen; braucht die aktuelle Installation).')
@@ -424,15 +625,17 @@ function viewSettings() {
     <div class="range field"><label for="e-treb">${T('Treble (dB)', 'Höhen (dB)')}</label><div class="range-row"><input id="e-treb" type="range" min="-12" max="12" step="1" value="${e.treble || 0}"><output class="range-out" id="e-treb-o">${e.treble || 0}</output></div></div>
     ${sw('e-loud', e.loudness, 'Loudness', 'Loudness')}${sw('e-night', e.night, 'Night mode', 'Nachtmodus')}
     <div class="row"><button class="btn btn-accent btn-sm" id="e-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
+  ${roomHTML()}
   <div class="card" data-tier="cyan"><h3>${T('Sources and volume', 'Quellen und Lautstärke')}</h3>
     <div class="field"><span class="field-label">${T('When a second source starts', 'Wenn eine zweite Quelle beginnt')}</span>${seg('q-pol', [['last', 'The newest plays, the others pause', 'Die neueste spielt, die anderen pausieren'], ['mix', 'All play together', 'Alle spielen zusammen']], so.policy)}</div>
     <div class="alarm">${fld('q-max', 'Highest volume % (0 = no limit)', 'Höchste Lautstärke % (0 = keine Grenze)', so.max || 0, 'type="number" min="0" max="100"')}
       ${fld('q-duck', 'Lower music during announcements (dB)', 'Musik bei Durchsagen absenken (dB)', so.duckDB || 0, 'type="number" min="0" max="40"')}</div>
-    <p>${T('Per source: highest volume and the volume it starts with (0 = no rule).', 'Je Quelle: höchste Lautstärke und die Lautstärke beim Start (0 = keine Regel).')}</p>
+    <p>${T('Per source: highest volume, the volume it starts with (0 = no rule) and a level trim that makes loud sources quieter (dB). When a source takes over, the others fade out instead of stopping hard.', 'Je Quelle: höchste Lautstärke, Lautstärke beim Start (0 = keine Regel) und ein Pegelausgleich, der laute Quellen leiser macht (dB). Übernimmt eine Quelle, blenden die anderen aus, statt hart zu verstummen.')}</p>
     <div class="list">${CFG.sourceNames.map(n => `<div class="item"><div class="t">${srcName(n)}</div><div class="row">
-      <input class="input q-lmax" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).max || 0}" style="width:5.2rem" aria-label="${tt('max', 'höchstens')}" title="${tt('Highest %', 'Höchstens %')}">
-      <input class="input q-lst" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).start || 0}" style="width:5.2rem" aria-label="${tt('start', 'Start')}" title="${tt('Start %', 'Start %')}"></div></div>`).join('')}</div>
-    <p class="small mono">${T('left: highest % · right: start %', 'links: höchstens % · rechts: Start %')}</p>
+      <input class="input q-lmax" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).max || 0}" style="width:3.9rem" aria-label="${tt('max', 'höchstens')}" title="${tt('Highest %', 'Höchstens %')}">
+      <input class="input q-lst" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).start || 0}" style="width:3.9rem" aria-label="${tt('start', 'Start')}" title="${tt('Start %', 'Start %')}">
+      <input class="input q-trim" data-n="${n}" type="number" min="0" max="20" value="${(lim[n] || {}).trimDB || 0}" style="width:3.9rem" aria-label="${tt('trim dB', 'Ausgleich dB')}" title="${tt('Quieter by dB', 'Leiser um dB')}"></div></div>`).join('')}</div>
+    <p class="small mono">${T('highest % · start % · quieter by dB', 'höchstens % · Start % · leiser um dB')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="q-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
   <div class="card" data-tier="cyan"><h3>${T('Light ring', 'Leuchtring')}</h3>
     <p>${T('The ring can follow the music of all receivers or glow as a lamp. Volume knob, mute, alarm, timer and buttons keep showing their own animations.', 'Der Ring kann der Musik aller Empfänger folgen oder als Lampe leuchten. Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen.')} <span id="v-st">${vizHTML()}</span></p>
@@ -462,12 +665,111 @@ function viewSettings() {
       <div class="row"><input type="file" id="u-pkg" accept=".gz"><input type="file" id="u-sig" accept=".sig"><button class="btn btn-outline btn-sm" id="u-up">${ico('up')}${T('Upload', 'Hochladen')}</button></div>`
       : `<p>${T('Updates from here need the release signing key (UPDATE_PUBKEY in /data/invoke/config, see README). Until then update with ./install.sh.', 'Updates von hier brauchen den Signaturschlüssel der Releases (UPDATE_PUBKEY in /data/invoke/config, siehe README). Bis dahin mit ./install.sh aktualisieren.')}</p>`}
     <div class="row"><button class="btn btn-outline btn-sm" id="u-back">${ico('restart')}${T('Roll back last update', 'Letztes Update zurücknehmen')}</button></div></div>
-  <div class="card"><h3>${T('Web password', 'Web-Passwort')}</h3>
-    <p>${T('At least 6 characters. Stored only as a salted hash.', 'Mindestens 6 Zeichen. Wird nur als gesalzener Hash gespeichert.')}</p>
-    <div class="field"><label for="pw">${T('New password', 'Neues Passwort')}</label><input class="input" id="pw" type="password" autocomplete="new-password"></div>
-    <div class="row"><button class="btn btn-accent btn-sm" id="pw-save">${ico('save')}${T('Change', 'Ändern')}</button><button class="btn btn-outline btn-sm" id="logout">${T('Sign out', 'Abmelden')}</button></div></div></div>
+  </div>
   <div class="card" style="margin-top:1.2rem" id="logcard"><h3 id="log-t">${T('Log', 'Protokoll')}</h3><div class="log" id="logbox">${tt('Choose a service above.', 'Wähle oben einen Dienst.')}</div></div>`;
 }
+// ---------------------------------------------------------------- Raumkorrektur
+let roomCurves = [], roomNoise = null, roomSuggest = null, roomBusy = false;
+const eqBody = () => { const e = CFG.settings.eq || {}; return { bass: e.bass || 0, treble: e.treble || 0, loudness: !!e.loudness, night: !!e.night, roomOn: !!e.roomOn, room: e.room || [] }; };
+function roomBandsHTML(bands) {
+  return bands.map((b, i) => `<div class="item" data-rb="${i}"><div class="row">
+    <input class="input rb-hz" type="number" min="20" max="20000" step="1" value="${b.hz}" style="width:4.9rem" aria-label="Hz" title="Hz"><span class="small mono">Hz</span>
+    <input class="input rb-db" type="number" min="-15" max="6" step="0.1" value="${b.db}" style="width:4.4rem" aria-label="dB" title="dB"><span class="small mono">dB</span>
+    <input class="input rb-q" type="number" min="0.3" max="10" step="0.1" value="${b.q}" style="width:3.9rem" aria-label="Q" title="${tt('Q (width: higher = narrower)', 'Güte (Breite: höher = schmaler)')}"><span class="small mono">Q</span></div>
+    <button class="btn btn-outline btn-sm" data-rbdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div>`).join('') || `<p class="small">${T('No filters.', 'Keine Filter.')}</p>`;
+}
+function roomHTML() {
+  const e = CFG.settings.eq || {};
+  const bands = draft.room || (draft.room = JSON.parse(JSON.stringify(e.room || [])));
+  return `<div class="card" data-tier="yellow"><h3>${T('Room correction', 'Raumkorrektur')}</h3>
+    <p>${T('Rooms boost single bass notes (room modes): they boom. Measure with your phone at the listening place; the speaker plays pink noise and the page suggests filters that only cut.', 'Räume verstärken einzelne Basstöne (Raummoden): es dröhnt. Miss mit dem Handy am Hörplatz; der Lautsprecher spielt rosa Rauschen, die Seite schlägt Filter vor, die nur absenken.')}</p>
+    ${window.isSecureContext ? '' : `<div class="callout callout-warn">${T('Measuring needs the microphone, and browsers allow it only over HTTPS: set WEB_TLS="on" (see README). Filters can still be entered by hand.', 'Messen braucht das Mikrofon, und Browser geben es nur über HTTPS frei: WEB_TLS="on" setzen (siehe README). Filter lassen sich auch von Hand eintragen.')}</div>`}
+    ${sw('rq-on', e.roomOn, 'Room correction on', 'Raumkorrektur an')}
+    <div class="list" id="rq-bands">${roomBandsHTML(bands)}</div>
+    <div class="row"><button class="btn btn-outline btn-sm" id="rq-add" ${bands.length >= 6 ? 'disabled' : ''}>${ico('plus')}${T('Add filter', 'Filter hinzufügen')}</button>
+      <button class="btn btn-accent btn-sm" id="rq-save">${ico('save')}${T('Save', 'Speichern')}</button></div>
+    <p class="small">${T('1. Usual listening volume. 2. Phone at ear height at your seat, room quiet. 3. Measure; 2 or 3 positions make it more reliable.', '1. Übliche Lautstärke. 2. Handy in Ohrhöhe am Sitzplatz, Raum ruhig. 3. Messen; 2 oder 3 Positionen machen es verlässlicher.')}</p>
+    <div class="row"><button class="btn btn-outline btn-sm" id="rq-measure" ${window.isSecureContext && navigator.mediaDevices ? '' : 'disabled'}>${ico('wave')}${T('Measure position', 'Position messen')} ${roomCurves.length + 1}</button>
+      ${roomCurves.length ? `<button class="btn btn-outline btn-sm" id="rq-reset">${T('Discard measurements', 'Messungen verwerfen')}</button>` : ''}</div>
+    <div id="rq-result">${roomResultHTML()}</div></div>`;
+}
+function chartSVG(lines) {
+  const W = 600, H = 200, x = f => Math.log10(f / 20) / 3 * W, y = d => H / 2 - d * (H / 2) / 15;
+  const grid = [50, 100, 200, 500, 1000, 2000, 5000, 10000].map(f => `<line class="chart-grid" x1="${x(f)}" x2="${x(f)}" y1="0" y2="${H}"/><text class="chart-label" x="${x(f) + 3}" y="${H - 4}">${f >= 1000 ? f / 1000 + 'k' : f}</text>`).join('')
+    + [-10, 10].map(d => `<line class="chart-grid" x1="0" x2="${W}" y1="${y(d)}" y2="${y(d)}"/><text class="chart-label" x="3" y="${y(d) - 3}">${d > 0 ? '+' : ''}${d} dB</text>`).join('');
+  const pl = (pts, cls) => `<polyline class="${cls}" points="${pts.filter(p => p.hz >= 20 && p.hz <= 20000).map(p => `${x(p.hz).toFixed(1)},${y(Math.max(-15, Math.min(15, p.db))).toFixed(1)}`).join(' ')}"/>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tt('Frequency response', 'Frequenzgang')}"><line class="chart-zero" x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}"/>${grid}${lines.map(l => pl(l[0], l[1])).join('')}</svg>`;
+}
+function roomResultHTML() {
+  if (!roomSuggest) return '';
+  const s = roomSuggest;
+  return `${chartSVG([[s.before, 'chart-before'], [s.after, 'chart-after']])}
+    <p class="small"><span class="chart-key chart-before"></span>${T('measured', 'gemessen')} (${roomCurves.length} ${tt('position(s)', 'Position(en)')}) <span class="chart-key chart-after"></span>${T('with the suggested filters', 'mit den vorgeschlagenen Filtern')}</p>
+    ${s.warn ? `<div class="callout callout-warn">${s.warn}</div>` : ''}
+    <p class="mono small">${s.bands.length ? s.bands.map(b => `${b.hz} Hz ${b.db} dB Q ${b.q}`).join(' · ') : T('No boom found - nothing to correct.', 'Kein Dröhnen gefunden - nichts zu korrigieren.')}</p>
+    ${s.bands.length ? `<div class="row"><button class="btn btn-accent btn-sm" id="rq-apply">${T('Use these filters', 'Diese Filter übernehmen')}</button></div>` : ''}`;
+}
+function collectRoom() {
+  draft.room = $$('#rq-bands [data-rb]').map(el => ({ hz: +$('.rb-hz', el).value || 100, db: +$('.rb-db', el).value || 0, q: +$('.rb-q', el).value || 1 }));
+  return draft.room;
+}
+// Mikrofon aufnehmen: mittlere Leistung je FFT-Bin über secs Sekunden
+async function capturePower(an, secs) {
+  const n = an.frequencyBinCount, acc = new Float64Array(n), buf = new Float32Array(n);
+  let k = 0;
+  const end = performance.now() + secs * 1000;
+  while (performance.now() < end) {
+    await new Promise(r => setTimeout(r, 120));
+    an.getFloatFrequencyData(buf);
+    for (let i = 0; i < n; i++) acc[i] += Math.pow(10, buf[i] / 10);
+    k++;
+  }
+  for (let i = 0; i < n; i++) acc[i] /= Math.max(1, k);
+  return acc;
+}
+async function measureRoom() {
+  if (roomBusy) return;
+  roomBusy = true;
+  const btn = $('#rq-measure'), say = m => { if (btn) btn.textContent = m; };
+  let stream = null, ctx = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const an = ctx.createAnalyser(); an.fftSize = 32768; an.smoothingTimeConstant = 0;
+    ctx.createMediaStreamSource(stream).connect(an);
+    const binHz = ctx.sampleRate / an.fftSize;
+    say(tt('Quiet please …', 'Bitte Ruhe …'));
+    const noise = RoomEQ.smooth(binHz, await capturePower(an, 2));
+    await api('/api/measure/start', 'POST', { seconds: 12 });
+    say(tt('Measuring …', 'Misst …'));
+    await new Promise(r => setTimeout(r, 1500));
+    const curve = RoomEQ.smooth(binHz, await capturePower(an, 8));
+    await api('/api/measure/stop', 'POST', {});
+    const snr = RoomEQ.snr(curve, noise);
+    roomCurves.push(curve); roomNoise = noise;
+    roomSuggest = RoomEQ.suggest(RoomEQ.average(roomCurves));
+    roomSuggest.warn = snr < 10 ? tt(`Only ${snr.toFixed(0)} dB above the room noise: turn the speaker up and measure again.`, `Nur ${snr.toFixed(0)} dB über dem Raumgeräusch: lauter stellen und neu messen.`) : '';
+  } catch (e) {
+    api('/api/measure/stop', 'POST', {}).catch(() => {});
+    toast(e.message || String(e), 'error');
+  } finally {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (ctx) ctx.close();
+    roomBusy = false;
+    collectRoomSafe(); render();
+  }
+}
+const collectRoomSafe = () => { if ($('#rq-bands')) collectRoom(); };
+function bindRoom() {
+  const saveRoom = async () => { collectRoom(); await api('/api/settings/eq', 'PUT', { ...eqBody(), roomOn: swVal('rq-on'), room: draft.room }); delete draft.room; await loadCfg(); };
+  $('#rq-add').onclick = () => { collectRoom(); draft.room.push({ hz: 100, db: -3, q: 4 }); dirty = true; render(); };
+  $$('[data-rbdel]').forEach(b => b.onclick = () => { collectRoom(); draft.room.splice(+b.dataset.rbdel, 1); dirty = true; render(); });
+  $('#rq-save').onclick = () => act(saveRoom, tt('Saved', 'Gespeichert'));
+  $('#rq-measure').onclick = () => measureRoom();
+  const r = $('#rq-reset'); if (r) r.onclick = () => { roomCurves = []; roomSuggest = null; render(); };
+  const ap = $('#rq-apply'); if (ap) ap.onclick = () => act(async () => { draft.room = roomSuggest.bands.slice(0, 6); $('#rq-bands').innerHTML = roomBandsHTML(draft.room); $('#rq-on').setAttribute('aria-checked', 'true'); await saveRoom(); }, tt('Room correction on', 'Raumkorrektur an'));
+}
+
 function svcListHTML() {
   const st = Object.fromEntries((S.sys.services || []).map(v => [v.name, v]));
   return [...CFG.services.map(d => d.name), 'hook'].map(n => {
@@ -494,10 +796,10 @@ function bindSettings() {
     const h = $('#v-rgb').value, rgb = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
     await api('/api/settings/viz', 'PUT', { mode: segVal('v-mode'), color: segVal('v-col'), rgb, brightness: +$('#v-bri').value, rotate: +$('#v-rot').value || 0, timerRing: swVal('v-timer') }); await loadCfg();
   }, tt('Saved', 'Gespeichert'));
-  $('#e-save').onclick = () => act(async () => { await api('/api/settings/eq', 'PUT', { bass: +$('#e-bass').value, treble: +$('#e-treb').value, loudness: swVal('e-loud'), night: swVal('e-night') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
+  $('#e-save').onclick = () => act(async () => { await api('/api/settings/eq', 'PUT', { ...eqBody(), bass: +$('#e-bass').value, treble: +$('#e-treb').value, loudness: swVal('e-loud'), night: swVal('e-night') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#q-save').onclick = () => act(async () => {
     const limits = {};
-    CFG.sourceNames.forEach(n => { limits[n] = { max: +$(`.q-lmax[data-n="${n}"]`).value || 0, start: +$(`.q-lst[data-n="${n}"]`).value || 0 }; });
+    CFG.sourceNames.forEach(n => { limits[n] = { max: +$(`.q-lmax[data-n="${n}"]`).value || 0, start: +$(`.q-lst[data-n="${n}"]`).value || 0, trimDB: +$(`.q-trim[data-n="${n}"]`).value || 0 }; });
     await api('/api/settings/sources', 'PUT', { policy: segVal('q-pol'), max: +$('#q-max').value || 0, duckDB: +$('#q-duck').value || 0, limits }); await loadCfg();
   }, tt('Saved', 'Gespeichert'));
   CFG.groups.forEach(g => { const el = $('#g-' + g.group); el.onchange = () => act(async () => { await api('/api/services/group', 'POST', { group: g.group, enabled: swVal('g-' + g.group) }); await loadCfg(); }, swVal('g-' + g.group) ? tt('Switched on, starts within 30 s', 'Eingeschaltet, startet binnen 30 s') : tt('Switched off', 'Ausgeschaltet')); });
@@ -525,13 +827,143 @@ function bindSettings() {
     catch (e) { toast(e.message, 'error'); }
   };
   $('#u-back').onclick = () => { if (confirm(tt('Restore the version before the last update?', 'Den Stand vor dem letzten Update wiederherstellen?'))) act(() => api('/api/update/rollback', 'POST', {}), tt('Rolling back, services restart', 'Wird zurückgenommen, Dienste starten neu')); };
+  bindRoom();
+}
+
+// ---------------------------------------------------------------- Geräte (andere Leuchtfeuer)
+let peersData = null, peersAt = 0;
+const SECTIONS = { radio: ['Stations', 'Sender'], alarms: ['Alarms', 'Wecker'], buttons: ['Buttons', 'Tasten'], viz: ['Light ring', 'Leuchtring'], sources: ['Sources', 'Quellen'], eq: ['Sound', 'Klang'], holidays: ['Holidays', 'Feiertage'], timezone: ['Time zone', 'Zeitzone'], briefing: ['Briefing', 'Briefing'], homeAssistant: ['Home Assistant (API)', 'Home Assistant (API)'], mqtt: ['MQTT', 'MQTT'], syslog: ['Syslog', 'Syslog'], wifi: ['Wi-Fi guard', 'WLAN-Wächter'] };
+function peersHTML() {
+  if (!peersData) return `<p>${T('Loading …', 'Lädt …')}</p>`;
+  return peersData.peers.map((p, i) => `<div class="item"><div><div class="t">${esc(p.name)} <span class="pill" data-state="${p.online ? 'applied' : 'pending'}">${p.online ? T('online', 'erreichbar') : T('offline', 'nicht erreichbar')}</span></div>
+      <div class="s">${esc(p.url)}${p.online ? ` · ${esc(p.version)} · ${p.muted ? tt('muted', 'stumm') : p.volume + ' %'} · ${p.tempC} °C${p.playing ? ' · ' + esc(p.playing) : ''}` : p.error ? ' · ' + esc(p.error) : ''}</div></div>
+    <div class="row"><button class="btn btn-outline btn-sm" data-pstop="${i}" ${p.online ? '' : 'disabled'} aria-label="${tt('Stop everything', 'Alles stoppen')}">${ico('stop')}</button>
+      <button class="btn btn-outline btn-sm" data-pupd="${i}" ${p.online ? '' : 'disabled'}>${ico('down')}${T('Update', 'Update')}</button>
+      <button class="btn btn-outline btn-sm" data-pdel="${i}" aria-label="${tt('Remove', 'Entfernen')}">${ico('trash')}</button></div></div>`).join('') || `<p>${T('No other speaker added yet.', 'Noch kein anderer Lautsprecher eingetragen.')}</p>`;
+}
+function viewDevices() {
+  const found = peersData ? peersData.found.filter(f => !f.known) : [];
+  return `<div class="grid">
+  <div class="card" data-tier="yellow"><h3>${T('Speakers', 'Lautsprecher')}</h3>
+    <p>${T('Other Leuchtfeuer speakers in the network: state at a glance, copy settings, start updates. Each one is added with one of its API keys (there: System > Access, scope "full").', 'Andere Leuchtfeuer im Netz: Zustand auf einen Blick, Einstellungen kopieren, Updates anstoßen. Eingetragen wird jedes mit einem seiner API-Schlüssel (dort: System > Zugang, Umfang „voll“).')}</p>
+    <div class="list" id="pe-list">${peersHTML()}</div>
+    <div class="row"><button class="btn btn-outline btn-sm" id="pe-upd-all" ${peersData && peersData.peers.some(p => p.online) ? '' : 'disabled'}>${ico('down')}${T('Update all', 'Alle aktualisieren')}</button></div></div>
+  <div class="card" data-tier="cyan"><h3>${T('Copy settings', 'Einstellungen kopieren')}</h3>
+    <p>${T('Copies the chosen sections of this speaker to the others (device name, password and voice assistant stay).', 'Kopiert die gewählten Bereiche dieses Lautsprechers auf die anderen (Gerätename, Passwort und Sprachassistent bleiben).')}</p>
+    <div class="chips">${(CFG.copySections || []).map(k => `<button type="button" class="chip is-filter pe-sec" data-s="${k}" aria-pressed="${['radio', 'alarms', 'eq'].includes(k)}">${T(...(SECTIONS[k] || [k, k]))}</button>`).join('')}</div>
+    <div class="field"><label for="pe-target">${T('To', 'Nach')}</label><select class="select" id="pe-target"><option value="*">${tt('all online speakers', 'alle erreichbaren Lautsprecher')}</option>${peersData ? peersData.peers.map(p => `<option value="${esc(p.url)}">${esc(p.name)}</option>`).join('') : ''}</select></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="pe-copy">${ico('copy')}${T('Copy', 'Kopieren')}</button></div></div>
+  <div class="card"><h3>${T('Add speaker', 'Lautsprecher eintragen')}</h3>
+    ${found.length ? `<p>${T('Found in the network:', 'Im Netz gefunden:')}</p><div class="list">${found.map(f => `<div class="item"><div><div class="t">${esc(f.name)}</div><div class="s">${esc(f.url)} · ${esc(f.version)}</div></div><button class="btn btn-outline btn-sm" data-pfill="${esc(f.url)}" data-pname="${esc(f.name)}">${T('Use', 'Übernehmen')}</button></div>`).join('')}</div>` : `<p class="small">${T('None found automatically (the router may not pass mDNS on). Enter the address by hand.', 'Keiner automatisch gefunden (der Router reicht mDNS evtl. nicht weiter). Adresse von Hand eintragen.')}</p>`}
+    ${fld('pe-url', 'Address', 'Adresse', '', 'placeholder="http://invoke-kueche.lan"')}${fld('pe-name', 'Name (optional)', 'Name (optional)', '')}
+    <div class="field"><label for="pe-tok">${T('API key of that speaker', 'API-Schlüssel dieses Lautsprechers')}</label><input class="input" id="pe-tok" type="password" autocomplete="off" placeholder="lf_…"></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="pe-add">${ico('plus')}${T('Add', 'Eintragen')}</button></div></div></div>`;
+}
+async function loadPeers(force) {
+  if (!force && peersData && Date.now() - peersAt < 15000) return;
+  try { peersData = await api('/api/peers'); peersAt = Date.now(); } catch (e) { toast(e.message, 'error'); peersData = { peers: [], found: [] }; }
+  if (route === 'devices' && !inFormFocus()) render();
+}
+function bindDevices() {
+  if (!peersData) loadPeers(true);
+  $$('.pe-sec').forEach(b => b.onclick = () => b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'));
+  const P = () => (peersData ? peersData.peers : []);
+  $$('[data-pstop]').forEach(b => b.onclick = () => act(() => api('/api/peers/action', 'POST', { url: P()[+b.dataset.pstop].url, action: 'stop_all' })));
+  $$('[data-pupd]').forEach(b => b.onclick = () => { if (confirm(tt('Start the update on this speaker?', 'Update auf diesem Lautsprecher starten?'))) act(() => api('/api/peers/update', 'POST', { url: P()[+b.dataset.pupd].url }), tt('Update started', 'Update gestartet')); });
+  $$('[data-pdel]').forEach(b => b.onclick = () => act(async () => { await api('/api/peers/delete', 'POST', { url: P()[+b.dataset.pdel].url }); await loadPeers(true); }));
+  $('#pe-upd-all').onclick = () => { if (confirm(tt('Start the update on all reachable speakers?', 'Update auf allen erreichbaren Lautsprechern starten?'))) act(async () => { for (const p of P().filter(x => x.online)) await api('/api/peers/update', 'POST', { url: p.url }); }, tt('Updates started', 'Updates gestartet')); };
+  $('#pe-copy').onclick = () => {
+    const sections = $$('.pe-sec[aria-pressed="true"]').map(b => b.dataset.s), to = $('#pe-target').value;
+    if (!sections.length) { toast(tt('Choose at least one section', 'Mindestens einen Bereich wählen'), 'error'); return; }
+    const targets = to === '*' ? P().filter(p => p.online).map(p => p.url) : [to];
+    act(async () => { for (const u of targets) await api('/api/peers/copy', 'POST', { url: u, sections }); }, tt('Copied', 'Kopiert'));
+  };
+  $$('[data-pfill]').forEach(b => b.onclick = () => { $('#pe-url').value = b.dataset.pfill; $('#pe-name').value = b.dataset.pname; $('#pe-tok').focus(); });
+  $('#pe-add').onclick = () => act(async () => { await api('/api/peers/add', 'POST', { url: $('#pe-url').value.trim(), name: $('#pe-name').value.trim(), token: $('#pe-tok').value.trim() }); await loadPeers(true); }, tt('Added', 'Eingetragen'));
+}
+
+// ---------------------------------------------------------------- System
+let tokensList = null, sshKeys = null, newToken = '', logES = null, logLines = [], logSvc = '', logFilter = '', logNames = [];
+function viewSystem() {
+  const sl = CFG.settings.syslog || {};
+  return `<div class="grid">
+  <div class="card" data-tier="yellow"><h3>${T('API keys', 'API-Schlüssel')}</h3>
+    <p>${T('For Home Assistant, scripts, other speakers and Prometheus: header "Authorization: Bearer <key>". "read" may only read (status, metrics). Keys cannot manage access. See docs/API.md.', 'Für Home Assistant, Skripte, andere Lautsprecher und Prometheus: Kopfzeile „Authorization: Bearer <Schlüssel>“. „lesen“ darf nur lesen (Status, Metriken). Schlüssel können den Zugang nicht verwalten. Siehe docs/API.md.')}</p>
+    ${newToken ? `<div class="callout"><b>${T('New key - shown only now:', 'Neuer Schlüssel - nur jetzt sichtbar:')}</b><div class="log" id="tk-new">${esc(newToken)}</div><div class="row"><button class="btn btn-outline btn-sm" id="tk-copy">${ico('copy')}${T('Copy', 'Kopieren')}</button></div></div>` : ''}
+    <div class="list" id="tk-list">${tokensList ? tokensList.map(k => `<div class="item"><div><div class="t">${esc(k.name)} <span class="pill" data-state="${k.scope === 'full' ? 'pending' : 'applied'}">${k.scope === 'full' ? T('full', 'voll') : T('read', 'lesen')}</span></div>
+      <div class="s">${T('created', 'angelegt')} ${new Date(k.created).toLocaleDateString()} · ${k.lastUsed && k.lastUsed > '0001-01-02' ? T('last used', 'zuletzt benutzt') + ' ' + new Date(k.lastUsed).toLocaleString() : T('never used', 'nie benutzt')}</div></div>
+      <button class="btn btn-outline btn-sm" data-tkdel="${esc(k.id)}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div>`).join('') || `<p class="small">${T('No keys.', 'Keine Schlüssel.')}</p>` : `<p>${T('Loading …', 'Lädt …')}</p>`}</div>
+    <div class="row"><input class="input" id="tk-name" placeholder="${tt('Name, e.g. Home Assistant', 'Name, z. B. Home Assistant')}" style="flex:1;min-width:9rem">
+      ${seg('tk-scope', [['full', 'full', 'voll'], ['read', 'read', 'lesen']], 'full')}
+      <button class="btn btn-accent btn-sm" id="tk-add">${ico('key')}${T('Create', 'Anlegen')}</button></div></div>
+  <div class="card" data-tier="yellow"><h3>${T('SSH keys', 'SSH-Schlüssel')}</h3>
+    <p>${T('Public keys that may log in as root (ed25519, ECDSA or RSA). Active within 30 seconds. The last key stays, so access is never lost.', 'Öffentliche Schlüssel, die sich als root anmelden dürfen (ed25519, ECDSA oder RSA). Gilt binnen 30 Sekunden. Der letzte Schlüssel bleibt, damit der Zugang nie verloren geht.')}</p>
+    <div class="list" id="ssh-list">${sshKeys ? sshKeys.map(k => `<div class="item"><div><div class="t">${esc(k.comment || k.type)}</div><div class="s">${esc(k.type)} · ${esc(k.fingerprint)}</div></div>
+      <button class="btn btn-outline btn-sm" data-sshdel="${esc(k.fingerprint)}" ${sshKeys.length > 1 ? '' : 'disabled'} aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div>`).join('') : `<p>${T('Loading …', 'Lädt …')}</p>`}</div>
+    <div class="field"><label for="ssh-new">${T('Add public key (one line from .pub)', 'Öffentlichen Schlüssel hinzufügen (eine Zeile aus der .pub)')}</label><textarea class="input mono" id="ssh-new" rows="2" placeholder="ssh-ed25519 AAAA… name@rechner"></textarea></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="ssh-add">${ico('plus')}${T('Add', 'Hinzufügen')}</button></div></div>
+  <div class="card"><h3>${T('Web password', 'Web-Passwort')}</h3>
+    <p>${T('At least 6 characters. Stored only as a salted hash. Changing it signs out every browser.', 'Mindestens 6 Zeichen. Wird nur als gesalzener Hash gespeichert. Ein Wechsel meldet alle Browser ab.')}</p>
+    <div class="field"><label for="pw">${T('New password', 'Neues Passwort')}</label><input class="input" id="pw" type="password" autocomplete="new-password"></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="pw-save">${ico('save')}${T('Change', 'Ändern')}</button><button class="btn btn-outline btn-sm" id="logout">${T('Sign out', 'Abmelden')}</button></div></div>
+  <div class="card" data-tier="cyan"><h3>${T('Monitoring', 'Überwachung')}</h3>
+    <p>${T('Prometheus metrics at /metrics (temperature, Wi-Fi, CPU, services, restarts, audio dropouts, volume …), with a "read" key:', 'Prometheus-Metriken unter /metrics (Temperatur, WLAN, CPU, Dienste, Neustarts, Tonaussetzer, Lautstärke …), mit einem Schlüssel „lesen“:')}</p>
+    <div class="log">scrape_configs:
+  - job_name: leuchtfeuer
+    authorization: { credentials: lf_… }
+    static_configs: [{ targets: ["${esc(location.host)}"] }]</div>
+    <p>${T('Send all logs to a syslog server (RFC 5424):', 'Alle Protokolle an einen Syslog-Server schicken (RFC 5424):')}</p>
+    ${sw('sl-en', sl.enabled, 'Enabled', 'Aktiv')}
+    <div class="alarm">${fld('sl-host', 'Server', 'Server', sl.host || '', 'placeholder="192.168.1.10"')}${fld('sl-port', 'Port', 'Port', sl.port || 514, 'type="number" min="1" max="65535"')}</div>
+    ${seg('sl-proto', [['udp', 'UDP', 'UDP'], ['tcp', 'TCP', 'TCP']], sl.proto || 'udp')}
+    <div class="row"><button class="btn btn-accent btn-sm" id="sl-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>
+  <div class="card" style="margin-top:1.2rem"><h3>${T('Live log', 'Protokoll live')}</h3>
+    <div class="row"><select class="select" id="lg-svc" style="max-width:14rem"><option value="">${tt('All services', 'Alle Dienste')}</option>${logNames.map(n => `<option ${n === logSvc ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      <input class="input" id="lg-filter" placeholder="${tt('Filter', 'Filter')}" value="${esc(logFilter)}" style="flex:1;min-width:8rem">
+      <button class="btn btn-outline btn-sm" id="lg-clear">${T('Clear', 'Leeren')}</button></div>
+    <div class="log" id="lg-box" style="max-height:28rem">${logBoxHTML()}</div></div>`;
+}
+function logBoxHTML() {
+  const f = logFilter.toLowerCase();
+  return logLines.filter(l => !f || (l.service + ' ' + l.text).toLowerCase().includes(f)).slice(-400).map(l => `<span class="muted">${new Date(l.time).toLocaleTimeString()} ${esc(l.service)}</span> ${esc(l.text)}`).join('\n') || esc(tt('Waiting for log lines …', 'Warte auf Protokollzeilen …'));
+}
+function startLog() {
+  stopLog(); logLines = [];
+  if (!window.EventSource) return;
+  logES = new EventSource('/api/logs/stream?service=' + encodeURIComponent(logSvc));
+  let pending = false;
+  logES.addEventListener('line', ev => {
+    logLines.push(JSON.parse(ev.data)); if (logLines.length > 1000) logLines.splice(0, logLines.length - 1000);
+    if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; const b = $('#lg-box'); if (!b) return; const atEnd = b.scrollTop + b.clientHeight >= b.scrollHeight - 20; b.innerHTML = logBoxHTML(); if (atEnd) b.scrollTop = 1e9; }); }
+  });
+}
+function stopLog() { if (logES) { logES.close(); logES = null; } }
+async function loadSystem() {
+  try { [tokensList, sshKeys, logNames] = await Promise.all([api('/api/tokens'), api('/api/ssh-keys'), api('/api/logs/names')]); } catch (e) { toast(e.message, 'error'); }
+  if (route === 'system' && !inFormFocus()) { const box = $('#lg-box'), keep = box && box.scrollTop; render(); if (box && $('#lg-box')) $('#lg-box').scrollTop = keep; }
+}
+function bindSystem() {
+  bindSw($('#view')); bindSeg($('#view'));
+  if (!tokensList) loadSystem();
+  if (!logES) startLog();
+  $('#tk-add').onclick = () => act(async () => { const r = await api('/api/tokens', 'POST', { name: $('#tk-name').value, scope: segVal('tk-scope') }); newToken = r.token; await loadSystem(); });
+  const cp = $('#tk-copy'); if (cp) cp.onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(newToken).then(() => toast(tt('Copied', 'Kopiert'), 'ok')) : toast(newToken); };
+  $$('[data-tkdel]').forEach(b => b.onclick = () => { if (confirm(tt('Delete this key? Programs using it lose access.', 'Diesen Schlüssel löschen? Programme damit verlieren den Zugang.'))) act(async () => { await api('/api/tokens/delete', 'POST', { id: b.dataset.tkdel }); newToken = ''; await loadSystem(); }); });
+  $('#ssh-add').onclick = () => act(async () => { await api('/api/ssh-keys', 'POST', { key: $('#ssh-new').value }); $('#ssh-new').value = ''; await loadSystem(); }, tt('Key added, active within 30 s', 'Schlüssel eingetragen, gilt binnen 30 s'));
+  $$('[data-sshdel]').forEach(b => b.onclick = () => { if (confirm(tt('Remove this SSH key?', 'Diesen SSH-Schlüssel entfernen?'))) act(async () => { await api('/api/ssh-keys/delete', 'POST', { fingerprint: b.dataset.sshdel }); await loadSystem(); }); });
   $('#pw-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, webPassword: $('#pw').value }); $('#pw').value = ''; }, tt('Password changed - sign in again', 'Passwort geändert - bitte neu anmelden'));
   $('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); };
+  $('#sl-save').onclick = () => act(async () => { await api('/api/settings/syslog', 'PUT', { enabled: swVal('sl-en'), host: $('#sl-host').value.trim(), port: +$('#sl-port').value || 514, proto: segVal('sl-proto') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
+  $('#lg-svc').onchange = () => { logSvc = $('#lg-svc').value; startLog(); $('#lg-box').innerHTML = logBoxHTML(); };
+  $('#lg-filter').oninput = () => { logFilter = $('#lg-filter').value; $('#lg-box').innerHTML = logBoxHTML(); };
+  $('#lg-clear').onclick = () => { logLines = []; $('#lg-box').innerHTML = logBoxHTML(); };
+  const b = $('#lg-box'); if (b) b.scrollTop = 1e9;
 }
 
 const VIEWS = {
-  overview: [viewOverview, fillOverview], radio: [viewRadio, bindRadio], alarms: [viewAlarms, bindAlarms], buttons: [viewButtons, bindButtons],
-  network: [viewNetwork, bindNetwork], ha: [viewHA, bindHA], settings: [viewSettings, bindSettings],
+  overview: [viewOverview, fillOverview], radio: [viewRadio, bindRadio], alarms: [viewAlarms, bindAlarms], briefing: [viewBriefing, bindBriefing],
+  buttons: [viewButtons, bindButtons], network: [viewNetwork, bindNetwork], ha: [viewHA, bindHA], devices: [viewDevices, bindDevices],
+  settings: [viewSettings, bindSettings], system: [viewSystem, bindSystem],
 };
 
 // ---------------------------------------------------------------- Rahmen
@@ -580,11 +1012,14 @@ function tick() {
     if (u && u.dataset.sig !== us && !$('#u-inst:not(.hidden)')) { u.dataset.sig = us; u.innerHTML = updHTML(); }
   } else if (route === 'ha') {
     const m = $('#mq-st'); if (m) m.innerHTML = mqttHTML();
+    const v = $('#vo-st'); if (v) v.innerHTML = voiceHTML(false);
   } else if (route === 'radio') {
     const sig = JSON.stringify(S.player);
     if (sig !== playSig) { playSig = sig; if (!dirty && !inFormFocus()) { draft = {}; render(); } }
   } else if (route === 'buttons') {
     const e = $('#ev-list'); if (e) e.innerHTML = evListHTML();
+  } else if (route === 'devices') {
+    loadPeers(false);
   } else if (route === 'network') {
     const e = $('#w-live'); if (e) e.innerHTML = wifiLiveHTML();
     const l = $('#w-log'); if (l) l.textContent = (S.wifi.log || []).join('\n') || tt('Nothing to report.', 'Nichts zu melden.');
@@ -604,7 +1039,7 @@ async function pollCfg() {
 }
 $('#view').addEventListener('input', e => { if (e.target.id !== 'vol') dirty = true; });
 $('#view').addEventListener('change', e => { if (e.target.id !== 'vol') dirty = true; });
-$('#view').addEventListener('click', e => { if (e.target.closest('.switch, .seg button, .a-day, [data-del], [data-adel], [data-bdel], #r-add, #a-add, #b-add') && route !== 'overview') dirty = true; });
+$('#view').addEventListener('click', e => { if (e.target.closest('.switch, .seg button, .a-day, [data-del], [data-adel], [data-bdel], #r-add, #a-add, #b-add, [data-bdel2], [data-bmv], #bi-add, [data-mv], #rq-add, [data-rbdel]') && route !== 'overview' && route !== 'devices' && route !== 'system') dirty = true; });
 async function refresh() { S = await api('/api/status'); tick(); }
 // Live-Zustand über Server-Sent Events (/api/events): Status bei jeder Änderung und alle 10 s, "settings" bei geänderten
 // Einstellungen. Timer und Schlummertimer zählt die Seite selbst herunter. Fällt der Strom aus, fragt sie alle 5 s ab
@@ -639,6 +1074,8 @@ async function start() {
 }
 function onHash() {
   const r = (location.hash.replace(/^#\/?/, '') || 'overview');
+  if (r !== 'system') stopLog();
+  if (r !== 'system') newToken = '';
   route = VIEWS[r] ? r : 'overview'; draft = {}; lastSig = ''; dirty = false; playSig = JSON.stringify(S.player); render();
 }
 $$('#tabs button').forEach(b => b.addEventListener('click', () => { const h = '#/' + (b.dataset.r === 'overview' ? '' : b.dataset.r); if (location.hash !== h) location.hash = h; }));

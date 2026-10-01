@@ -1,0 +1,28 @@
+{
+  "entity": {
+    "button": {
+      "briefing": { "default": "mdi:newspaper-variant-outline" },
+      "voice": { "default": "mdi:microphone-message" },
+      "stop_all": { "default": "mdi:stop-circle-outline" },
+      "chime": { "default": "mdi:bell-ring-outline" }
+    },
+    "sensor": {
+      "soc_temperature": { "default": "mdi:chip" },
+      "next_alarm": { "default": "mdi:alarm" },
+      "active_source": { "default": "mdi:speaker-play" },
+      "voice_state": { "default": "mdi:account-voice" },
+      "last_heard": { "default": "mdi:text-to-speech" }
+    },
+    "switch": {
+      "voice_microphone": {
+        "default": "mdi:microphone",
+        "state": { "off": "mdi:microphone-off" }
+      }
+    }
+  },
+  "services": {
+    "announce": { "service": "mdi:bullhorn" },
+    "action": { "service": "mdi:gesture-tap-button" },
+    "briefing": { "service": "mdi:newspaper-variant-outline" }
+  }
+}

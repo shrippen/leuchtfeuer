@@ -46,3 +46,7 @@ WEB_TLS="off"
 # Updates aus der Weboberfläche: öffentlicher Ed25519-Schlüssel (Base64) des Release-Signierers. Leer = Updates nur mit
 # install.sh. Der Schlüssel der offiziellen Releases steht in docs/release-key.pub.
 UPDATE_PUBKEY=""
+
+# Hardware-Watchdog: startet das Gerät neu, wenn es hängt (nur, wenn /dev/watchdog vorhanden ist; erst nach dem
+# Gerätetest einschalten, siehe scripts/smoke.sh). Nach 3 Neustarts ohne 30 Minuten stabile Laufzeit bleibt er aus.
+WATCHDOG="off"

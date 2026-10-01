@@ -18,7 +18,14 @@ type alarmRun struct {
 	SnoozedTo time.Time
 	prevVol   int
 	rampStop  chan struct{}
+	stream    bool      // spielt einen Stream (Sender oder Adresse)
+	streamAt  time.Time // Start des Streams
+	fallback  bool      // klingelt mit dem Ersatzton
 }
+
+// Wecker-Ersatz: Startet der Stream nicht binnen alarmStreamWait oder endet er, bevor der Wecker gestoppt wurde
+// (WLAN weg, Sender tot, Datei zu Ende), klingelt der eingebaute Weckton weiter.
+const alarmStreamWait = 15 * time.Second
 
 type scheduler struct {
 	app    *app
@@ -82,6 +89,7 @@ func (s *scheduler) tick() {
 	s.mu.Unlock()
 
 	if run != nil {
+		s.checkAlarmStream(run)
 		if run.Ringing && run.MaxMins > 0 && s.app.clock().Sub(run.Started) > time.Duration(run.MaxMins)*time.Minute {
 			log.Printf("Wecker %q: automatisch gestoppt", run.Name)
 			s.StopAlarm()
@@ -155,22 +163,89 @@ func (s *scheduler) ring(a Alarm, resume bool) {
 	}
 	s.app.vol.SetMute(false)
 	s.app.src.Update("alarm", "playing", map[string]string{"title": a.Name})
+	url := ""
 	switch {
 	case strings.HasPrefix(a.Source, "radio:"):
 		idx, _ := strconv.Atoi(strings.TrimPrefix(a.Source, "radio:"))
 		set := s.app.st.Snapshot()
 		if idx >= 0 && idx < len(set.Radio) {
-			s.app.pl.PlayURL("alarm", a.Name, set.Radio[idx].URL)
-		} else {
-			s.app.pl.PlayTone("alarm", a.Name, toneAlarm, true)
+			url = set.Radio[idx].URL
 		}
 	case strings.HasPrefix(a.Source, "url:"):
-		s.app.pl.PlayURL("alarm", a.Name, strings.TrimPrefix(a.Source, "url:"))
-	default:
+		url = strings.TrimPrefix(a.Source, "url:")
+	case a.Source == "briefing":
+		if s.app.brief != nil { // das Briefing meldet sein Ende selbst (BriefingDone)
+			s.app.brief.StartForAlarm(a.Name)
+			url = "-"
+		}
+	}
+	switch url {
+	case "-": // Briefing (briefing.go) spielt selbst
+	case "":
 		s.app.pl.PlayTone("alarm", a.Name, toneAlarm, true)
+	default:
+		s.mu.Lock()
+		r.stream, r.streamAt = true, s.app.clock()
+		s.mu.Unlock()
+		s.app.pl.PlayURL("alarm", a.Name, url)
 	}
 	s.app.led.Animate("L_111_c_alarm", true)
 	s.app.emit("alarm", map[string]any{"name": a.Name, "state": "ringing"})
+}
+
+// checkAlarmStream: Ersatzton, wenn der Weck-Stream nicht startet oder vorzeitig endet.
+func (s *scheduler) checkAlarmStream(r *alarmRun) {
+	s.mu.Lock()
+	need := r.Ringing && r.stream && !r.fallback && s.run == r
+	at := r.streamAt
+	s.mu.Unlock()
+	if !need {
+		return
+	}
+	kind, _, state, _ := s.app.pl.Info()
+	why := ""
+	switch {
+	case kind != "alarm":
+		why = "Stream beendet"
+	case kind == "alarm" && state != "playing" && s.app.clock().Sub(at) > alarmStreamWait:
+		why = "Stream startet nicht"
+	}
+	if why == "" {
+		return
+	}
+	s.mu.Lock()
+	r.fallback = true
+	s.mu.Unlock()
+	log.Printf("Wecker %q: %s, Ersatzton", r.Name, why)
+	s.app.pl.PlayTone("alarm", r.Name, toneAlarm, true)
+	s.app.emit("alarm", map[string]any{"name": r.Name, "state": "ringing", "fallback": true})
+}
+
+// BriefingDone: Das Weck-Briefing ist zu Ende. Mit einem Anschluss-Sender spielt der als Weckton weiter (mit Ersatz),
+// sonst ist der Wecker erledigt. Konnte nichts gespielt werden (kein Netz), klingelt der Weckton.
+func (s *scheduler) BriefingDone(played bool, thenURL string) {
+	s.mu.Lock()
+	r := s.run
+	ok := r != nil && r.Ringing
+	s.mu.Unlock()
+	if !ok {
+		return
+	}
+	switch {
+	case !played:
+		log.Printf("Wecker %q: Briefing ohne Inhalt, Ersatzton", r.Name)
+		s.mu.Lock()
+		r.fallback = true
+		s.mu.Unlock()
+		s.app.pl.PlayTone("alarm", r.Name, toneAlarm, true)
+	case thenURL != "":
+		s.mu.Lock()
+		r.stream, r.streamAt = true, s.app.clock()
+		s.mu.Unlock()
+		s.app.pl.PlayURL("alarm", r.Name, thenURL)
+	default:
+		s.stopAlarmNow()
+	}
 }
 
 // ramp erhöht die Lautstärke schrittweise bis zum Ziel.
@@ -209,6 +284,9 @@ func (s *scheduler) endRun(restore bool) *alarmRun {
 		return nil
 	}
 	defer s.app.src.Update("alarm", "idle", nil)
+	if s.app.brief != nil {
+		s.app.brief.Stop()
+	}
 	if r.rampStop != nil {
 		select {
 		case <-r.rampStop:
@@ -216,7 +294,7 @@ func (s *scheduler) endRun(restore bool) *alarmRun {
 			close(r.rampStop)
 		}
 	}
-	if k, _, _, _ := s.app.pl.Info(); k == "alarm" {
+	if k, _, _, _ := s.app.pl.Info(); k == "alarm" || k == "briefing" {
 		s.app.pl.Stop()
 	}
 	s.app.led.Off()
@@ -291,14 +369,18 @@ func (s *scheduler) Snooze() bool {
 	if mins <= 0 {
 		mins = 9
 	}
-	if k, _, _, _ := s.app.pl.Info(); k == "alarm" {
+	s.mu.Lock() // erst den Zustand, dann den Ton: sonst hielte die Prüfung das Ende für einen Abbruch
+	r.Ringing = false
+	r.fallback = false
+	r.SnoozedTo = s.Now().Add(time.Duration(mins) * time.Minute)
+	s.mu.Unlock()
+	if s.app.brief != nil {
+		s.app.brief.Stop()
+	}
+	if k, _, _, _ := s.app.pl.Info(); k == "alarm" || k == "briefing" {
 		s.app.pl.Stop()
 	}
 	s.app.led.Off()
-	s.mu.Lock()
-	r.Ringing = false
-	r.SnoozedTo = s.Now().Add(time.Duration(mins) * time.Minute)
-	s.mu.Unlock()
 	s.app.src.Update("alarm", "idle", nil)
 	s.app.emit("alarm", map[string]any{"name": r.Name, "state": "snoozed"})
 	return true
