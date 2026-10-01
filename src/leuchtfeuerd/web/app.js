@@ -293,6 +293,9 @@ function bindRadio() {
   $('#rs-q').onkeydown = e => { if (e.key === 'Enter') search(); };
 }
 
+const browserTZ = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } };
+// alle Zeitzonen, die der Browser kennt (ältere Browser: eine kurze Liste)
+const timeZones = () => { try { return Intl.supportedValuesOf('timeZone'); } catch (e) { return ['Europe/Berlin', 'Europe/Vienna', 'Europe/Zurich', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'UTC']; } };
 const DAYS = [[1, 'Mo', 'Mo'], [2, 'Tu', 'Di'], [3, 'We', 'Mi'], [4, 'Th', 'Do'], [5, 'Fr', 'Fr'], [6, 'Sa', 'Sa'], [0, 'Su', 'So']];
 const timersHTML = () => S.timers.map(t => `<div class="item"><div><div class="t">${esc(t.name)}</div><div class="s">${fmtDur(t.remaining)}</div></div><button class="btn btn-outline btn-sm" data-tcancel="${t.id}">${ico('trash')}</button></div>`).join('');
 const mqttHTML = () => S.mqtt ? T('Connected to the MQTT broker.', 'Mit dem MQTT-Broker verbunden.') : T('Not connected.', 'Nicht verbunden.');
@@ -330,8 +333,9 @@ function viewAlarms() {
       <div class="list" id="t-list">${timersHTML()}</div></div>
     <div class="card"><h3>${T('Time zone', 'Zeitzone')}</h3>
       <p>${T('Alarms use this time zone (the speaker itself runs on Pacific time).', 'Wecker nutzen diese Zeitzone (der Lautsprecher selbst läuft auf Pacific Time).')}</p>
-      <div class="row"><input class="input" id="tz" list="tzs" value="${esc(CFG.settings.timezone)}" style="max-width:16rem"><datalist id="tzs">${['Europe/Berlin', 'Europe/Vienna', 'Europe/Zurich', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'UTC'].map(z => `<option value="${z}">`).join('')}</datalist>
+      <div class="row"><input class="input" id="tz" list="tzs" value="${esc(CFG.settings.timezone)}" style="max-width:16rem"><datalist id="tzs">${timeZones().map(z => `<option value="${z}">`).join('')}</datalist>
         <button class="btn btn-outline btn-sm" id="tz-save">${ico('save')}${T('Save', 'Speichern')}</button></div>
+      ${browserTZ() && browserTZ() !== CFG.settings.timezone ? `<p class="small">${T('This browser uses', 'Dieser Browser nutzt')} <button type="button" class="chip is-filter" id="tz-mine">${esc(browserTZ())}</button></p>` : ''}
       <p class="mono small">${T('Speaker time', 'Zeit am Lautsprecher')}: <span id="spk-time">${fmtTime(S.now)}</span>${S.clock && S.clock.checked ? ` · ${T('deviation', 'Abweichung')} ${(S.clock.offsetMs / 1000).toFixed(1)} s` : ''}</p>
       <div class="field"><label for="hol">${T('Public holidays (for "not on holidays")', 'Feiertage (für „nicht an Feiertagen“)')}</label><div class="row"><select class="select" id="hol" style="max-width:16rem"><option value="">${tt('None', 'Keine')}</option>${CFG.holidayRegions.map(r => `<option value="${r}" ${CFG.settings.holidays === r ? 'selected' : ''}>${r === 'DE' ? tt('Germany (nationwide)', 'Deutschland (bundesweit)') : r}</option>`).join('')}</select>
         <button class="btn btn-outline btn-sm" id="hol-save">${ico('save')}${T('Save', 'Speichern')}</button></div>${S.holiday ? `<p class="small">${T('Today', 'Heute')}: ${esc(S.holiday)}</p>` : ''}</div></div>
@@ -348,7 +352,7 @@ function collectAlarms() {
     name: $(`#a-name-${i}`).value, enabled: swVal('a-en-' + i), source: $(`#a-src-${i}`).value,
     days: $$('.a-day[aria-pressed="true"]', c).map(b => +b.dataset.d),
     volume: +$(`#a-vol-${i}`).value || 0, rampSecs: +$(`#a-ramp-${i}`).value || 0, snoozeMin: +$(`#a-snz-${i}`).value || 0, maxMins: +$(`#a-max-${i}`).value || 0,
-    sunriseMin: $(`#a-sun-${i}`) ? +$(`#a-sun-${i}`).value || 0 : a.sunriseMin || 0, fadeOutSecs: +$(`#a-fade-${i}`).value || 0, skipHolidays: swVal('a-hol-' + i),
+    sunriseMin: $(`#a-sun-${i}`) ? +$(`#a-sun-${i}`).value || 0 : (draft.alarms[i] || {}).sunriseMin || 0, fadeOutSecs: +$(`#a-fade-${i}`).value || 0, skipHolidays: swVal('a-hol-' + i),
     skipDate: (draft.alarms[i] || {}).skipDate || '',
   })).map((a, i) => a.source === 'url' ? { ...a, source: 'url:' + $(`#a-url-${i}`).value.trim() } : a);
 }
@@ -362,6 +366,7 @@ function bindAlarms() {
   $$('[data-quick]').forEach(b => b.onclick = () => act(() => api('/api/timers', 'POST', { seconds: b.dataset.quick * 60 }), tt('Timer started', 'Timer gestartet')));
   $$('[data-tcancel]').forEach(b => b.onclick = () => act(() => api('/api/timers/cancel', 'POST', { id: b.dataset.tcancel })));
   $('#t-start').onclick = () => act(() => api('/api/timers', 'POST', { name: $('#t-name').value, seconds: Math.round($('#t-min').value * 60) }), tt('Timer started', 'Timer gestartet'));
+  const tm = $('#tz-mine'); if (tm) tm.onclick = () => { $('#tz').value = browserTZ(); dirty = true; };
   $('#tz-save').onclick = () => act(async () => { await api('/api/settings/timezone', 'PUT', { timezone: $('#tz').value }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#hol-save').onclick = () => act(async () => { await api('/api/settings/holidays', 'PUT', { region: $('#hol').value }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $$('.a-src').forEach(sel => sel.onchange = () => $('#a-urlf-' + sel.id.split('-').pop()).classList.toggle('hidden', sel.value !== 'url'));
@@ -486,17 +491,18 @@ function actionLabel(a) {
 function evListHTML() {
   return S.buttons.slice().reverse().map(e => `<div class="item"><div><div class="t mono">${esc(e.name)} <span class="muted">/ ${esc(e.value)}</span></div><div class="s">${new Date(e.time).toLocaleTimeString()} ${e.action ? '→ ' + esc(actionLabel(e.action)) : ''}</div></div></div>`).join('') || `<p>${T('No events yet. Press a button on the speaker.', 'Noch keine Ereignisse. Drücke eine Taste am Lautsprecher.')}</p>`;
 }
+const PRESSES = [['short', 'short press', 'kurz'], ['double', 'double press', 'doppelt'], ['triple', 'triple press', 'dreifach'], ['long', 'long press', 'lang'], ['0', 'value 0 (e.g. switch off)', 'Wert 0 (z. B. Schalter aus)'], ['1', 'value 1 (e.g. switch on)', 'Wert 1 (z. B. Schalter an)']];
 function viewButtons() {
   const rows = draft.buttons || (draft.buttons = Object.entries(CFG.settings.buttons).flatMap(([b, m]) => Object.entries(m).map(([p, a]) => ({ b, p, a }))));
   const seen = [...new Set(S.buttons.map(e => e.name))];
   return `<div class="grid"><div class="card" data-tier="yellow"><h3>${T('Button mapping', 'Tastenbelegung')}</h3>
     <p>${T('The speaker reports button presses to this program. Press a button and watch the log on the right to learn its name and value, then assign an action. The volume knob and the Bluetooth button keep their own function (their presses are only logged and sent to Home Assistant).', 'Der Lautsprecher meldet Tastendrücke an dieses Programm. Drücke eine Taste und sieh rechts im Protokoll ihren Namen und Wert, dann ordne eine Aktion zu. Drehrad und Bluetooth-Knopf behalten ihre eigene Funktion (ihre Ereignisse werden nur protokolliert und an Home Assistant gesendet).')}</p>
     <div class="list">${rows.map((r, i) => `<div class="item" data-bi="${i}"><div class="stack">
-      <div class="row"><div class="field" style="width:9rem"><label>${T('Button', 'Taste')}</label><input class="input b-name" list="b-seen" value="${esc(r.b)}"></div>
-      <div class="field" style="width:8rem"><label>${T('Press / value', 'Druck / Wert')}</label><input class="input b-press" list="b-press" value="${esc(r.p)}"></div></div>
+      <div class="row"><div class="field" style="width:9rem"><label>${T('Button', 'Taste')}</label><input class="input b-name" list="b-seen" value="${esc(r.b)}" autocomplete="off" placeholder="${tt('pick or press', 'wählen oder drücken')}"></div>
+      <div class="field" style="width:8rem"><label>${T('Press / value', 'Druck / Wert')}</label><input class="input b-press" list="b-press" value="${esc(r.p)}" autocomplete="off"></div></div>
       <div class="field"><label>${T('Action', 'Aktion')}</label><select class="select b-act">${CFG.actions.map(a => `<option value="${a}" ${a === r.a ? 'selected' : ''}>${esc(actionLabel(a))}</option>`).join('')}</select></div></div>
       <button class="btn btn-outline btn-sm" data-bdel="${i}">${ico('trash')}</button></div>`).join('')}</div>
-    <datalist id="b-seen">${seen.map(n => `<option value="${esc(n)}">`).join('')}<option value="mic"></datalist><datalist id="b-press"><option value="short"><option value="double"><option value="triple"><option value="long"><option value="0"><option value="1"></datalist>
+    <datalist id="b-seen">${[...new Set([...(CFG.buttonNames || []), ...seen])].map(n => `<option value="${esc(n)}">`).join('')}</datalist><datalist id="b-press">${PRESSES.map(([v, en, de]) => `<option value="${v}" label="${esc(tt(en, de))}">`).join('')}</datalist>
     <p class="small">${T('"double" and "triple" are counted by this program: once one of them is mapped, a short press waits a moment for more.', '„double“ und „triple“ zählt dieses Programm selbst: Ist eins davon belegt, wartet ein kurzer Druck einen Moment auf weitere.')}</p>
     <div class="row"><button class="btn btn-outline btn-sm" id="b-add">${ico('plus')}${T('Add mapping', 'Belegung hinzufügen')}</button>
       <button class="btn btn-accent btn-sm" id="b-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
@@ -537,7 +543,7 @@ function viewNetwork() {
   <div class="card"><h3>${T('Guard log', 'Wächter-Protokoll')}</h3><div class="log" id="w-log">${esc((w.log || []).join('\n')) || tt('Nothing to report.', 'Nichts zu melden.')}</div></div>
   <div class="card"><h3>${T('Names & discovery', 'Namen & Erkennung')}</h3>
     ${fld('d-host', 'DHCP host name (router lists it as name.lan)', 'DHCP-Hostname (der Router führt ihn als name.lan)', d.dhcpHostname)}
-    ${fld('d-ss', 'Sendspin server (host:8927, empty = auto)', 'Sendspin-Server (host:8927, leer = automatisch)', d.sendspinServer)}
+    ${fld('d-ss', 'Music Assistant for Sendspin (host:8927, empty = find automatically)', 'Music Assistant für Sendspin (host:8927, leer = automatisch finden)', d.sendspinServer, 'placeholder="192.168.1.20:8927"')}
     <p>${T('Sendspin streams from Music Assistant. Many routers do not forward multicast between Wi-Fi and LAN, so the address may be needed. Changes apply after restarting the service (Settings).', 'Sendspin streamt von Music Assistant. Viele Router leiten Multicast nicht zwischen WLAN und LAN weiter, dann braucht es die Adresse. Änderungen gelten nach dem Neustart des Dienstes (Einstellungen).')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="d-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>`;
 }
@@ -572,8 +578,8 @@ function viewHA() {
     <div id="vo-st">${voiceHTML(false)}</div>
     ${sw('vo-en', V.enabled, 'Enabled', 'Aktiv')}${sw('vo-mute', V.muted, 'Microphone off', 'Mikrofon aus')}
     <div class="field"><span class="field-label">${T('Listening', 'Zuhören')}</span>${seg('vo-mode', [['wake', 'Wake word (Home Assistant)', 'Aktivierungswort (Home Assistant)'], ['button', 'Only after a button press', 'Nur nach Tastendruck']], V.mode || 'wake')}</div>
-    <div class="alarm">${fld('vo-mic', 'Microphone (ALSA device, see scripts/smoke.sh)', 'Mikrofon (ALSA-Gerät, siehe scripts/smoke.sh)', V.mic || '', 'placeholder="leuchtfeuer_mic"')}
-      ${fld('vo-area', 'Area in Home Assistant', 'Bereich in Home Assistant', V.area || '')}
+    <div class="alarm">${micFieldHTML(V.mic || '')}
+      ${fld('vo-area', 'Area (Home Assistant)', 'Bereich (Home Assistant)', V.area || '', 'list="ha-areas" autocomplete="off"')}
       ${fld('vo-duck', 'Lower music meanwhile (dB)', 'Musik solange absenken (dB)', V.duckDB ?? 20, 'type="number" min="0" max="40"')}
       ${fld('vo-port', 'Port', 'Port', V.port || 10700, 'type="number" min="1024" max="65535"')}</div>
     <p class="small">${T('No echo cancellation: while it answers, the microphone sends silence. Map the action "Voice assistant: listen" to a button for push-to-talk.', 'Keine Echounterdrückung: Während der Antwort schickt das Mikrofon Stille. Für Drücken-und-Sprechen die Aktion „Sprachassistent: zuhören“ auf eine Taste legen.')}</p>
@@ -582,28 +588,60 @@ function viewHA() {
     <p>${T('So that the briefing can speak (text-to-speech) and read templates, the speaker needs the address of Home Assistant and a long-lived access token (profile > security; for templates of an administrator).', 'Damit das Briefing sprechen (Sprachausgabe) und Vorlagen lesen kann, braucht der Lautsprecher die Adresse von Home Assistant und ein langlebiges Zugriffstoken (Profil > Sicherheit; für Vorlagen von einem Administrator).')}</p>
     ${fld('ha-url', 'Address', 'Adresse', H.url || '', 'placeholder="http://homeassistant.local:8123"')}
     <div class="field"><label for="ha-tok">${T('Token (empty = keep)', 'Token (leer = behalten)')}</label><input class="input" id="ha-tok" type="password" autocomplete="off"></div>
-    ${fld('ha-tts', 'Text-to-speech entity', 'Sprachausgabe-Entität', H.ttsEngine || '', 'placeholder="tts.piper"')}
+    ${fld('ha-tts', 'Text-to-speech entity', 'Sprachausgabe-Entität', H.ttsEngine || '', 'list="ha-tts-list" autocomplete="off" placeholder="tts.piper"')}
+    <p class="small" id="ha-opt-st">${haOptsHTML()}</p>
+    <datalist id="ha-tts-list">${(haOpts ? haOpts.tts : []).map(x => `<option value="${esc(x.id)}" label="${esc(x.name)}">`).join('')}</datalist>
+    <datalist id="ha-areas">${(haOpts ? haOpts.areas : []).map(x => `<option value="${esc(x.name)}">`).join('')}</datalist>
     <div class="row"><button class="btn btn-accent btn-sm" id="ha-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
   <div class="card"><h3>Home Assistant (MQTT)</h3>
     <p><span id="mq-st">${mqttHTML()}</span>
     ${T('Enter the broker that Home Assistant uses (Mosquitto add-on). The speaker then shows up automatically as a device with volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, sensors (temperature, Wi-Fi, uptime) and button events.', 'Trage den Broker ein, den Home Assistant nutzt (Mosquitto-Add-on). Der Lautsprecher erscheint dann automatisch als Gerät mit Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timern, Wecker-Tasten, Sensoren (Temperatur, WLAN, Laufzeit) und Tasten-Ereignissen.')}</p>
     ${sw('m-en', m.enabled, 'Enabled', 'Aktiv')}
-    <div class="alarm">${fld('m-host', 'Broker host', 'Broker-Adresse', m.host)}${fld('m-port', 'Port', 'Port', m.port, 'type="number"')}
+    <div class="alarm">${fld('m-host', 'Broker host', 'Broker-Adresse', m.host, 'placeholder="homeassistant.local"')}${fld('m-port', 'Port', 'Port', m.port, 'type="number"')}
       ${fld('m-user', 'User', 'Benutzer', m.user)}<div class="field"><label for="m-pass">${T('Password (empty = keep)', 'Passwort (leer = behalten)')}</label><input class="input" id="m-pass" type="password" autocomplete="new-password"></div>
-      ${fld('m-disc', 'Discovery prefix', 'Erkennungs-Präfix', m.discovery)}</div>
+      ${fld('m-disc', 'Discovery prefix (usually homeassistant)', 'Erkennungs-Präfix (meist homeassistant)', m.discovery, 'placeholder="homeassistant"')}</div>
     ${sw('m-tls', m.tls, 'Encrypted (TLS, port 8883)', 'Verschlüsselt (TLS, Port 8883)')}${sw('m-ins', m.insecure, 'Accept self-signed broker certificate', 'Selbst signiertes Broker-Zertifikat annehmen')}
     <p>${can('ring') ? T('Also offered: the light ring as a light (colour, brightness, effects), announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: der Leuchtring als Licht (Farbe, Helligkeit, Effekte), Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.') : T('Also offered: announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="m-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>`;
 }
+// Auswahllisten: Aufnahmegeräte des Lautsprechers und (mit Adresse und Token) Sprachausgabe und Bereiche aus Home Assistant
+let audioIns = null, haOpts = null, haOptsErr = '';
+const haOptsHTML = () => !(CFG.settings.homeAssistant || {}).url ? T('Enter address and token below to choose entities and areas from Home Assistant.', 'Adresse und Token eintragen, dann lassen sich Entitäten und Bereiche aus Home Assistant auswählen.')
+  : haOptsErr ? T('Could not load the lists from Home Assistant: ', 'Listen aus Home Assistant nicht geladen: ') + esc(haOptsErr)
+    : haOpts ? T(`From Home Assistant: ${haOpts.tts.length} text-to-speech entities, ${haOpts.areas.length} areas (type or pick).`, `Aus Home Assistant: ${haOpts.tts.length} Sprachausgabe-Entitäten, ${haOpts.areas.length} Bereiche (tippen oder auswählen).`) : T('Loading lists from Home Assistant …', 'Lade Listen aus Home Assistant …');
+function micLabel(x) {
+  return x.recommended ? tt('Built-in microphones (recommended)', 'Eingebaute Mikrofone (empfohlen)')
+    : `${x.name} – ${tt('card', 'Karte')} ${x.card}, ${tt('device', 'Gerät')} ${x.device} (${tt('raw', 'roh')})`;
+}
+function micFieldHTML(cur) {
+  const list = audioIns || [{ id: 'leuchtfeuer_mic', recommended: true }];
+  const val = cur || 'leuchtfeuer_mic', known = list.some(x => x.id === val);
+  return `<div class="field wide"><label for="vo-mic">${T('Microphone', 'Mikrofon')}</label><select class="select" id="vo-mic">
+      ${list.map(x => `<option value="${esc(x.id)}" ${x.id === val ? 'selected' : ''}>${esc(micLabel(x))}</option>`).join('')}
+      <option value="" ${known ? '' : 'selected'}>${tt('Other ALSA device …', 'Anderes ALSA-Gerät …')}</option></select></div>
+    <div class="field wide ${known ? 'hidden' : ''}" id="vo-micf"><label for="vo-mic-x">${T('ALSA device', 'ALSA-Gerät')}</label><input class="input" id="vo-mic-x" value="${known ? '' : esc(cur)}" placeholder="plughw:2,0"></div>`;
+}
+async function loadHAOptions() {
+  let ch = false;
+  if (!audioIns) { try { audioIns = await api('/api/audio/inputs'); } catch (e) { audioIns = []; } ch = true; }
+  if ((CFG.settings.homeAssistant || {}).url && !haOpts && !haOptsErr) {
+    try { haOpts = await api('/api/ha/options'); } catch (e) { haOptsErr = e.message; }
+    ch = true;
+  }
+  if (ch && route === 'ha' && !dirty && !inFormFocus()) render();
+}
 function bindHA() {
   bindSw($('#view')); bindSeg($('#view'));
+  loadHAOptions();
+  $('#vo-mic').onchange = () => $('#vo-micf').classList.toggle('hidden', $('#vo-mic').value !== '');
+  $('#m-tls').addEventListener('change', () => { const p = $('#m-port'); if (p.value === '1883' || p.value === '8883' || !p.value) p.value = swVal('m-tls') ? 8883 : 1883; });
   $('#m-save').onclick = () => act(async () => {
     await api('/api/settings/mqtt', 'PUT', { enabled: swVal('m-en'), host: $('#m-host').value.trim(), port: +$('#m-port').value || 1883, user: $('#m-user').value, pass: $('#m-pass').value, discovery: $('#m-disc').value.trim() || 'homeassistant', tls: swVal('m-tls'), insecure: swVal('m-ins') });
     await loadCfg();
   }, tt('Saved', 'Gespeichert'));
-  $('#ha-save').onclick = () => act(async () => { await api('/api/settings/homeAssistant', 'PUT', { url: $('#ha-url').value.trim(), token: $('#ha-tok').value.trim(), ttsEngine: $('#ha-tts').value.trim() }); $('#ha-tok').value = ''; await loadCfg(); }, tt('Saved', 'Gespeichert'));
+  $('#ha-save').onclick = () => act(async () => { await api('/api/settings/homeAssistant', 'PUT', { url: $('#ha-url').value.trim(), token: $('#ha-tok').value.trim(), ttsEngine: $('#ha-tts').value.trim() }); $('#ha-tok').value = ''; await loadCfg(); haOpts = null; haOptsErr = ''; dirty = false; loadHAOptions(); }, tt('Saved', 'Gespeichert'));
   $('#vo-save').onclick = () => act(async () => {
-    await api('/api/settings/voice', 'PUT', { enabled: swVal('vo-en'), muted: swVal('vo-mute'), mode: segVal('vo-mode'), mic: $('#vo-mic').value.trim(), area: $('#vo-area').value.trim(), duckDB: +$('#vo-duck').value || 0, port: +$('#vo-port').value || 10700 });
+    await api('/api/settings/voice', 'PUT', { enabled: swVal('vo-en'), muted: swVal('vo-mute'), mode: segVal('vo-mode'), mic: $('#vo-mic').value || $('#vo-mic-x').value.trim(), area: $('#vo-area').value.trim(), duckDB: +$('#vo-duck').value || 0, port: +$('#vo-port').value || 10700 });
     await loadCfg();
   }, tt('Saved', 'Gespeichert'));
   $('#vo-listen').onclick = () => act(() => api('/api/voice/listen', 'POST', {}));
@@ -684,6 +722,7 @@ function viewSettings() {
     <div class="alarm">${fld('q-max', 'Highest volume % (0 = no limit)', 'Höchste Lautstärke % (0 = keine Grenze)', so.max || 0, 'type="number" min="0" max="100"')}
       ${fld('q-duck', 'Lower music during announcements (dB)', 'Musik bei Durchsagen absenken (dB)', so.duckDB || 0, 'type="number" min="0" max="40"')}</div>
     <p>${T('Per source: highest volume, the volume it starts with (0 = no rule) and a level trim that makes loud sources quieter (dB). When a source takes over, the others fade out instead of stopping hard.', 'Je Quelle: höchste Lautstärke, Lautstärke beim Start (0 = keine Regel) und ein Pegelausgleich, der laute Quellen leiser macht (dB). Übernimmt eine Quelle, blenden die anderen aus, statt hart zu verstummen.')}</p>
+    <div class="item"><div class="t small mono muted">${T('Source', 'Quelle')}</div><div class="row small mono muted"><span style="width:3.9rem">${T('max %', 'max %')}</span><span style="width:3.9rem">${T('start %', 'Start %')}</span><span style="width:3.9rem">${T('−dB', '−dB')}</span></div></div>
     <div class="list">${CFG.sourceNames.map(n => `<div class="item"><div class="t">${srcName(n)}</div><div class="row">
       <input class="input q-lmax" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).max || 0}" style="width:3.9rem" aria-label="${tt('max', 'höchstens')}" title="${tt('Highest %', 'Höchstens %')}">
       <input class="input q-lst" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).start || 0}" style="width:3.9rem" aria-label="${tt('start', 'Start')}" title="${tt('Start %', 'Start %')}">
