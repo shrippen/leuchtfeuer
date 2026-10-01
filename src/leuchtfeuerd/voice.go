@@ -31,7 +31,7 @@ import (
 type VoiceSettings struct {
 	Enabled bool   `json:"enabled"`
 	Port    int    `json:"port"`   // Standard 10700
-	Mic     string `json:"mic"`    // ALSA-Aufnahmegerät, z. B. "plughw:1,0"
+	Mic     string `json:"mic"`    // ALSA-Aufnahmegerät, z. B. "leuchtfeuer_mic" (Tonkette des Zielgeräts) oder "plughw:2,0"
 	Mode    string `json:"mode"`   // wake | button
 	Area    string `json:"area"`   // Bereich in Home Assistant (optional)
 	DuckDB  int    `json:"duckDB"` // Musik während Zuhören und Antwort absenken

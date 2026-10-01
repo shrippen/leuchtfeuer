@@ -373,7 +373,7 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		}
 		v.Mic = strings.TrimSpace(v.Mic)
 		if strings.ContainsAny(v.Mic, " \t'\"$`;|&") {
-			return fmt.Errorf("Mikrofon: ALSA-Gerätename wie plughw:1,0")
+			return fmt.Errorf("Mikrofon: ALSA-Gerätename wie leuchtfeuer_mic oder plughw:2,0")
 		}
 		if err := a.st.Update(func(s *Settings) { s.Voice = v }); err != nil {
 			return err

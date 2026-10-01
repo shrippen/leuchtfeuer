@@ -180,7 +180,7 @@ speakers.
 | `viz` | light ring `{mode, color, rgb, brightness, rotate, timerRing}` (only meaningful with capability `ring`) |
 | `briefing` | `{lang "de"\|"en", place, lat, lon, items [{type, on, name, url, days, text, region}], then ""\|"radio:<n>", tts ""\|"ha"\|"url", ttsUrl}`. Item types: `greeting weather warnings pollen calendar podcast ha text` |
 | `homeAssistant` | `{url, token, ttsEngine}`. Used by the briefing for speech (`/api/tts_get_url`) and templates (`/api/template`, admin token). |
-| `voice` | `{enabled, port 10700, mic "plughw:X,Y", mode "wake"\|"button", area, duckDB, muted}` |
+| `voice` | `{enabled, port 10700, mic "leuchtfeuer_mic" (oder "plughw:X,Y"), mode "wake"\|"button", area, duckDB, muted}` |
 | `mqtt` | `{enabled, host, port, user, pass, discovery, tls, insecure}` |
 | `wifi` | Wi-Fi guard `{enabled, intervalSec, lossPct, rttMs, prefer5GHz, penaltyMins, dryRun}` |
 | `syslog` | `{enabled, host, port 514, proto "udp"\|"tcp"}` (RFC 5424, facility local0) |

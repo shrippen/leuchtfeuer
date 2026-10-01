@@ -106,21 +106,42 @@ cards=$(S 'arecord -l 2>&1; echo; cat /proc/asound/pcm 2>/dev/null')
 detail "$cards" 60
 devs=$(echo "$cards" | sed -n 's/^card \([0-9]*\):.*device \([0-9]*\):.*/\1,\2/p' | sort -u)
 [ -n "$devs" ] || soft "arecord lists no capture device" "arecord findet kein Aufnahmegerät"
+# level <Kanäle>: je Kanal "ok|stumm|muell <Text>". stumm = nur Nullen (z. B. Loopback), muell = dauernd fast
+# Vollausschlag (so sieht ein falsch gelesenes Format aus, etwa der linke Codec-Kanal des Invoke in S16_LE).
 level(){ python3 -c '
 import sys, struct, math
+ch = int(sys.argv[1])
 b = sys.stdin.buffer.read()
-n = len(b) // 2
+n = len(b) // 2 // ch * ch
 if n == 0: print("leer"); sys.exit()
 s = struct.unpack("<%dh" % n, b[:2 * n])
-rms = math.sqrt(sum(x * x for x in s) / n) or 1e-9
-pk = max(abs(x) for x in s) or 1e-9
-print("%d Werte, RMS %.1f dBFS, Spitze %.1f dBFS" % (n, 20 * math.log10(rms / 32768), 20 * math.log10(pk / 32768)))'; }
+for c in range(ch):
+    x = s[c::ch]
+    rms = math.sqrt(sum(v * v for v in x) / len(x))
+    pk = max(abs(v) for v in x)
+    r = 20 * math.log10(rms / 32768) if rms else -999
+    p = 20 * math.log10(pk / 32768) if pk else -999
+    kind = "stumm" if pk == 0 else "muell" if p > -0.5 and r > -10 else "ok"
+    print("%s %s%d: RMS %.1f dBFS, Spitze %.1f dBFS" % (kind, "Kanal " if ch > 1 else "", c + 1, r, p))' "$1"; }
+# 1. das Mikrofon der Tonkette (leuchtfeuer_mic, Vorgabe für den Sprachassistenten), beide Kanäle einzeln
+[ "$LISTEN" = 1 ] && info "  leuchtfeuer_mic - $(t 'speak for 3 seconds now ...' 'jetzt 3 Sekunden sprechen ...')"
+r=$(S "$A arecord -q -D leuchtfeuer_mic -f S16_LE -r 16000 -c 2 -d 3 -t raw" 2>/dev/null | level 2)
+if [ -z "$r" ] || [ "$r" = leer ]; then bad "leuchtfeuer_mic records nothing" "leuchtfeuer_mic nimmt nichts auf"
+else
+  while read -r kind txt; do
+    case $kind in
+      ok) pass "leuchtfeuer_mic $txt" "leuchtfeuer_mic $txt" ;;
+      stumm) soft "leuchtfeuer_mic $txt (only zeros)" "leuchtfeuer_mic $txt (nur Nullen)" ;;
+      *) bad "leuchtfeuer_mic $txt (constant full scale: wrong format?)" "leuchtfeuer_mic $txt (dauernd Vollausschlag: falsches Format?)" ;;
+    esac
+  done <<< "$r"
+fi
+# 2. alle Aufnahmegeräte roh, nur zur Übersicht (Loopback ist stumm, der Codec in S16_LE zum Teil Müll)
 for d in $devs; do
-  [ "$LISTEN" = 1 ] && info "  plughw:$d - $(t 'speak for 3 seconds now ...' 'jetzt 3 Sekunden sprechen ...')"
-  r=$(S "arecord -q -D plughw:$d -f S16_LE -r 16000 -c 1 -d 3 -t raw" 2>/dev/null | level)
-  if [ -n "$r" ] && [ "$r" != leer ]; then pass "capture plughw:$d: $r" "Aufnahme plughw:$d: $r"; else soft "plughw:$d records nothing" "plughw:$d nimmt nichts auf"; fi
+  r=$(S "arecord -q -D plughw:$d -f S16_LE -r 16000 -c 1 -d 1 -t raw" 2>/dev/null | level 1)
+  info "  plughw:$d: ${r:-?}"; rep "- plughw:$d: ${r:-?}"
 done
-rep ""; rep "$(t 'The device with a clear level difference between silence and speech is the one for Settings > Voice (plughw:X,Y).' 'Das Gerät mit deutlichem Unterschied zwischen Stille und Sprache gehört in Home Assistant > Sprachassistent (plughw:X,Y).')"
+[ "$LISTEN" = 1 ] && rep "" && rep "$(t 'leuchtfeuer_mic should be clearly louder while you speak; it is the default for Settings > Voice.' 'leuchtfeuer_mic sollte beim Sprechen deutlich lauter sein; es ist die Vorgabe für Einstellungen > Sprachassistent.')"
 
 section "Sounds" "Klänge"
 snd=$(S 'for d in /usr/share /usr/local/share /etc /opt; do find $d -maxdepth 6 \( -iname "*.wav" -o -iname "*.mp3" -o -iname "*.ogg" \) 2>/dev/null; done | head -n 80; echo; cat /data/leuchtfeuer/sounds/vendor.map 2>/dev/null; grep " /usr/share.*wav\| /etc.*wav" /proc/mounts' 2>/dev/null)

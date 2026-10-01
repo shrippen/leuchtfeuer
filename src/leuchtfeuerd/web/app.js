@@ -572,7 +572,7 @@ function viewHA() {
     <div id="vo-st">${voiceHTML(false)}</div>
     ${sw('vo-en', V.enabled, 'Enabled', 'Aktiv')}${sw('vo-mute', V.muted, 'Microphone off', 'Mikrofon aus')}
     <div class="field"><span class="field-label">${T('Listening', 'Zuhören')}</span>${seg('vo-mode', [['wake', 'Wake word (Home Assistant)', 'Aktivierungswort (Home Assistant)'], ['button', 'Only after a button press', 'Nur nach Tastendruck']], V.mode || 'wake')}</div>
-    <div class="alarm">${fld('vo-mic', 'Microphone (ALSA device, see scripts/smoke.sh)', 'Mikrofon (ALSA-Gerät, siehe scripts/smoke.sh)', V.mic || '', 'placeholder="plughw:1,0"')}
+    <div class="alarm">${fld('vo-mic', 'Microphone (ALSA device, see scripts/smoke.sh)', 'Mikrofon (ALSA-Gerät, siehe scripts/smoke.sh)', V.mic || '', 'placeholder="leuchtfeuer_mic"')}
       ${fld('vo-area', 'Area in Home Assistant', 'Bereich in Home Assistant', V.area || '')}
       ${fld('vo-duck', 'Lower music meanwhile (dB)', 'Musik solange absenken (dB)', V.duckDB ?? 20, 'type="number" min="0" max="40"')}
       ${fld('vo-port', 'Port', 'Port', V.port || 10700, 'type="number" min="1024" max="65535"')}</div>
