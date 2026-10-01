@@ -1,0 +1,199 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Leuchtfeuer",
+        "description": "Verbinde einen Harman Kardon Invoke mit Leuchtfeuer. Den API-Schlüssel erstellst du am Lautsprecher unter System > Zugang (Bereich „full“).",
+        "data": {
+          "host": "Adresse",
+          "api_key": "API-Schlüssel"
+        },
+        "data_description": {
+          "host": "Adresse des Lautsprechers, z. B. invoke.lan oder http://192.168.1.23 (https mit selbstsigniertem Zertifikat geht auch).",
+          "api_key": "Schlüssel, der mit lf_ beginnt (Bereich „full“)."
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Leuchtfeuer gefunden",
+        "description": "{name} unter {host} einrichten? Gib einen API-Schlüssel aus System > Zugang am Lautsprecher ein.",
+        "data": {
+          "api_key": "API-Schlüssel"
+        },
+        "data_description": {
+          "api_key": "Schlüssel, der mit lf_ beginnt (Bereich „full“)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Neuer API-Schlüssel",
+        "description": "Der API-Schlüssel für {name} ({host}) wurde abgelehnt. Gib einen neuen ein.",
+        "data": {
+          "api_key": "API-Schlüssel"
+        },
+        "data_description": {
+          "api_key": "Schlüssel, der mit lf_ beginnt (Bereich „full“)."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Lautsprecher nicht erreichbar.",
+      "invalid_auth": "Der API-Schlüssel ist ungültig.",
+      "read_only_key": "Der API-Schlüssel darf nur lesen. Erstelle einen mit Bereich „full“.",
+      "invalid_host": "Ungültige Adresse.",
+      "unknown": "Unerwarteter Fehler."
+    },
+    "abort": {
+      "already_configured": "Dieser Lautsprecher ist bereits eingerichtet.",
+      "reauth_successful": "Der API-Schlüssel wurde aktualisiert."
+    }
+  },
+  "entity": {
+    "button": {
+      "briefing": {
+        "name": "Briefing"
+      },
+      "voice": {
+        "name": "Zuhören"
+      },
+      "stop_all": {
+        "name": "Alles stoppen"
+      },
+      "chime": {
+        "name": "Gong"
+      }
+    },
+    "sensor": {
+      "soc_temperature": {
+        "name": "SoC-Temperatur"
+      },
+      "wifi_signal": {
+        "name": "WLAN-Signal",
+        "state_attributes": {
+          "ssid": {
+            "name": "SSID"
+          }
+        }
+      },
+      "next_alarm": {
+        "name": "Nächster Wecker",
+        "state_attributes": {
+          "name": {
+            "name": "Name"
+          }
+        }
+      },
+      "active_source": {
+        "name": "Aktive Quelle",
+        "state": {
+          "none": "Keine",
+          "spotify": "Spotify",
+          "upnp": "UPnP/DLNA",
+          "cast": "Google Cast",
+          "airplay": "AirPlay",
+          "bluetooth": "Bluetooth",
+          "sendspin": "Sendspin",
+          "tidal": "Tidal",
+          "snapcast": "Snapcast",
+          "radio": "Webradio",
+          "alarm": "Wecker",
+          "announce": "Durchsage",
+          "briefing": "Briefing",
+          "measure": "Raummessung"
+        }
+      },
+      "voice_state": {
+        "name": "Sprachassistent",
+        "state": {
+          "off": "Aus",
+          "idle": "Bereit",
+          "listening": "Hört zu",
+          "thinking": "Denkt nach",
+          "speaking": "Spricht"
+        }
+      },
+      "last_heard": {
+        "name": "Zuletzt gehört",
+        "state_attributes": {
+          "answer": {
+            "name": "Antwort"
+          }
+        }
+      }
+    },
+    "switch": {
+      "voice_microphone": {
+        "name": "Mikrofon Sprachassistent"
+      }
+    }
+  },
+  "selector": {
+    "tone": {
+      "options": {
+        "chime": "Gong",
+        "bell": "Glocke",
+        "beep": "Piepton"
+      }
+    },
+    "action": {
+      "options": {
+        "none": "Nichts",
+        "smart": "Smart (Schlummern / Beenden / Stumm)",
+        "mute_toggle": "Stumm umschalten",
+        "volume_up": "Lauter",
+        "volume_down": "Leiser",
+        "radio_toggle": "Radio an/aus",
+        "radio_next": "Nächster Sender",
+        "radio_1": "Sender 1",
+        "radio_2": "Sender 2",
+        "radio_3": "Sender 3",
+        "radio_4": "Sender 4",
+        "radio_5": "Sender 5",
+        "alarm_stop": "Wecker aus",
+        "alarm_snooze": "Wecker schlummern",
+        "timer_dismiss": "Timer beenden",
+        "timers_cancel": "Alle Timer abbrechen",
+        "stop_all": "Alles stoppen",
+        "bt_pairing": "Bluetooth-Kopplung",
+        "sleep_toggle": "Einschlaftimer 30 min an/aus",
+        "chime": "Gong",
+        "briefing": "Briefing",
+        "voice": "Sprachassistent: zuhören",
+        "voice_mute": "Sprachassistent: Mikrofon an/aus"
+      }
+    }
+  },
+  "services": {
+    "announce": {
+      "name": "Durchsage",
+      "description": "Spielt einen Klang oder Ton über der Musik ab, die solange leiser wird.",
+      "fields": {
+        "url": {
+          "name": "URL",
+          "description": "Audio-Adresse oder Medienquelle (media-source://...)."
+        },
+        "tone": {
+          "name": "Ton",
+          "description": "Eingebauter Ton statt einer Adresse."
+        },
+        "volume": {
+          "name": "Lautstärke",
+          "description": "Lautstärke der Durchsage in %. Leer = aktuelle Lautstärke."
+        }
+      }
+    },
+    "action": {
+      "name": "Aktion",
+      "description": "Führt eine Leuchtfeuer-Aktion aus (wie bei der Tastenbelegung).",
+      "fields": {
+        "action": {
+          "name": "Aktion",
+          "description": "Die auszuführende Aktion."
+        }
+      }
+    },
+    "briefing": {
+      "name": "Briefing",
+      "description": "Startet das Briefing."
+    }
+  }
+}

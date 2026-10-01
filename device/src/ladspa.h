@@ -1,6 +1,6 @@
-/* Minimale LADSPA-1.1-Schnittstelle (nur was invoke-viz-tap.c braucht; ABI wie im LADSPA-SDK). */
-#ifndef INVOKE_LADSPA_H
-#define INVOKE_LADSPA_H
+/* Minimale LADSPA-1.1-Schnittstelle (nur was leuchtfeuer-viz-tap.c braucht; ABI wie im LADSPA-SDK). */
+#ifndef LEUCHTFEUER_LADSPA_H
+#define LEUCHTFEUER_LADSPA_H
 
 typedef float LADSPA_Data;
 typedef int LADSPA_Properties;

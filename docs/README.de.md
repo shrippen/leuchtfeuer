@@ -30,6 +30,24 @@ Leuchtring als Licht, Läuft gerade, Temperatur, WLAN, Tasten-Ereignisse; auf Wu
 (Visualizer: Spektrum, Pegel oder Puls; Lampe in jeder Farbe; Timer-Fortschritt), **Dienste an/aus**, **Sichern und
 Wiederherstellen**, ein **Diagnosepaket** und **signierte Updates mit automatischem Rückfall**.
 
+Außerdem in der Weboberfläche:
+- ein **Morgen-Briefing**: Begrüßung, Wetter, Unwetterwarnungen, Pollenflug, Kalender (ICS, auch Müllabfuhr),
+  Nachrichten wie die *tagesschau in 100 Sekunden*, Vorlagen aus Home Assistant; gesprochen über die Sprachausgabe von
+  Home Assistant; auch als Weckton
+- eine **Sendersuche** (radio-browser.info) mit Lieblingssendern auf Tasten (Doppel-/Dreifachdruck)
+- eine **Raumkorrektur**: mit dem Handy messen, der Lautsprecher schlägt Filter gegen Dröhnen vor
+- ein **Pegelausgleich** je Quelle, und Quellen **blenden über**, wenn eine andere übernimmt
+- ein **Sprach-Satellit** für Home Assistant Assist (Wyoming, optional)
+- eine Übersicht **anderer Leuchtfeuer** (Einstellungen kopieren, Updates anstoßen)
+- **API-Schlüssel**, **SSH-Schlüssel**, **Prometheus-Metriken**, ein **Live-Protokoll** und die Weitergabe an **Syslog**
+- **Klänge**: Start- und Fehlerton des Lautsprechers sowie die eigenen Töne durch eigene Dateien ersetzen
+
+Die Weboberfläche schickt strenge Sicherheits-Header und prüft die Herkunft jeder Anfrage. Streams verbinden sich von
+selbst neu; fällt der Sender eines Weckers aus, klingelt der eingebaute Ton. Ein optionaler **Hardware-Watchdog** startet
+einen hängenden Lautsprecher neu.
+Home-Assistant-Integration mit echtem Mediaplayer: [HOMEASSISTANT.md](HOMEASSISTANT.md).
+API: [API.md](API.md).
+
 Alles läuft über die eigene DSP-/Verstärkerkette des Lautsprechers. Das **Drehrad** regelt alle Quellen und bleibt
 über Bluetooth in beide Richtungen mit der Handy-Lautstärke synchron.
 
@@ -37,7 +55,7 @@ Außerdem: SSH nur mit Schlüssel (eigenes dropbear), die offene Root-Shell auf 
 lässt nur die nötigen Ports herein, und die Harman-Clouddienste (Cortana, OTA-Updates, Absturzberichte, totes
 Harman-Spotify) sind abgeschaltet.
 
-**Kein Ziel:** Cortana, das Wake-Word oder einen Sprachassistenten wiederherzustellen.
+**Kein Ziel:** Cortana wiederherzustellen. Der optionale Sprach-Satellit reicht nur das Mikrofon an das eigene Home Assistant weiter.
 
 ## Funktionsweise (kurz)
 
@@ -48,12 +66,26 @@ Der Invoke läuft mit Linux 3.8 (Yocto + Android-Teile) auf einem Marvell BG2CD.
    den ersten Zugang. Es wird mit dem Hersteller-Werkzeug über den Service-USB-Port geflasht, **ohne die
    gerätespezifische Partition `factory_setting` zu löschen**.
 2. `dnsmasq` (läuft beim Start als root) dient über ein paar Zeilen in `/data/dnsmasq.conf` als **Autostart-Haken**
-   und startet `/data/invoke/hook.sh`, einen kleinen Überwacher: SSH und Firewall einrichten, Harman-Dienste
+   und startet `/data/leuchtfeuer/hook.sh`, einen kleinen Überwacher: SSH und Firewall einrichten, Harman-Dienste
    kürzen, die Audiodienste am Laufen halten.
 3. Alle Programme werden mit Docker und Go für das Gerät gebaut (glibc 2.23 / musl, ARMv7), siehe `build.sh`.
 
 Details: [docs/ARCHITECTURE.md](ARCHITECTURE.md) (englisch). Forschungsnotizen:
 [docs/RESEARCH-NOTES.md](RESEARCH-NOTES.md).
+
+## Ausgabe
+
+Einstellungen > Ausgabe wählt, wo der Ton herauskommt: die eingebaute Ausgabe, eine andere Soundkarte der Hardware (HDMI, USB)
+oder ein **Bluetooth-Lautsprecher** (wird gesucht, gekoppelt und von selbst wieder verbunden). Einzelheiten:
+[docs/ARCHITECTURE.md](ARCHITECTURE.md#output) (englisch).
+
+## Andere Geräte
+
+Leuchtfeuer ist geräteunabhängig: Der Invoke ist ein **Zielgerät**; Tasten, Leuchtring und Hersteller-Klänge sind
+Erweiterungen dieses Ziels. Das Ziel **`generic`** bringt dieselben Empfänger, Webradio, Wecker, Briefing,
+Home-Assistant-Anbindung und Sprachsatellit auf jedes Linux mit systemd und ALSA (Raspberry Pi, Mini-PC):
+`tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64`, dann `sudo sh setup.sh` aus dem
+entpackten Paket. Aufbau und neues Gerät hinzufügen: [docs/TARGETS.md](TARGETS.md) (englisch).
 
 ## Schnellstart
 
@@ -76,7 +108,7 @@ Die vollständige Schritt-für-Schritt-Anleitung samt Hardware-Teil steht in **[
 
 ## Konfiguration
 
-`/data/invoke/config` auf dem Lautsprecher (Vorlage: `device/invoke/config.example`): Gerätename, Adresse des
+`/data/leuchtfeuer/config` auf dem Lautsprecher (Vorlage: `device/leuchtfeuer/config.example`): Gerätename, Adresse des
 Music-Assistant-Servers für Sendspin, DHCP-Hostname, welche Dienste laufen (`SERVICE_<NAME>="on|off"`, auch in der
 Weboberfläche), Snapcast-Server, NTP-Server, HTTPS für die Weboberfläche und der öffentliche Schlüssel für signierte
 Updates. Ein erneutes `./install.sh` aktualisiert den Lautsprecher und
@@ -84,9 +116,9 @@ lässt diese Datei unverändert, außer man gibt `--config` an.
 
 ## Notbremse / Deinstallieren
 
-- `ssh root@<ip> 'touch /data/invoke/disable-hook'` und neu starten: Originalverhalten (dann gilt wieder der gesperrte
+- `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'` und neu starten: Originalverhalten (dann gilt wieder der gesperrte
   Hersteller-sshd, und adb ist an).
-- `./uninstall.sh --ip <ip> --key <pub>` entfernt den Autostart-Haken (`--purge` löscht auch `/data/invoke`).
+- `./uninstall.sh --ip <ip> --key <pub>` entfernt den Autostart-Haken (`--purge` löscht auch `/data/leuchtfeuer`).
 
 ## Rechtliches und Risiken
 

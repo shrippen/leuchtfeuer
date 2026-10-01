@@ -8,8 +8,8 @@ import (
 )
 
 // Wiedergabe am Handy über AVRCP (BlueZ org.bluez.MediaPlayer1): Titel, Interpret, Album und Zustand gehen als
-// WAMP-Ereignis "invoke.source.state" ["bluetooth", {state, title, artist, album}] an invoked (Anzeige "Läuft gerade",
-// Home Assistant, Quellen-Regel). Befehle kommen über "invoke.bt.control" ("pause" | "play" | "stop" | "next" | "previous").
+// POST /source {name: "bluetooth", state, title, artist, album} über den lokalen Bus an leuchtfeuerd (Anzeige "Läuft gerade",
+// Home Assistant, Quellen-Regel). Befehle kommen als Ereignis "bt-control" ("pause" | "play" | "stop" | "next" | "previous").
 
 type mediaState struct {
 	mu     sync.Mutex
@@ -55,7 +55,13 @@ func (m *mediaState) poll() {
 	}
 	m.mu.Unlock()
 	if changed {
-		hub.Publish("invoke.source.state", "bluetooth", state)
+		body := map[string]any{"name": "bluetooth"}
+		for k, v := range state {
+			body[k] = v
+		}
+		if err := lf.Post("/source", body, nil); err != nil {
+			log.Printf("Zustand melden: %v", err)
+		}
 	}
 }
 

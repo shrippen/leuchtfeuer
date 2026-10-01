@@ -2,7 +2,7 @@
 # Baut librespot (Spotify Connect) statisch für den Invoke (armv7 musl), ohne ALSA:
 # Ausgabe über das subprocess-Backend an das aplay des Geräts (Geräte-alsa-lib, dmix "music").
 # Patch tools/patches/librespot-fixed-volume.patch: "--volume-ctrl fixed" dämpft gar nicht; die Lautstärke aus der
-# Spotify-App setzt invoked über audio-ui (Ereignis volume_changed über --onevent), wie beim Drehrad.
+# Spotify-App setzt leuchtfeuerd über audio-ui (Ereignis volume_changed über --onevent), wie beim Drehrad.
 #   tools/build-librespot.sh [tag]   -> build/librespot/librespot
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)

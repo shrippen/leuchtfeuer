@@ -4,7 +4,7 @@
 # Entfernt Leuchtfeuer wieder: Autostart-Haken aus /data/dnsmasq.conf, Neustart.
 #   ./uninstall.sh                      interactive (asks what it needs)
 #   ./uninstall.sh --non-interactive --ip IP --key ~/.ssh/id_ed25519.pub [--purge]
-#   --purge   also deletes /data/invoke (programs, settings, saved Bluetooth pairings, logs)
+#   --purge   also deletes /data/leuchtfeuer (programs, settings, saved Bluetooth pairings, logs)
 set -euo pipefail
 cd "$(dirname "$0")"
 . scripts/lib.sh
@@ -31,14 +31,16 @@ if [ -f "${KEY%.pub}" ]; then ID=(-i "${KEY%.pub}" -o IdentitiesOnly=yes); else 
 S(){ ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new "${ID[@]}" root@"$IP" "$@"; }
 S true || die "no SSH access to $IP" "kein SSH-Zugang zu $IP"
 if [ $PURGE = 0 ] && [ "$INTERACTIVE" = 1 ]; then
-  note "--purge also deletes /data/invoke: programs, settings and saved Bluetooth pairings." "--purge löscht auch /data/invoke: Programme, Einstellungen und gespeicherte Bluetooth-Kopplungen."
-  ask_yn "Also delete /data/invoke (purge)?" "Auch /data/invoke löschen (purge)?" n && PURGE=1
+  note "--purge also deletes /data/leuchtfeuer: programs, settings and saved Bluetooth pairings." "--purge löscht auch /data/leuchtfeuer: Programme, Einstellungen und gespeicherte Bluetooth-Kopplungen."
+  ask_yn "Also delete /data/leuchtfeuer (purge)?" "Auch /data/leuchtfeuer löschen (purge)?" n && PURGE=1
 fi
 ask_yn "Remove Leuchtfeuer from $IP now?" "Leuchtfeuer jetzt von $IP entfernen?" y || die "aborted" "abgebrochen"
-S 'touch /data/invoke/disable-hook
-   if [ -f /data/invoke/dnsmasq.conf.orig ]; then cp /data/invoke/dnsmasq.conf.orig /data/dnsmasq.conf; echo "dnsmasq.conf restored"
+# ältere Installationen liegen noch unter /data/invoke (bis Oktober 2026)
+S 'D=/data/leuchtfeuer; [ -d $D ] || D=/data/invoke
+   touch $D/disable-hook
+   if [ -f $D/dnsmasq.conf.orig ]; then cp $D/dnsmasq.conf.orig /data/dnsmasq.conf; echo "dnsmasq.conf restored"
    else sed -Ei "/(Leuchtfeuer|Invoke-Hack): Autostart-Haken/,\$d" /data/dnsmasq.conf; echo "hook removed from dnsmasq.conf"; fi'
-if [ $PURGE = 1 ]; then S 'rm -rf /data/invoke; echo "/data/invoke deleted"'; fi
+if [ $PURGE = 1 ]; then S 'rm -rf /data/leuchtfeuer /data/invoke /data/invoke.alt; echo "/data/leuchtfeuer deleted"'; fi
 info "Restarting ..." "Neustart ..."; S '/bin/reboot' >/dev/null 2>&1 || true
 info "Done. After the restart the speaker behaves like StockRoot (adb on port 5555 is open again!)." \
      "Fertig. Nach dem Neustart verhält sich das Gerät wie StockRoot (adb auf Port 5555 ist wieder offen!)."

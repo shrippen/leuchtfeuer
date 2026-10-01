@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Gemeinsame Hilfsfunktionen (per "source" geladen) / shared helpers (sourced by the other scripts).
 #
-# Messages are bilingual: German if $INVOKE_LANG / $LC_ALL / $LANG starts with "de", English otherwise.
+# Messages are bilingual: German if $LEUCHTFEUER_LANG / $LC_ALL / $LANG starts with "de", English otherwise.
 # Prompts are interactive when stdin and stdout are a terminal; INTERACTIVE=0 (e.g. --non-interactive)
 # makes every prompt return its default.
 
-case "${INVOKE_LANG:-${LC_ALL:-${LANG:-}}}" in de*) L=de ;; *) L=en ;; esac
+case "${LEUCHTFEUER_LANG:-${LC_ALL:-${LANG:-}}}" in de*) L=de ;; *) L=en ;; esac
 INTERACTIVE=1
 { [ -t 0 ] && [ -t 1 ]; } || INTERACTIVE=0
 
@@ -62,7 +62,7 @@ root anmelden. (Falls du noch keinen hast, kann ich einen erzeugen.)"
                                  "$(t 'enter a path' 'Pfad eingeben')"
     read -r -p "$(t 'Choose' 'Auswahl') " sel || sel=""
     case $sel in
-      g|G) n="$HOME/.ssh/invoke_ed25519"
+      g|G) n="$HOME/.ssh/leuchtfeuer_ed25519"
            if [ -e "$n" ]; then warn "$n exists already" "$n existiert bereits"; continue; fi
            mkdir -p "$HOME/.ssh"; chmod 700 "$HOME/.ssh"
            info "ssh-keygen will ask for an optional passphrase." "ssh-keygen fragt nach einer optionalen Passphrase."

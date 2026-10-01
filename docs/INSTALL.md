@@ -112,7 +112,7 @@ The installer is **interactive**: it explains each step and asks for what it nee
 10. copies all files over SSH (only changed ones), closes adb, offers a reboot, and finally runs
     `scripts/verify-install.sh`.
 
-Messages are in English or German depending on `$LANG` (force with `INVOKE_LANG=en|de`). Options skip questions:
+Messages are in English or German depending on `$LANG` (force with `LEUCHTFEUER_LANG=en|de`). Options skip questions:
 `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--dry-run`. **Non-interactive** (scripts):
 `./install.sh --non-interactive --ip <ip> --key <pub> [--config FILE] [--no-tidal]`. Running it again later updates the
 speaker; only changed files are transferred, and your settings on the speaker are kept unless you choose new ones.
@@ -136,11 +136,11 @@ After the reboot the services come up within about 90 s.
 | AirPlay | "HK Invoke" appears in the AirPlay menu of iPhone, iPad and Mac (AirPlay 1, audio only) |
 | Web interface | `http://<speaker-ip>/` (port 80): login page, password set by `install.sh` (or a random one shown once at the end of a first install). The speaker stores only a salted PBKDF2 hash. Change it in Settings, or later with `scripts/set-web-password.sh` |
 | Tidal | "HK Invoke" appears in the Tidal app's Tidal Connect list |
-| Snapcast | off by default. Settings > Services > Snapcast on, and `SNAPCAST_SERVER="host"` in `/data/invoke/config`; the speaker then joins your snapserver as a client (multiroom, in sync with the other rooms). The server should send 48000:16:2 (FLAC or PCM); set about 100 ms latency for this client in snapweb |
+| Snapcast | off by default. Settings > Services > Snapcast on, and `SNAPCAST_SERVER="host"` in `/data/leuchtfeuer/config`; the speaker then joins your snapserver as a client (multiroom, in sync with the other rooms). The server should send 48000:16:2 (FLAC or PCM); set about 100 ms latency for this client in snapweb |
 
 The volume knob sets all sources; the volume slider in Spotify, AirPlay, Cast and Bluetooth moves the same volume (UPnP
-keeps its own software volume on top). Logs are in `/data/invoke/log/` on the speaker
-(`ssh root@<ip> 'tail -f /data/invoke/log/*.log'`).
+keeps its own software volume on top). Logs are in `/data/leuchtfeuer/log/` on the speaker
+(`ssh root@<ip> 'tail -f /data/leuchtfeuer/log/*.log'`).
 
 ### Web interface, alarms, Home Assistant
 
@@ -178,7 +178,7 @@ keeps its own software volume on top). Logs are in `/data/invoke/log/` on the sp
 - **Back up and restore** (Settings): one file with settings, pairings, Spotify login and SSH keys (contains secrets);
   restoring it brings everything back, e.g. after a factory reset. The *diagnostics package* (status, settings without
   secrets, logs) is meant for bug reports.
-- **HTTPS:** `WEB_TLS="on"` in `/data/invoke/config` makes the web interface use HTTPS with its own certificate (the browser
+- **HTTPS:** `WEB_TLS="on"` in `/data/leuchtfeuer/config` makes the web interface use HTTPS with its own certificate (the browser
   warns once); HTTP then redirects. MQTT can use TLS too (Home Assistant tab).
 - **Clock:** the speaker sets its clock by NTP after start and every 6 h (`NTP_SERVER`); the Overview warns if it is off by
   more than 2 s.
@@ -192,10 +192,10 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 ## 6. Maintenance
 
 - **Update:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (or `./install.sh --prebuilt`). Before new files
-  are put in place the old ones are saved to `/data/invoke/.prev`; if a service then keeps failing within 10 minutes, the
+  are put in place the old ones are saved to `/data/leuchtfeuer/.prev`; if a service then keeps failing within 10 minutes, the
   speaker goes back to the previous version by itself (Settings > Update shows it, and has a button to roll back by hand).
 - **Update from the web interface:** Settings > Update checks the release page and installs a newer release. It needs the
-  release signing key in `/data/invoke/config` (`UPDATE_PUBKEY`, set by `install.sh` from `docs/release-key.pub`): only
+  release signing key in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, set by `install.sh` from `docs/release-key.pub`): only
   packages signed with that key are accepted. Without internet on the speaker, upload the package and its `.sig` there.
 - **Releases (maintainer):** create a key once with `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
   put the printed public key into `docs/release-key.pub`, store the private key as secret `LEUCHTFEUER_SIGNING_KEY` (and a
@@ -203,11 +203,24 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
   package; locally: `./build.sh --no-tidal && tools/make-release.sh --key <file>`.
 - **Tests without a speaker:** `tests/run.sh` (also run by the CI).
 - **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>` (also checks the audio chain plugins, the source controls and the vendor `audio-ui`).
+- **Device test:** `scripts/smoke.sh --ip <ip> --key <pub> [--token lf_…] [--listen]`. It goes deeper than verify and
+  writes a Markdown report:
+  - each source PCM opens
+  - controls and the sound plugin file are there
+  - CPU of the audio chain
+  - clock, NTP and watchdog
+  - every capture device is recorded with its level, to find the microphone for the voice assistant
+  - with a key: API, security headers and origin check
+  - with `--listen`: chime, radio, ducking, cross-fade and briefing, asked one by one
+- **Hardware watchdog:** `WATCHDOG="on"` in `/data/leuchtfeuer/config` (only if `smoke.sh` found `/dev/watchdog` and nothing else
+  holds it). `leuchtfeuerd -watchdog` sets a 60 s timeout and feeds it only while the hook is alive. After 3 boots without
+  30 minutes of stable uptime it stays off; to re-arm, delete `/data/leuchtfeuer/watchdog-unstable`. The emergency brake
+  closes it cleanly.
 - **Do not kill `mcu-interface`** (vendor ring/amplifier controller): the vendor supervisor then restarts its stack in recovery
   mode, `audio-ui` drops off the router and the amplifier stays muted. A reboot of the speaker fixes it.
-- **Emergency brake:** `ssh root@<ip> 'touch /data/invoke/disable-hook'`, reboot → original behaviour.
+- **Emergency brake:** `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'`, reboot → original behaviour.
 - **Uninstall:** `./uninstall.sh --ip <ip> --key <pub> [--purge]` (removes the autostart hook, restores
-  `dnsmasq.conf`, reboots; `--purge` also deletes `/data/invoke`).
+  `dnsmasq.conf`, reboots; `--purge` also deletes `/data/leuchtfeuer`).
 - **Factory state:** the vendor firmware can be flashed again with the vendor tool (`l2nand -m 83` with the vendor
   image); restore `factory_setting` from your backup if it was damaged.
 
@@ -218,11 +231,11 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 | `adb shell id` is not root | Not StockRoot (firmware 12.x has adbd off and port 22 closed) – part 2 |
 | `install.sh` slow or timing out | Wi-Fi link (ping loss); move the speaker, re-run – unchanged files are skipped |
 | SSH refuses | `--key` must be the public key matching your private key / agent; too many agent keys can exhaust dropbear's 10 tries → `-o IdentitiesOnly=yes` |
-| Service missing | `ssh root@<ip> 'ps; tail /data/invoke/log/<service>.log'`; the hook restarts dead services every 30 s |
-| Bluetooth not visible | `scripts/verify-install.sh`; `/data/invoke/log/bluetooth-*.log`; `hciconfig hci0` must say `UP RUNNING PSCAN ISCAN` |
+| Service missing | `ssh root@<ip> 'ps; tail /data/leuchtfeuer/log/<service>.log'`; the hook restarts dead services every 30 s |
+| Bluetooth not visible | `scripts/verify-install.sh`; `/data/leuchtfeuer/log/bluetooth-*.log`; `hciconfig hci0` must say `UP RUNNING PSCAN ISCAN` |
 | Music Assistant says "legacy mode" for Sendspin | Expected: sendspin-go 1.8.x speaks the unencrypted dialect; accepted while "Allow legacy clients" is on |
-| No sound, "audio-ui not reachable" | `scripts/verify-install.sh` (plugins, `audio-ui`, source controls); a reboot of the speaker usually fixes it. If `/data/invoke/lib/ladspa/invoke-viz-tap.so` or `invoke-eq.so` is missing, run `install.sh` again (the audio chain needs both) |
+| No sound, "audio-ui not reachable" | `scripts/verify-install.sh` (plugins, `audio-ui`, source controls); a reboot of the speaker usually fixes it. If `/data/leuchtfeuer/lib/ladspa/leuchtfeuer-viz-tap.so` or `leuchtfeuer-eq.so` is missing, run `install.sh` again (the audio chain needs both) |
 | One source is silent | Settings > Sources: is it marked *paused (other source)*? It comes back 5 s after the other source stops, or switch to *All play together*. `amixer -c 0 sget "Quelle spotify"` should be 255 |
 | A service keeps failing | Overview shows it; Settings > Services > Log. After an update the speaker rolls back by itself; otherwise switch the service off |
-| Alarm at the wrong time | Overview warns if the clock is off; check `NTP_SERVER` and that the speaker reaches it (`/data/invoke/hook.log`) |
+| Alarm at the wrong time | Overview warns if the clock is off; check `NTP_SERVER` and that the speaker reaches it (`/data/leuchtfeuer/hook.log`) |
 | Tidal login fails | iFi certificate may have been revoked; not fixable here |

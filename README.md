@@ -29,6 +29,22 @@ timers, sleep timer, alarm buttons, announcements, the light ring as a light, no
 events; optionally over TLS), the **light ring** (visualizer: spectrum, level or pulse; lamp in any colour; timer progress),
 **services on/off**, **backup and restore**, a **diagnostics package** and **signed updates with automatic rollback**.
 
+Also in the web interface:
+- a **morning briefing**: greeting, weather, severe weather warnings, pollen, calendars (ICS, also waste collection), news
+  such as *tagesschau in 100 Sekunden*, Home Assistant templates; spoken via Home Assistant TTS; also as an alarm sound
+- a **station search** (radio-browser.info) with favourites on buttons (double/triple press)
+- **room correction**: measure with your phone, the speaker suggests filters that cut room modes
+- a **level trim** per source, and sources **fade over** when one takes over
+- a **voice satellite** for Home Assistant Assist (Wyoming, optional)
+- an overview of **other Leuchtfeuer speakers** (copy settings, start updates)
+- **API keys**, **SSH keys**, **Prometheus metrics**, a **live log** and **syslog** forwarding
+- **sounds**: replace the speaker's start and error sounds and Leuchtfeuer's own tones with your own files
+
+The web interface sends strict security headers and checks the origin of every request. Streams reconnect by themselves;
+an alarm whose station fails rings with the built-in tone. An optional **hardware watchdog** restarts a hung speaker.
+Home Assistant integration with a real media player: [custom_components/leuchtfeuer](docs/HOMEASSISTANT.md).
+API: [docs/API.md](docs/API.md).
+
 Everything plays through the speaker's own DSP/amplifier chain; the **volume knob** controls all sources
 and stays in sync with the phone volume over Bluetooth in both directions.
 
@@ -36,7 +52,7 @@ Additionally: SSH with key only (own dropbear), the insecure root shell on port 
 only lets the needed ports in, and the Harman cloud services (Cortana, OTA updates, crash upload, dead Harman
 Spotify) are switched off.
 
-**Not a goal:** restoring Cortana, the wake word or any voice assistant.
+**Not a goal:** restoring Cortana. The optional voice satellite only passes the microphone to your own Home Assistant.
 
 ## How it works (short)
 
@@ -47,11 +63,24 @@ survives reboots, so nothing in the read-only system image is changed after the 
    first access. It is flashed over the service USB port with the vendor tool, **without erasing the
    device-specific `factory_setting` partition**.
 2. `dnsmasq` (which runs as root at boot) is used as an **autostart hook** by a few lines in
-   `/data/dnsmasq.conf`; it starts `/data/invoke/hook.sh`, a small supervisor that sets up SSH and the firewall,
+   `/data/dnsmasq.conf`; it starts `/data/leuchtfeuer/hook.sh`, a small supervisor that sets up SSH and the firewall,
    trims the Harman service list and keeps the audio services running.
 3. All programs are cross-built for the device (glibc 2.23 / musl, ARMv7) with Docker and Go, see `build.sh`.
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Research notes (German): [docs/RESEARCH-NOTES.md](docs/RESEARCH-NOTES.md).
+
+## Output
+
+Settings > Output switches where the sound comes out: the built-in output, another sound card of the hardware (HDMI, USB)
+or a **Bluetooth speaker** (searched, paired and reconnected by Leuchtfeuer). Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#output).
+
+## Other devices
+
+Leuchtfeuer is device-independent: the Invoke is one **target**; its buttons, light ring and vendor sounds are
+extensions of that target. The target **`generic`** runs the same receivers, web radio, alarms, briefing, Home Assistant
+integration and voice satellite on any Linux with systemd and ALSA (Raspberry Pi, mini PC):
+`tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64`, then `sudo sh setup.sh` from the
+unpacked package. How it works and how to add a device: [docs/TARGETS.md](docs/TARGETS.md).
 
 ## Quick start
 
@@ -75,16 +104,16 @@ The complete, step-by-step guide including the hardware part is in **[docs/INSTA
 
 ## Configuration
 
-`/data/invoke/config` on the speaker (template: `device/invoke/config.example`): device name, the address of
+`/data/leuchtfeuer/config` on the speaker (template: `device/leuchtfeuer/config.example`): device name, the address of
 your Music Assistant server for Sendspin, the DHCP host name, which services run (`SERVICE_<NAME>="on|off"`, also in the
 web interface), the Snapcast server, the NTP server, HTTPS for the web interface and the public key for signed updates. Re-running `./install.sh` updates the speaker and
 keeps this file unless you pass `--config`.
 
 ## Emergency brake / uninstall
 
-- `ssh root@<ip> 'touch /data/invoke/disable-hook'` and reboot: the original behaviour is back (then SSH is
+- `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'` and reboot: the original behaviour is back (then SSH is
   the vendor's locked sshd and adb is on again).
-- `./uninstall.sh --ip <ip> --key <pub>` removes the autostart hook (`--purge` also deletes `/data/invoke`).
+- `./uninstall.sh --ip <ip> --key <pub>` removes the autostart hook (`--purge` also deletes `/data/leuchtfeuer`).
 
 ## Legal and risks
 

@@ -189,7 +189,7 @@ func splitLines(data []byte, atEOF bool) (int, []byte, error) {
 	return 0, nil, nil
 }
 
-// report liefert Zustand und Titel für invoked: state playing | paused | buffering | idle.
+// report liefert Zustand und Titel für leuchtfeuerd: state playing | paused | buffering | idle.
 func (p *player) report() map[string]any {
 	p.mu.Lock()
 	defer p.mu.Unlock()

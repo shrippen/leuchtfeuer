@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stellt Tidal Connect für den Invoke zusammen -> build/tidal/ (auf das Gerät nach /data/invoke/tidal).
+# Stellt Tidal Connect für den Invoke zusammen -> build/tidal/ (auf das Gerät nach /data/leuchtfeuer/tidal).
 #
 # ACHTUNG: tidal_connect_application ist ein proprietäres iFi-Programm und meldet sich mit einem
 # iFi-Gerätezertifikat bei Tidal an (Quelle: TonyTromp/tidal-connect-docker). Nicht für dieses

@@ -17,3 +17,8 @@ NOTES.md
 tools/yaffs2_extract.py
 build-demo/
 dist/
+src/leuchtfeuerd/leuchtfeuerd
+__pycache__/
+.pytest_cache/
+src/btagent/btagent
+src/castrecv/castrecv

@@ -1,6 +1,6 @@
 // Package wamp ist ein minimaler WAMP-v2-Client über Rawsocket/MessagePack für den Router "bonefish" des Invoke
 // (127.0.0.1:9999, Realm "default"): Aufrufe (CALL), Abonnements (SUBSCRIBE) und Veröffentlichungen (PUBLISH).
-// Gemeinsam genutzt von invoked, btagent und castrecv.
+// Gemeinsam genutzt von leuchtfeuerd, btagent und castrecv.
 package wamp
 
 import (

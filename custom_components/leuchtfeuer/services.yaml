@@ -1,0 +1,64 @@
+announce:
+  target:
+    entity:
+      integration: leuchtfeuer
+      domain: media_player
+  fields:
+    url:
+      example: "https://example.com/gong.mp3"
+      selector:
+        text:
+    tone:
+      selector:
+        select:
+          options:
+            - chime
+            - bell
+            - beep
+          translation_key: tone
+    volume:
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+action:
+  target:
+    entity:
+      integration: leuchtfeuer
+      domain: media_player
+  fields:
+    action:
+      required: true
+      selector:
+        select:
+          translation_key: action
+          options:
+            - none
+            - smart
+            - mute_toggle
+            - volume_up
+            - volume_down
+            - radio_toggle
+            - radio_next
+            - radio_1
+            - radio_2
+            - radio_3
+            - radio_4
+            - radio_5
+            - alarm_stop
+            - alarm_snooze
+            - timer_dismiss
+            - timers_cancel
+            - stop_all
+            - bt_pairing
+            - sleep_toggle
+            - chime
+            - briefing
+            - voice
+            - voice_mute
+briefing:
+  target:
+    entity:
+      integration: leuchtfeuer
+      domain: media_player

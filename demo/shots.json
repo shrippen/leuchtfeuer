@@ -60,6 +60,26 @@
       "wait": "#svc-list",
       "settle": 600,
       "full_page": true
+    },
+    {
+      "name": "briefing",
+      "url": "{base}/#/briefing",
+      "wait": "#bi-list",
+      "settle": 600,
+      "full_page": true
+    },
+    {
+      "name": "devices",
+      "url": "{base}/#/devices",
+      "wait": "#pe-list .item",
+      "settle": 600
+    },
+    {
+      "name": "system",
+      "url": "{base}/#/system",
+      "wait": "#tk-list .item",
+      "settle": 800,
+      "full_page": true
     }
   ]
 }
