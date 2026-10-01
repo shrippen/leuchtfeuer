@@ -10,7 +10,9 @@ NEW=${LEUCHTFEUER_DIR:-/data/leuchtfeuer}
 R=${LEUCHTFEUER_RUN:-/run}
 CONF=${LEUCHTFEUER_DNSMASQ:-/data/dnsmasq.conf}
 
-log(){ mkdir -p "$NEW" 2>/dev/null; echo "$(date '+%Y-%m-%d %H:%M:%S') migrate: $*" >> "$NEW/hook.log"; }
+# Protokoll ins vorhandene Verzeichnis (vor dem Umzug ins alte, es zieht mit um). Nie $NEW anlegen: sonst sähe
+# Schritt 2 "beide vorhanden" und würde nicht verschieben.
+log(){ d=$NEW; [ -d "$d" ] || d=$OLD; [ -d "$d" ] || return 0; echo "$(date '+%Y-%m-%d %H:%M:%S') migrate: $*" >> "$d/hook.log"; }
 
 # 1. Laufende alte Prozesse: Hook und Dienste beenden, dropbear behalten
 if [ -e "$R/invoke-hook.pid" ]; then
@@ -35,10 +37,11 @@ if [ -d "$OLD" ] && [ ! -L "$OLD" ]; then
     mv "$OLD" "$NEW" && ln -s "$NEW" "$OLD" && log "$OLD -> $NEW verschoben (Verweis bleibt)"
   else
     # beide vorhanden (z. B. Installer hat schon kopiert): was im neuen fehlt, aus dem alten übernehmen
-    # (Konfiguration, Schlüssel, Kopplungen, Spotify-Anmeldung), dann das alte beiseite legen
+    # (Konfiguration, Schlüssel, Kopplungen, Spotify-Anmeldung), dann das alte beiseite legen. Verschieben statt
+    # kopieren: /data ist auf dem Invoke nur 123 MB groß, eine zweite Kopie der Programme passt nicht.
     (cd "$OLD" && find . -type f) | while read -r f; do
       [ -e "$NEW/$f" ] && continue
-      mkdir -p "$(dirname "$NEW/$f")" && cp -p "$OLD/$f" "$NEW/$f"
+      mkdir -p "$(dirname "$NEW/$f")" && mv "$OLD/$f" "$NEW/$f"
     done
     rm -rf "$OLD.alt"; mv "$OLD" "$OLD.alt" && ln -s "$NEW" "$OLD" && log "$OLD in $NEW übernommen (Rest in $OLD.alt)"
   fi
