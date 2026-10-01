@@ -23,7 +23,7 @@
 .item .t{color:var(--fg0);font-weight:500;overflow-wrap:anywhere}
 .item .s{color:var(--fg3);font-size:.78rem;font-family:var(--font-mono);overflow-wrap:anywhere}
 .chips{display:flex;flex-wrap:wrap;gap:.4rem}
-.alarm{display:grid;gap:.9rem 1.2rem;grid-template-columns:repeat(2,minmax(0,1fr))}
+.alarm{display:grid;gap:.9rem 1.2rem;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
 .alarm .wide{grid-column:1/-1}
 .time-in{font-family:var(--font-heading);font-weight:700;font-size:1.7rem;width:10rem;max-width:100%;padding-right:.4rem;letter-spacing:.04em}
 .vol{width:100%}
@@ -35,7 +35,9 @@
 .login{max-width:26rem;margin:0 auto;padding:3rem var(--gutter) 4rem}
 .login-err{color:var(--danger)}
 /* Firefox: Ein Button als Flex-Container wird dort in Flex-Zeilen zu schmal (der Text ragt heraus und "Mute" überlappt den
-   nächsten Knopf). Deshalb der Kante-Schalter hier als Inline-Block mit Inline-Block-Kindern. */
-.switch{display:inline-block;flex:none;white-space:nowrap}
-.switch-track{display:inline-block;width:2.4rem;vertical-align:middle}
-.switch-label{display:inline-block;vertical-align:middle;margin-left:.7rem}
+   nächsten Knopf). Deshalb der Kante-Schalter hier als Grid (Spur + Beschriftung); lange Beschriftungen dürfen umbrechen. */
+.switch{display:inline-grid;grid-template-columns:2.4rem minmax(0,auto);column-gap:.7rem;align-items:center;max-width:100%;flex:none}
+.switch-track{width:2.4rem}
+/* Dienste-Kacheln: engere Zeilenhöhe und breitere Kacheln, damit lange Namen nicht über drei Zeilen laufen */
+#c-svc{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));margin-bottom:.4rem;align-items:stretch}
+#c-svc .status .name{line-height:1.25}
