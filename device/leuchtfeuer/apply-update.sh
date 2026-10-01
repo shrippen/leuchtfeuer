@@ -46,9 +46,13 @@ apply(){
   [ -d "$S" ] || { echo "Stufe $S fehlt" >&2; exit 1; }
   cd "$S"
   rm -rf "$P"; mkdir -p "$P"; : > "$P/.new-files"
-  # Sicherung der Dateien, die ersetzt oder entfernt werden
+  # Sicherung der Dateien, die ersetzt oder entfernt werden. Als Hardlink: die neue Datei kommt per mv, die alte
+  # bleibt so ohne zweite Kopie erhalten (/data ist auf dem Invoke nur 123 MB groß). An Ort und Stelle
+  # überschriebene Dateien (inplace) und Dateisysteme ohne Hardlinks: Kopie.
   { find . -type f ! -name .remove ! -name VERSION; [ -f .remove ] && sed 's|^/*|./|' .remove; } | while read -r f; do
-    if [ -f "$D/$f" ]; then mkdir -p "$P/$(dirname "$f")"; cp -p "$D/$f" "$P/$f"
+    if [ -f "$D/$f" ]; then
+      mkdir -p "$P/$(dirname "$f")"
+      if inplace "$f" || ! ln "$D/$f" "$P/$f" 2>/dev/null; then cp -p "$D/$f" "$P/$f"; fi
     else echo "$f" >> "$P/.new-files"; fi
   done
   cat $D/VERSION > "$P/VERSION" 2>/dev/null || true

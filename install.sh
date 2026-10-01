@@ -440,12 +440,12 @@ else
   n=$(wc -l < "$STAGE/changed.txt"); total=$(wc -l < "$STAGE/local.sha")
   info "$n of $total files are new or changed" "$n von $total Dateien sind neu oder geändert"
   sshd 'rm -rf /data/leuchtfeuer/.stage; mkdir -p /data/leuchtfeuer/.stage'
-  # Platz: die geänderten Dateien liegen erst in .stage, apply-update.sh sichert die alten nach .prev (also gut das
-  # Doppelte), dazu Reserve. Ein volles /data hinterlässt sonst leere Dateien (authorized_keys, dropbear).
-  need=$( (cd "$STAGE/data" && xargs -r du -k -c < "$STAGE/changed.txt") | awk 'END{print $1+0}')
+  # Platz: die geänderten Dateien liegen erst in .stage (apply-update.sh sichert die alten per Hardlink nach .prev,
+  # ohne zweite Kopie), dazu Reserve. Ein volles /data hinterlässt sonst leere Dateien (authorized_keys, dropbear).
+  need=$(( $( (cd "$STAGE/data" && xargs -r du -k -c < "$STAGE/changed.txt") | awk 'END{print $1+0}') + 4096 ))
   free=$(sshd 'df /data/leuchtfeuer | tail -1' | awk '{print $(NF-2)}')
-  [ "${free:-0}" -gt $((need * 2 + 4096)) ] || die "not enough space on /data (${free:-?} KiB free, need about $((need * 2 + 4096)) KiB)" \
-    "zu wenig Platz auf /data (${free:-?} KiB frei, nötig ca. $((need * 2 + 4096)) KiB)"
+  [ "${free:-0}" -gt "$need" ] || die "not enough space on /data (${free:-?} KiB free, need about $need KiB)" \
+    "zu wenig Platz auf /data (${free:-?} KiB frei, nötig ca. $need KiB)"
   if [ "$n" -gt 0 ]; then
     tar -C "$STAGE/data" -cf - -T "$STAGE/changed.txt" | sshd 'tar -xf - -C /data/leuchtfeuer/.stage'
   fi

@@ -13,11 +13,13 @@ echo v1 > $T/d/VERSION; echo pod1 > $T/d/podium.conf; : > $T/d/hook.log
 echo neu > $T/s/bin/a; echo frisch > $T/s/bin/n; echo pod2 > $T/s/podium.conf; echo v2 > $T/s/VERSION
 echo services/volume-sync.sh > $T/s/.remove
 ino=$(ls -i $T/d/podium.conf | awk '{print $1}')
+ino_a=$(ls -i $T/d/bin/a | awk '{print $1}')
 sh "$ROOT/device/leuchtfeuer/apply-update.sh" apply $T/s norestart >/dev/null
 check "neue Datei ersetzt" '[ "$(cat $T/d/bin/a)" = neu ] && [ "$(cat $T/d/bin/n)" = frisch ]'
 check "Version" '[ "$(cat $T/d/VERSION)" = v2 ]'
 check "podium.conf an Ort und Stelle (gleiche Inode)" '[ "$(cat $T/d/podium.conf)" = pod2 ] && [ "$(ls -i $T/d/podium.conf | awk "{print \$1}")" = "$ino" ]'
 check "entfallene Datei entfernt" '[ ! -e $T/d/services/volume-sync.sh ]'
+check "Sicherung als Hardlink (keine zweite Kopie), podium.conf kopiert" '[ "$(ls -i $T/d/.prev/bin/a | awk "{print \$1}")" = "$ino_a" ] && [ "$(cat $T/d/.prev/bin/a)" = alt ] && [ "$(cat $T/d/.prev/podium.conf)" = pod1 ]'
 check "update-pending gesetzt" '[ -f $T/d/update-pending ]'
 check "Stufe aufgeräumt" '[ ! -e $T/s ]'
 # Rückfall ohne Neustart der Dienste prüfen
