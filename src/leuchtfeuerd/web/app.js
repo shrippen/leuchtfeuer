@@ -149,6 +149,7 @@ function fillOverview() {
     ${pl.kind ? `<p class="mono">${T('Now playing', 'Läuft')}: <b class="muted">${esc(pl.name)}</b> ${pl.title ? '— ' + esc(pl.title) : ''}<br><span class="small">${stateLabel(pl.state)}</span></p>
       <button class="btn btn-outline btn-sm" id="p-stop">${ico('stop')}${T('Stop', 'Stopp')}</button>` :
       `<p>${T('Sources play through the speaker: Spotify, UPnP/DLNA, Cast, AirPlay, Bluetooth, Sendspin. Web radio, alarms and timers start from here.', 'Quellen spielen über den Lautsprecher: Spotify, UPnP/DLNA, Cast, AirPlay, Bluetooth, Sendspin. Webradio, Wecker und Timer starten hier.')}</p>`}
+    ${S.output && S.output.id !== 'default' ? `<p class="mono small">${T('Output', 'Ausgabe')}: <b class="${S.output.ok ? 'muted' : ''}">${esc(S.output.name)}</b>${S.output.ok ? '' : ' — ' + T('not connected', 'nicht verbunden')}</p>` : ''}
     <div class="row"><button class="btn btn-outline btn-sm" id="br-go">${ico('sun')}${T('Briefing', 'Briefing')}</button>
       ${S.voice && S.voice.state !== 'off' ? `<button class="btn btn-outline btn-sm" id="vo-go" ${S.voice.connected && !S.voice.muted ? '' : 'disabled'}>${ico('mic')}${T('Listen', 'Zuhören')}</button>` : ''}</div>`;
   $('#c-voice').classList.toggle('hidden', !(S.voice && S.voice.state !== 'off'));
@@ -617,6 +618,48 @@ const updHTML = () => {
     ${u.rolledBack ? `<div class="callout callout-warn">${T('The last update was rolled back', 'Das letzte Update wurde zurückgenommen')}: ${esc(u.rolledBack)}</div>` : ''}
     ${u.busy || u.message ? `<p class="mono small">${esc(u.message || '')}</p>` : ''}`;
 };
+// ---- Ausgabe: Soundkarten und Bluetooth-Lautsprecher (output.go, btagent sink.go) ----
+let outData = null;
+const outName = o => o.kind === 'default' ? T('Built-in output', 'Eingebaute Ausgabe') : esc(o.name);
+function outputBody() {
+  const d = outData;
+  let h = `<h3>${T('Output', 'Ausgabe')}</h3>
+    <p>${T('Where the sound comes out: the built-in output, another sound card of the hardware or a Bluetooth speaker. Switching restarts the receivers (Spotify, AirPlay …) for a moment.', 'Wo der Ton herauskommt: die eingebaute Ausgabe, eine andere Soundkarte der Hardware oder ein Bluetooth-Lautsprecher. Beim Wechsel starten die Empfänger (Spotify, AirPlay …) kurz neu.')}</p>`;
+  if (!d) return h + `<p>${T('Loading …', 'Lädt …')}</p>`;
+  h += `<div class="list">${d.outputs.map(o => `<div class="item"><div><div class="t">${outName(o)}${o.current ? ` <span class="pill" data-state="applied">${T('in use', 'aktiv')}</span>` : ''}${o.kind === 'bluetooth' && !o.available ? ` <span class="pill" data-state="off">${T('not connected', 'nicht verbunden')}</span>` : ''}</div>
+      <div class="s">${o.kind === 'default' ? T('as set up for this device', 'wie für dieses Gerät eingerichtet') : o.kind === 'card' ? T('sound card', 'Soundkarte') + ' ' + esc(o.id.slice(5)) : 'Bluetooth ' + esc(o.id.slice(3))}</div></div>
+      ${o.current ? '' : `<div class="row"><button class="btn btn-outline btn-sm" data-outset="${esc(o.id)}">${T('Use', 'Verwenden')}</button></div>`}</div>`).join('')}</div>`;
+  const bt = d.bluetooth;
+  h += `<h4 class="mono muted small">${T('BLUETOOTH SPEAKERS', 'BLUETOOTH-LAUTSPRECHER')}</h4>`;
+  if (!bt.available) return h + `<p class="small">${T('Not available: the Bluetooth agent is off or not installed (Settings > Services).', 'Nicht verfügbar: Der Bluetooth-Agent ist aus oder nicht installiert (Einstellungen > Dienste).')}</p>`;
+  h += `<p class="small">${T('Switch the speaker on and put it into pairing mode, then search. The speaker is paired and connected with one click; afterwards it appears above and reconnects by itself.', 'Lautsprecher einschalten und in den Kopplungsmodus bringen, dann suchen. Mit einem Klick wird er gekoppelt und verbunden; danach erscheint er oben und verbindet sich von selbst wieder.')}</p>
+    <div class="list">${bt.devices.map(x => `<div class="item"><div><div class="t">${esc(x.name)} ${x.connected ? `<span class="pill" data-state="applied">${T('connected', 'verbunden')}</span>` : x.paired ? `<span class="pill" data-state="off">${T('paired', 'gekoppelt')}</span>` : ''}${bt.busy === x.addr ? ' …' : ''}</div><div class="s mono">${esc(x.addr)}${x.rssi ? ' · ' + x.rssi + ' dBm' : ''}</div></div>
+      <div class="row">${x.connected ? `<button class="btn btn-outline btn-sm" data-btact="disconnect" data-addr="${esc(x.addr)}">${T('Disconnect', 'Trennen')}</button>` : `<button class="btn btn-outline btn-sm" data-btact="connect" data-addr="${esc(x.addr)}" ${bt.busy ? 'disabled' : ''}>${x.paired ? T('Connect', 'Verbinden') : T('Pair', 'Koppeln')}</button>`}
+      ${x.paired ? `<button class="btn btn-outline btn-sm" data-btact="forget" data-addr="${esc(x.addr)}" title="${tt('Remove the pairing', 'Kopplung entfernen')}">${ico('trash')}</button>` : ''}</div></div>`).join('') || `<p class="small">${bt.scanning ? T('Searching …', 'Suche läuft …') : T('No speakers found yet.', 'Noch keine Lautsprecher gefunden.')}</p>`}</div>
+    ${bt.error ? `<div class="callout callout-warn">${esc(bt.error)}</div>` : ''}
+    <div class="row"><button class="btn btn-outline btn-sm" data-btact="${bt.scanning ? 'stop' : 'scan'}">${ico('search')}${bt.scanning ? T('Stop searching', 'Suche beenden') : T('Search (30 s)', 'Suchen (30 s)')}</button></div>`;
+  return h;
+}
+const outputHTML = () => `<div class="card" data-tier="yellow" id="c-out">${outputBody()}</div>`;
+async function loadOutputs() {
+  try { outData = await api('/api/outputs'); } catch (e) { return; }
+  const c = $('#c-out');
+  if (c && route === 'settings') c.innerHTML = outputBody();
+}
+function bindOutput() {
+  const c = $('#c-out'); if (!c) return;
+  if (!outData) loadOutputs();
+  c.onclick = ev => {
+    const u = ev.target.closest('[data-outset]'), b = ev.target.closest('[data-btact]');
+    if (u) {
+      if (!confirm(tt('Switch the output? The receivers restart for a moment.', 'Ausgabe wechseln? Die Empfänger starten kurz neu.'))) return;
+      act(async () => { outData = await api('/api/outputs', 'PUT', { id: u.dataset.outset }); c.innerHTML = outputBody(); }, tt('Output switched', 'Ausgabe gewechselt'));
+    } else if (b) {
+      act(async () => { await api('/api/outputs/bluetooth', 'POST', { action: b.dataset.btact, addr: b.dataset.addr || '' }); setTimeout(loadOutputs, 800); });
+    }
+  };
+}
+setInterval(() => { if (route === 'settings' && S && !document.hidden) loadOutputs(); }, 2500);
 function viewSettings() {
   const d = CFG.device, v = CFG.settings.viz, e = CFG.settings.eq || {}, so = CFG.settings.sources || { policy: 'last', limits: {} };
   const lim = so.limits || {};
@@ -627,6 +670,7 @@ function viewSettings() {
     <div class="field"><span class="field-label">${T('Bluetooth pairing', 'Bluetooth-Kopplung')}</span>${seg('s-bt', [['button', can('buttons') ? 'Only after button press' : 'Only after opening (here or Home Assistant)', can('buttons') ? 'Nur nach Knopfdruck' : 'Nur nach Öffnen (hier oder Home Assistant)'], ['always', 'Always open', 'Immer offen']], d.bluetoothPairing)}</div>
     <p>${T('A name change applies after restarting the services below.', 'Eine Namensänderung gilt nach dem Neustart der Dienste weiter unten.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="s-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
+  ${outputHTML()}
   <div class="card" data-tier="yellow"><h3>${T('Sound', 'Klang')}</h3>
     <p>${T('Applies to every source. Loudness adds bass and treble the quieter the speaker plays; night mode evens out loud and quiet passages.', 'Gilt für alle Quellen. Loudness hebt Bass und Höhen an, je leiser der Lautsprecher spielt; der Nachtmodus gleicht laute und leise Stellen an.')}</p>
     <div class="range field"><label for="e-bass">${T('Bass (dB)', 'Bass (dB)')}</label><div class="range-row"><input id="e-bass" type="range" min="-12" max="12" step="1" value="${e.bass || 0}"><output class="range-out" id="e-bass-o">${e.bass || 0}</output></div></div>
@@ -838,7 +882,7 @@ function bindSvcList() {
   });
 }
 function bindSettings() {
-  bindSw($('#view')); bindSeg($('#view'));
+  bindSw($('#view')); bindSeg($('#view')); bindOutput();
   $('#s-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, name: $('#s-name').value, bluetoothPairing: segVal('s-bt') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   const rng = (id) => { $('#' + id).oninput = () => { $('#' + id + '-o').textContent = $('#' + id).value; }; };
   rng('e-bass'); rng('e-treb');

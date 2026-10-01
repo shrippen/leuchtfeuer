@@ -153,4 +153,9 @@ echo 'FIREWALL="on"' > $T/d/config
 firewall
 check "generic: FIREWALL=on baut die Kette" 'grep -q "^-E LEUCHTFEUER_NEW LEUCHTFEUER" $T/ipt.log'
 
+# Tonkette: Installationspfad umschreiben, wenn die Installation woanders liegt (idempotent)
+printf '# leuchtfeuer-dir: /opt/leuchtfeuer\npcm_type.bluealsa { lib "/opt/leuchtfeuer/bluez/lib/x.so" }\n</opt/leuchtfeuer/output.conf>\n' > $T/d/asound-music.conf
+asound_dir; asound_dir
+check "Tonkette: Pfad auf die Installation umgeschrieben" 'grep -q "^# leuchtfeuer-dir: $T/d$" $T/d/asound-music.conf && grep -q "lib \"$T/d/bluez/lib/x.so\"" $T/d/asound-music.conf && grep -q "^<$T/d/output.conf>$" $T/d/asound-music.conf && ! grep -q /opt/leuchtfeuer $T/d/asound-music.conf'
+
 exit $fail

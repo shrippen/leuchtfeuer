@@ -60,6 +60,7 @@ type statusResp struct {
 	VolKnown   bool            `json:"volumeKnown"`
 	WampOK     bool            `json:"wamp"` // Verbindung zur Hersteller-Software (wie device.linkOK)
 	Device     deviceStatus    `json:"device"`
+	Output     outputStatus    `json:"output"` // gewählte Ausgabe der Tonkette
 	Player     map[string]any  `json:"player"`
 	Alarm      alarmState      `json:"alarm"`
 	NextAlarm  string          `json:"nextAlarm"`
@@ -106,7 +107,7 @@ func (w *webServer) status() statusResp {
 		Now: a.sch.Now().Format(time.RFC3339), Timezone: set.Timezone, Demo: demoMode,
 		Viz:     map[string]bool{"tap": demoMode, "active": false},
 		Sources: a.src.List(), Active: a.src.Active(), SleepSecs: a.sch.SleepRemaining(), Clock: a.clkFn(),
-		Update: a.updateStatus(), Holiday: holidayName(set.Holidays, a.sch.Now()),
+		Update: a.updateStatus(), Holiday: holidayName(set.Holidays, a.sch.Now()), Output: a.out.Status(),
 	}
 	s.Sys.Services = a.svcFn()
 	if a.voice != nil {
@@ -869,6 +870,38 @@ func (w *webServer) routes() http.Handler {
 		writeJSON(rw, map[string]bool{"ok": true})
 	})
 	mux.HandleFunc("/api/events", w.events)
+	// Ausgabe der Tonkette (output.go)
+	mux.HandleFunc("/api/outputs", func(rw http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(rw, a.out.List())
+		case http.MethodPut:
+			var v struct {
+				ID string `json:"id"`
+			}
+			if err := decode(r, &v); err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			if err := a.out.Set(v.ID); err != nil {
+				fail(rw, 400, err)
+				return
+			}
+			writeJSON(rw, a.out.List())
+		default:
+			http.Error(rw, "GET oder PUT nötig", http.StatusMethodNotAllowed)
+		}
+	})
+	post("/api/outputs/bluetooth", func(r *http.Request) error {
+		var v struct {
+			Action string `json:"action"`
+			Addr   string `json:"addr"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.out.Bluetooth(v.Action, v.Addr)
+	})
 	post("/api/services/group", func(r *http.Request) error {
 		var v struct {
 			Group   string `json:"group"`

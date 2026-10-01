@@ -77,6 +77,7 @@ func main() {
 		log.Printf("Weboberfläche: kein Passwort gesetzt, einmalig erzeugt: %s (ändern: scripts/set-web-password.sh)", pw)
 	}
 	// Lautstärke ("Leuchtfeuer Music": gespiegelt oder eigen) und Quellen-Regler
+	a.out.ensureConf()
 	a.mix = newMixSync(amixer{card: hw.MixerCard})
 	a.mix.mirror = hw.MirrorCtl
 	a.mix.SetTrims(st.Snapshot().Sources.Trims())

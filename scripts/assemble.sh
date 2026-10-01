@@ -25,7 +25,8 @@ DIR="" OUT="" CARD=""
 mkdir -p "$S"/{bin,services,lib/ladspa}
 cp "$d/hook.sh" "$d/migrate.sh" "$d/apply-update.sh" "$t/target.sh" "$S/"
 # Tonkette: Teil des Zielgeräts, dann der gemeinsame; Platzhalter aus target.env
-{ cat "$t/asound-target.conf"; echo; cat "$d/asound-music.conf"; } |
+# (die erste Zeile merkt sich den eingebauten Pfad: der Hook schreibt ihn um, wenn die Installation woanders liegt)
+{ echo "# leuchtfeuer-dir: $DIR"; cat "$t/asound-target.conf"; echo; cat "$d/asound-music.conf"; } |
   sed -e "s|@LEUCHTFEUER_DIR@|$DIR|g" -e "s|@OUT@|$OUT|g" -e "s|@CARD@|$CARD|g" > "$S/asound-music.conf"
 for f in "$d"/services/*.sh "$t"/services/*.sh; do
   [ -f "$f" ] || continue

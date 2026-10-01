@@ -84,6 +84,13 @@ func setupBus() {
 		}
 	})
 	// Eine andere Quelle beginnt zu spielen (Quellen-Regel "last"): Handy anhalten.
+	// Ausgabe an einen Bluetooth-Lautsprecher (sink.go)
+	lf.On("bt-sink", func(b json.RawMessage) {
+		var v lfbus.Action
+		if json.Unmarshal(b, &v) == nil && v.Action != "" {
+			go sinks.command(v)
+		}
+	})
 	lf.On("claim", func(b json.RawMessage) {
 		var v lfbus.Claim
 		if json.Unmarshal(b, &v) == nil && v.Source != "" && v.Source != "bluetooth" {

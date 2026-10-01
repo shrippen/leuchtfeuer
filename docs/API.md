@@ -43,6 +43,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"v
 | `volume`, `muted`, `volumeKnown` | volume 0-100, mute; on the Invoke from the vendor `audio-ui` (`volumeKnown` is false until it has answered) |
 | `device` | the target: `{id, model, capabilities[], link, linkOK}`. `capabilities` lists the extensions this device has: `buttons`, `ring` (light ring), `vendorSounds`, `vendorVolume`; `link` names the vendor software leuchtfeuerd talks to (`""` = none). Clients should hide what is missing. |
 | `wamp` | same as `device.linkOK` (kept for older clients) |
+| `output` | chosen output of the sound chain: `{id: "default"\|"card:<n>"\|"bt:<MAC>", name, ok}`; `ok` is false while a Bluetooth speaker is not connected |
 | `player` | the speaker's own player: `{kind, name, state, title}`; `kind` is `radio`, `alarm`, `timer`, `briefing` or `""`; `state` is `idle`, `buffering`, `playing` or `reconnecting` |
 | `sources` | sources that are playing or paused, playing first: `[{name, state, title, artist, album, since, muted}]`. Names: `spotify upnp cast airplay bluetooth sendspin tidal snapcast radio alarm announce briefing measure`. `muted` means paused because another source took over |
 | `activeSource` | the source in front (`""` = none) |
@@ -149,6 +150,18 @@ The metrics, all prefixed `leuchtfeuer_`:
 **Buttons:** a button can also have the press types `double` and `triple`. Once one of them is mapped, a short press
 waits 450 ms for more presses.
 
+## Output (sound card, Bluetooth speaker)
+
+Where the sound chain plays: the device's built-in output (`default`), another sound card (`card:<n>`, from
+`/proc/asound/cards`) or a paired Bluetooth speaker (`bt:<MAC>`, A2DP source through bluez-alsa). Device-specific, not
+part of the copyable settings sections.
+
+| Request | Body / answer |
+|---|---|
+| `GET /api/outputs` | `{current, outputs[{id, kind: default\|card\|bluetooth, name, available, current}], bluetooth: {available, scanning, busy, error, devices[{addr, name, paired, connected, rssi}]}}`. `bluetooth.available` is false while the Bluetooth agent is off. Only paired speakers appear in `outputs`. |
+| `PUT /api/outputs` | `{"id": "default"\|"card:1"\|"bt:AA:BB:CC:DD:EE:FF"}`: switch (the answer is the new listing). Writes `output.conf`, stops the speaker's own playback and restarts the audio services (they read the ALSA configuration at start). |
+| `POST /api/outputs/bluetooth` | `{"action": "scan"\|"stop"\|"connect"\|"disconnect"\|"forget", "addr": "AA:BB:…"}`. `scan` looks for 30 s; `connect` pairs first if needed. Poll `GET /api/outputs` for the result (`error`, `busy`). |
+
 ## Settings
 
 `GET /api/settings` returns `{settings, device, actions, holidayRegions, sourceNames, services, groups, podcasts,
@@ -246,6 +259,9 @@ castrecv; Go client `src/lfbus`). HTTP on the Unix socket `$LEUCHTFEUER_RUN/leuc
 | `POST /volume` | `{volume}` or `{delta}` or `{muted}` |
 | `POST /source` | `{name, state, title, artist, album}`: state of a source (now playing, source rule) |
 | `POST /ring` | `{animation, repeat}`: `bt_open`, `bt_closed`, `alarm`, `timer`, `success`; no effect without a ring |
+| `POST /bt` | btagent reports `{devices[{addr, name, paired, connected, rssi}], scanning, busy, error}` (speakers it sees) and gets `{ok, want}` back: the speaker that should be connected (output `bt:…`), `""` = none |
+
+Event `bt-sink {action: scan\|stop\|connect\|disconnect\|forget, addr}`: commands from the web interface to btagent.
 
 ```sh
 curl --unix-socket /run/leuchtfeuer-bus.sock http://bus/state

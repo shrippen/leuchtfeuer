@@ -3,7 +3,8 @@
 //   - markiert gekoppelte Geräte als vertraut, damit sie sich selbst wieder verbinden dürfen,
 //   - hält den Adapter eingeschaltet, sichtbar und koppelbereit (nach Knopfdruck oder dauerhaft),
 //   - gleicht die Handy-Lautstärke mit dem Drehrad ab (volume.go),
-//   - meldet Titel und Wiedergabezustand des Handys an leuchtfeuerd und hält es auf Befehl an (media.go).
+//   - meldet Titel und Wiedergabezustand des Handys an leuchtfeuerd und hält es auf Befehl an (media.go),
+//   - koppelt und verbindet Bluetooth-Lautsprecher als Ausgabe (sink.go).
 //
 // Läuft dauerhaft und holt alles nach, wenn bluetoothd neu startet.
 package main
@@ -145,6 +146,7 @@ func main() {
 	for {
 		tick()
 		media.poll()
+		sinks.tick()
 		time.Sleep(2 * time.Second)
 	}
 }

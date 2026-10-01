@@ -73,6 +73,12 @@ Der Invoke läuft mit Linux 3.8 (Yocto + Android-Teile) auf einem Marvell BG2CD.
 Details: [docs/ARCHITECTURE.md](ARCHITECTURE.md) (englisch). Forschungsnotizen:
 [docs/RESEARCH-NOTES.md](RESEARCH-NOTES.md).
 
+## Ausgabe
+
+Einstellungen > Ausgabe wählt, wo der Ton herauskommt: die eingebaute Ausgabe, eine andere Soundkarte der Hardware (HDMI, USB)
+oder ein **Bluetooth-Lautsprecher** (wird gesucht, gekoppelt und von selbst wieder verbunden). Einzelheiten:
+[docs/ARCHITECTURE.md](ARCHITECTURE.md#output) (englisch).
+
 ## Andere Geräte
 
 Leuchtfeuer ist geräteunabhängig: Der Invoke ist ein **Zielgerät**; Tasten, Leuchtring und Hersteller-Klänge sind

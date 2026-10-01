@@ -107,6 +107,29 @@ against clipping, a feed-forward compressor (night mode) and a soft limiter. leu
 (including loudness, which depends on the volume) into `/dev/shm/leuchtfeuer-eq` (64 bytes, sequence counter, odd while
 writing); the plugin maps the file read-only and picks up changes at once. Without the file it passes the audio through.
 
+### Output
+
+`leuchtfeuer_music` and `leuchtfeuer_announce` end in `leuchtfeuer_sink`, an alias for the target's output (`@OUT@`). The web
+interface (Settings > Output, `output.go`) can point it elsewhere by writing `$LEUCHTFEUER_DIR/output.conf`, which the last
+line of `asound-music.conf` includes and which overrides the alias (`pcm.!leuchtfeuer_sink`):
+
+- `card:<n>`: dmix on `hw:<n>,0`, 48 kHz (other sound cards of the hardware, HDMI, USB),
+- `bt:<MAC>`: ALSA plugin `bluealsa` (`device`, `profile a2dp`), i.e. bluez-alsa as A2DP **source**.
+
+ALSA reads the configuration when a program starts, so after a switch leuchtfeuerd stops the speaker's own playback and
+terminates the audio services (`.expected`, not counted as failures); the hook is woken with SIGUSR1 and starts them
+right away. The file must exist (ALSA drops the whole configuration otherwise): the hook creates it empty, `leuchtfeuerd`
+rewrites it from the saved choice at start. The hook also rewrites the install path baked into `asound-music.conf`
+(first line `# leuchtfeuer-dir:`) when the installation is not where the package was built for.
+
+Bluetooth speakers: `btagent` (`sink.go`) lists devices with an A2DP sink or class Audio/Video from BlueZ, searches for
+30 s on request, pairs (agent `NoInputNoOutput`, Just Works), trusts and connects, and reconnects the chosen speaker every
+20 s while it is away. It reports to leuchtfeuerd with `POST /bt` and receives commands as bus event `bt-sink`. Needs
+bluealsa with `-p a2dp-source` (the Invoke service passes it; on `generic` the system's bluez-alsa usually does) and, on the
+Invoke, `libasound_module_pcm_bluealsa.so` (built by `tools/build-bluez.sh`, loaded through `pcm_type.bluealsa` in
+`targets/invoke/asound-target.conf`). While the speaker is not connected the sources cannot open the output; the web
+interface shows "not connected" and switching back to the built-in output restores sound.
+
 ## Services (`services/*.sh`)
 
 | Script | Program | Ports | Notes |
