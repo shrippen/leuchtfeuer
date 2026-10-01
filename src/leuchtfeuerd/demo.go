@@ -224,7 +224,7 @@ func runDemo(listen string) {
 			{Type: "podcast", On: true, Name: podcastPresets[0].Name, URL: podcastPresets[0].URL},
 		}}
 		s.HA = HASettings{URL: "http://homeassistant.local:8123", Token: "x", TTSEngine: "tts.piper"}
-		s.Voice = VoiceSettings{Enabled: true, Port: 10700, Mic: "plughw:1,0", Mode: "wake", Area: pick("Studio", "Studio"), DuckDB: 20}
+		s.Voice = VoiceSettings{Enabled: true, Port: 10700, Mic: "leuchtfeuer_mic", Mode: "wake", Area: pick("Studio", "Studio"), DuckDB: 20}
 		s.Eq = EqSettings{Version: 1, Bass: 2, Loudness: true, RoomOn: true, Room: []PEQBand{{Hz: 52, DB: -6.4, Q: 4.6}, {Hz: 118, DB: -3.8, Q: 3.2}}}
 		s.Sources.Limits = map[string]SourceLimit{"bluetooth": {Max: 80, TrimDB: 4}, "radio": {Start: 25}}
 		s.Syslog = SyslogSettings{Enabled: true, Host: "192.168.178.20", Port: 514, Proto: "udp"}
