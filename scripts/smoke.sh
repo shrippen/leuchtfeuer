@@ -44,7 +44,7 @@ if S 'ps | grep -q "[a]dbd"'; then bad "adbd is running" "adbd läuft"; else pas
 if S 'iptables -S LEUCHTFEUER | tail -n 1 | grep -q -- "-j DROP"'; then pass "firewall ends with DROP" "Firewall endet mit DROP"; else bad "firewall chain LEUCHTFEUER incomplete" "Firewall-Kette LEUCHTFEUER unvollständig"; fi
 if [ -n "$TOKEN" ]; then
   if api "$WEB/api/status" >/dev/null; then pass "web API with key" "Web-API mit Schlüssel"; else bad "web API with key fails" "Web-API mit Schlüssel geht nicht"; TOKEN=""; fi
-  if [ -n "$TOKEN" ] && api "$WEB/metrics" | grep -q '^leuchtfeuer_info'; then pass "/metrics" "/metrics"; else [ -n "$TOKEN" ] && bad "/metrics without values" "/metrics ohne Werte"; fi
+  if [ -n "$TOKEN" ] && [ "$(api "$WEB/metrics" | grep -c '^leuchtfeuer_info')" -gt 0 ]; then pass "/metrics" "/metrics"; else [ -n "$TOKEN" ] && bad "/metrics without values" "/metrics ohne Werte"; fi
   h=$(curl -fsSI -m 10 -H "Authorization: Bearer $TOKEN" "$WEB/api/status" 2>/dev/null | tr -d '\r')
   if echo "$h" | grep -qi '^content-security-policy:'; then pass "security headers" "Sicherheits-Header"; else bad "security headers missing" "Sicherheits-Header fehlen"; fi
   code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 -X POST -H 'Origin: http://evil.example' -H 'Content-Type: application/json' -d '{"password":"x"}' "$WEB/api/login")
