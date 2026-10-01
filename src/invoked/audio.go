@@ -134,7 +134,7 @@ func (v *volumeCtl) ToggleMute() error {
 
 type player struct {
 	mu       sync.Mutex
-	sink     string
+	sinks    map[string]string // Art (radio, alarm, ...) -> ALSA-Gerät; "" = alle übrigen
 	cmd      *exec.Cmd
 	stopTone chan struct{}
 	Kind     string // radio | alarm | timer | ""
@@ -145,7 +145,15 @@ type player struct {
 	onChange func()
 }
 
-func newPlayer(sink string) *player { return &player{sink: sink, State: "idle"} }
+func newPlayer(sinks map[string]string) *player { return &player{sinks: sinks, State: "idle"} }
+
+// sink: Webradio spielt über seinen Quellen-Regler ("invoke_radio"), Weckton und Timer daran vorbei.
+func (p *player) sink(kind string) string {
+	if s, ok := p.sinks[kind]; ok {
+		return s
+	}
+	return p.sinks[""]
+}
 
 func (p *player) Info() (kind, name, state, title string) {
 	p.mu.Lock()
@@ -184,7 +192,7 @@ func (p *player) PlayURL(kind, name, url string) {
 	p.mu.Lock()
 	p.stopLocked()
 	cmd := exec.Command("gst-launch-1.0", "-e", "-t", "uridecodebin", "uri="+url,
-		"!", "audioconvert", "!", "audioresample", "!", "alsasink", "device="+p.sink)
+		"!", "audioconvert", "!", "audioresample", "!", "alsasink", "device="+p.sink(kind))
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "LANG=C")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	out, _ := cmd.StdoutPipe()
@@ -250,7 +258,9 @@ type note struct{ Hz, Ms int }
 var (
 	toneAlarm = []note{{880, 180}, {0, 90}, {880, 180}, {0, 90}, {1175, 260}, {0, 900}}
 	toneTimer = []note{{988, 140}, {0, 80}, {988, 140}, {0, 80}, {988, 140}, {0, 1000}}
-	toneChime = []note{{784, 160}, {0, 40}, {1047, 300}}
+	toneChime = []note{{784, 160}, {0, 40}, {1047, 300}, {0, 200}}
+	toneBell  = []note{{659, 450}, {0, 60}, {523, 700}, {0, 300}} // Ding-Dong
+	toneBeep  = []note{{1000, 150}, {0, 100}, {1000, 150}, {0, 200}}
 )
 
 func synth(n note) []byte {
@@ -281,7 +291,7 @@ func synth(n note) []byte {
 func (p *player) PlayTone(kind, name string, seq []note, repeat bool) {
 	p.mu.Lock()
 	p.stopLocked()
-	cmd := exec.Command("aplay", "-q", "-D", p.sink, "-f", "S16_LE", "-r", "48000", "-c", "2", "-t", "raw")
+	cmd := exec.Command("aplay", "-q", "-D", p.sink(kind), "-f", "S16_LE", "-r", "48000", "-c", "2", "-t", "raw")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	in, err := cmd.StdinPipe()
 	if err != nil || cmd.Start() != nil {

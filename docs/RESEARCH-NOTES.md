@@ -280,3 +280,25 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
   braucht ~250 ms je Aufruf (lädt Datei, schläft danach), direktes Schreiben eines Bildes ~5 ms.
 - Achtung: Beenden von mcu-interface ließ podium beim ersten Mal den ganzen Stack neu starten, beim zweiten Mal startete es
   mcu-interface nicht neu („heartbeats timed out“); von Hand mit `logwrapper mcu-interface 127.0.0.1 9999` gestartet.
+
+## Multiroom: Snapcast umgesetzt, AirPlay 2 geprüft (2026-10-01)
+
+**Snapcast** ist eingebaut (`services/snapclient.sh`, `tools/build-snapclient.sh`): snapclient 0.31 statisch (musl), ohne
+ALSA-Ausgabe; der Datei-Player schreibt in eine Pipe, das `aplay` des Geräts spielt über `invoke_snapcast`. So bleibt die
+Tonkette dieselbe wie bei den anderen Diensten (Quellen-Regler, Klang, Visualizer). Die Verzögerung von `aplay` gleicht
+die Latenz-Einstellung des Clients in snapweb aus (Startwert 100 ms, am Gerät nachmessen). Ohne avahi keine
+automatische Suche: `SNAPCAST_SERVER`.
+
+**AirPlay 2** (Multiroom mit Apple-Geräten) ist nicht umgesetzt. Was es bräuchte:
+- shairport-sync 4.x mit `--with-airplay-2` und den Bibliotheken libplist, libsodium, libgcrypt, libuuid und FFmpeg
+  (libavcodec/libavutil/libswresample; AAC-Dekodierung). Xenial hat libsodium 1.0.8, libplist 1.12 und libgcrypt 1.6:
+  statisch einbinden wie bei shairport 3.3.9. FFmpeg 3.4 gibt es schon (`tools/build-ffmpeg34.sh`), shairport-sync 4.3
+  verlangt neuere Schnittstellen (`ch_layout`), also FFmpeg 5.x statisch bauen.
+- **nqptp** als zweiter Dienst (PTP-Zeitbezug), braucht UDP 319/320 und läuft als root; Ports in die Firewall-Kopfzeile.
+- Offen und nur am Gerät zu klären: ob Kernel 3.8 genaue genug Zeitstempel für nqptp liefert, ob die CPU (BG2CD, 2 Kerne)
+  AAC/ALAC-Dekodierung plus Resampling auf 48 kHz neben den anderen Diensten schafft, und wie sich der Puffer von dmix
+  auf die Synchronität auswirkt.
+- Prüfschritte am Gerät: nqptp statisch bauen und starten, `nqptp` Offset im Log beobachten (Schwankung < 1 ms?);
+  shairport-sync 4.x mit `--with-airplay-2` als Test neben dem alten (anderer Name, andere Ports) starten und mit zwei
+  AirPlay-2-Geräten gruppieren.
+Bis dahin: Multiroom über Snapcast oder Music Assistant (Sendspin), AirPlay 1 für einzelne Räume.

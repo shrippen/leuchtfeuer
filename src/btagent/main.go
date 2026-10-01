@@ -1,7 +1,9 @@
 // btagent: BlueZ-Agent für den Invoke als reinen Lautsprecher ohne Bedienelemente.
 //   - nimmt jede Kopplung an (NoInputNoOutput / Just Works) und jede Dienstautorisierung,
 //   - markiert gekoppelte Geräte als vertraut, damit sie sich selbst wieder verbinden dürfen,
-//   - hält den Adapter eingeschaltet, sichtbar und koppelbereit (ohne Zeitlimit).
+//   - hält den Adapter eingeschaltet, sichtbar und koppelbereit (nach Knopfdruck oder dauerhaft),
+//   - gleicht die Handy-Lautstärke mit dem Drehrad ab (volume.go),
+//   - meldet Titel und Wiedergabezustand des Handys an invoked und hält es auf Befehl an (media.go).
 //
 // Läuft dauerhaft und holt alles nach, wenn bluetoothd neu startet.
 package main
@@ -138,9 +140,11 @@ func main() {
 	}
 	pw.always = *pairing == "always"
 	log.Printf("Bluetooth-Kopplung: %s", *pairing)
+	setupWamp()
 	go volumeLoop()
 	for {
 		tick()
+		media.poll()
 		time.Sleep(2 * time.Second)
 	}
 }

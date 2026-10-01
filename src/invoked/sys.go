@@ -4,14 +4,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
-
-type serviceInfo struct {
-	Name    string `json:"name"`
-	Running bool   `json:"running"`
-}
 
 type sysStatus struct {
 	TempC      float64       `json:"tempC"`
@@ -22,18 +18,6 @@ type sysStatus struct {
 	DataFreeMB int           `json:"dataFreeMB"`
 	DataSizeMB int           `json:"dataSizeMB"`
 	Services   []serviceInfo `json:"services"`
-}
-
-var watched = []struct{ Name, Match string }{
-	{"Spotify Connect (librespot)", "librespot"},
-	{"UPnP/DLNA (gmrender)", "gmediarender"},
-	{"Sendspin", "sendspin-player"},
-	{"Cast", "castrecv"},
-	{"AirPlay (shairport-sync)", "shairport-sync"},
-	{"Tidal Connect", "tidal_connect_a"},
-	{"Bluetooth (bluetoothd)", "bluetoothd"},
-	{"Bluetooth-Agent (btagent)", "btagent"},
-	{"Bluetooth-Audio (bluealsa)", "bluealsa"},
 }
 
 func readFloat(path string) float64 {
@@ -58,23 +42,6 @@ func memInfo() (total, free int) {
 	return m["MemTotal"] / 1024, (m["MemFree"] + m["Buffers"] + m["Cached"]) / 1024
 }
 
-// running prüft, ob ein Prozess mit passendem Namen läuft (aus /proc).
-func runningSet() map[string]bool {
-	set := map[string]bool{}
-	ents, _ := os.ReadDir("/proc")
-	for _, e := range ents {
-		if _, err := strconv.Atoi(e.Name()); err != nil {
-			continue
-		}
-		b, err := os.ReadFile("/proc/" + e.Name() + "/comm")
-		if err != nil {
-			continue
-		}
-		set[strings.TrimSpace(string(b))] = true
-	}
-	return set
-}
-
 func collectSys() sysStatus {
 	var s sysStatus
 	// tsen_temp liefert °C (ganzzahlig)
@@ -87,18 +54,22 @@ func collectSys() sysStatus {
 		s.DataFreeMB = int(uint64(st.Bavail) * uint64(st.Bsize) / 1024 / 1024)
 		s.DataSizeMB = int(uint64(st.Blocks) * uint64(st.Bsize) / 1024 / 1024)
 	}
-	run := runningSet()
-	for _, w := range watched {
-		ok := false
-		for n := range run {
-			if strings.HasPrefix(n, w.Match) {
-				ok = true
-				break
-			}
-		}
-		s.Services = append(s.Services, serviceInfo{w.Name, ok})
-	}
 	return s
+}
+
+// cachedSys hält die Messwerte eine Weile: sie werden für jede Statusmeldung gebraucht.
+func cachedSys(f func() sysStatus, d time.Duration) func() sysStatus {
+	var mu sync.Mutex
+	var at time.Time
+	var last sysStatus
+	return func() sysStatus {
+		mu.Lock()
+		defer mu.Unlock()
+		if time.Since(at) > d {
+			last, at = f(), time.Now()
+		}
+		return last
+	}
 }
 
 func uptimeSince(t time.Time) int { return int(time.Since(t).Seconds()) }

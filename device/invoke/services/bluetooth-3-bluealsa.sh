@@ -1,4 +1,9 @@
 #!/bin/sh
+# title: Bluetooth-Audio (bluealsa)
+# group: bluetooth
+# process: bluealsa
+# ports:
+# default: on
 # bluez-alsa: A2DP-Empfänger (Sink) an BlueZ; --a2dp-volume: keine Software-Dämpfung, die Handy-Lautstärke
 # gleicht btagent mit dem Drehrad ab. Wartet kurz auf bluetoothd; bei Misserfolg startet
 # der Hook den Dienst nach 30 s neu.

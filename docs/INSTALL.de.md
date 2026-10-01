@@ -107,7 +107,8 @@ Der Installer ist **interaktiv**: Er erklärt jeden Schritt und fragt, was er br
 5. fragt die Einstellungen ab: Name des Lautsprechers, Adresse deines Music Assistant für Sendspin, DHCP-Hostname,
 6. fragt, ob **Tidal Connect** installiert werden soll (Standard: nein, weil für diesen Lautsprecher nicht lizenziert),
 7. baut die Programme, falls sie fehlen (`./build.sh`: Docker + Go, beim ersten Mal 20-60 Minuten, Ergebnis in `build/`;
-   dazu das LADSPA-Abgriff-Plugin für den Leuchtring-Visualizer),
+   dazu die beiden LADSPA-Plugins der Tonkette: Visualizer-Abgriff und Klang), oder lädt mit `--prebuilt` stattdessen das
+   Release-Paket,
 8. zeigt eine Zusammenfassung und fragt, bevor etwas geändert wird,
 9. bei einem **frischen StockRoot-Gerät**: verbindet sich per adb (Port 5555), prüft Root, Firmware und freien Platz,
    richtet das eigene dropbear mit gerätespezifischem Host-Schlüssel und deinem Schlüssel ein, hängt den Autostart-Haken
@@ -122,6 +123,11 @@ Fragen: `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--d
 aktualisiert den Lautsprecher; nur geänderte Dateien werden übertragen, und deine Einstellungen auf dem Lautsprecher
 bleiben, außer du wählst neue. Separat bauen: `./build.sh [--no-tidal] [--force]`.
 
+**Ohne Bauen:** `./install.sh --prebuilt [TAG]` nimmt das Release-Paket von Gitea (neuestes Release oder der angegebene Tag),
+statt zu bauen: kein Docker, wenige Minuten. Es wird gegen seine `.sha256` geprüft und, wenn `docs/release-key.pub` den
+Release-Schlüssel enthält und Go installiert ist, gegen seine Signatur. Tidal Connect ist nicht enthalten (proprietär, nicht
+unseres zum Weitergeben); wer es will, baut selbst.
+
 Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
 
 ## 5. Benutzen
@@ -135,8 +141,10 @@ Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
 | AirPlay | „HK Invoke“ erscheint im AirPlay-Menü von iPhone, iPad und Mac (AirPlay 1, nur Audio) |
 | Weboberfläche | `http://<ip-des-lautsprechers>/` (Port 80): Anmeldeseite, Passwort von `install.sh` gesetzt (oder bei der Erstinstallation ein zufälliges, das am Ende einmal angezeigt wird). Der Lautsprecher speichert nur einen gesalzenen PBKDF2-Hash. Änderbar in den Einstellungen oder später mit `scripts/set-web-password.sh` |
 | Tidal | „HK Invoke“ erscheint in der Tidal-Connect-Liste der Tidal-App |
+| Snapcast | anfangs aus. Einstellungen > Dienste > Snapcast an, und `SNAPCAST_SERVER="host"` in `/data/invoke/config`; der Lautsprecher meldet sich dann als Client bei deinem snapserver an (Multiroom, synchron mit den anderen Räumen). Der Server sollte 48000:16:2 senden (FLAC oder PCM); in snapweb für diesen Client etwa 100 ms Latenz einstellen |
 
-Das Drehrad regelt alle Quellen. Logs liegen unter `/data/invoke/log/` auf dem Lautsprecher
+Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast und Bluetooth bewegt dieselbe Lautstärke
+(UPnP behält zusätzlich seine eigene Software-Lautstärke). Logs liegen unter `/data/invoke/log/` auf dem Lautsprecher
 (`ssh root@<ip> 'tail -f /data/invoke/log/*.log'`).
 
 ### Weboberfläche, Wecker, Home Assistant
@@ -151,7 +159,35 @@ Das Drehrad regelt alle Quellen. Logs liegen unter `/data/invoke/log/` auf dem L
 - **Home Assistant:** Reiter Home Assistant: MQTT-Broker eintragen. Der Lautsprecher meldet sich per MQTT-Erkennung selbst an
   (Gerät mit Lautstärke, Stumm, Webradio, Kopplung, Timern, Wecker-Tasten, Sensoren, Tasten-Ereignissen).
 - **Leuchtring:** kann als Visualizer der Musik aller Empfänger folgen (Einstellungen > Leuchtring: Spektrum, Pegel oder
-  Puls, Farbe, Helligkeit, Start-LED; anfangs aus). Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen.
+  Puls, Farbe, Helligkeit, Start-LED; anfangs aus) oder als Lampe in jeder Farbe leuchten. Ein laufender Timer zeigt seine
+  Restzeit als Füllstand. Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen. In Home Assistant
+  ist der Ring ein Licht mit Farbe, Helligkeit und Effekten.
+- **Wecker, mehr:** *Lichtwecker* (der Ring wird N Minuten vor der Weckzeit von tiefrot bis warmweiß heller), *nicht an
+  Feiertagen* (Bundesland unter Wecker & Timer wählen), *nächstes Mal aussetzen* (einmalig), *beim Stoppen ausblenden*, und
+  jede Stream- oder Datei-Adresse als Ton (z. B. eine Datei auf dem Musikserver).
+- **Schlummertimer:** Übersicht, 15-90 Minuten: die Musik wird über 30 s leiser und alle Quellen halten an.
+- **Läuft gerade:** Titel und Interpret von Spotify, AirPlay, Bluetooth, Cast und Webradio; UPnP, Sendspin, Tidal und
+  Snapcast erscheinen als spielend, solange sie den Lautsprecher nutzen. Bluetooth lässt sich in der Weboberfläche anhalten
+  und weiterschalten.
+- **Quellen und Lautstärke** (Einstellungen): Beginnt eine zweite Quelle, spielt die neueste, die anderen pausieren
+  (Bluetooth und Cast halten wirklich an, das Webradio stoppt, die übrigen sind stumm, bis sie wieder beginnen, und kommen
+  5 s nach dem Ende der neuesten zurück). *Alle spielen zusammen* stellt das alte Verhalten her. Höchste Lautstärke gesamt und
+  je Quelle, Startlautstärke je Quelle (z. B. Bluetooth beginnt immer mit 25 %).
+- **Klang** (Einstellungen): Bass und Höhen (±12 dB), *Loudness* (mehr Bass und Höhen, je leiser er spielt) und
+  *Nachtmodus* (gleicht laute und leise Stellen an). Gilt für alle Quellen, wirkt sofort.
+- **Durchsagen:** Home Assistant schickt eine Audio-Adresse (Sprachausgabe, Türklingel) oder `chime` / `bell` / `beep` an die
+  Text-Entität *Durchsage*; die Musik wird solange leiser (Einstellungen > Quellen: um wie viel dB). Die Übersicht hat
+  Probe-Knöpfe, eine Taste lässt sich auf den Gong legen.
+- **Dienste** (Einstellungen): Spotify, UPnP, Cast, AirPlay, Sendspin, Bluetooth, Tidal und Snapcast ein- oder ausschalten.
+  Ein ausgeschalteter Dienst startet nicht, seine Ports bleiben zu. Ein Dienst, der immer wieder abstürzt, wird mit
+  wachsenden Pausen (30 s ... 30 Min.) neu gestartet und als fehlerhaft angezeigt.
+- **Sichern und wiederherstellen** (Einstellungen): eine Datei mit Einstellungen, Kopplungen, Spotify-Anmeldung und
+  SSH-Schlüsseln (enthält Geheimnisse); zurückgespielt ist alles wieder da, z. B. nach einem Zurücksetzen. Das
+  *Diagnosepaket* (Status, Einstellungen ohne Geheimnisse, Protokolle) ist für Fehlerberichte.
+- **HTTPS:** `WEB_TLS="on"` in `/data/invoke/config` schaltet die Weboberfläche auf HTTPS mit eigenem Zertifikat (der Browser
+  warnt einmal); HTTP leitet dann um. Auch MQTT kann TLS nutzen (Reiter Home Assistant).
+- **Uhr:** Der Lautsprecher stellt seine Uhr nach dem Start und alle 6 h per NTP (`NTP_SERVER`); die Übersicht warnt, wenn
+  sie mehr als 2 s falsch geht.
 
 ### Erkennung zwischen WLAN ↔ LAN
 
@@ -161,8 +197,20 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 
 ## 6. Wartung
 
-- **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>`.
-- **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>` (prüft auch das Visualizer-Plugin und den Hersteller-Dienst `audio-ui`).
+- **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (oder `./install.sh --prebuilt`). Bevor
+  neue Dateien an ihren Platz kommen, werden die alten nach `/data/invoke/.prev` gesichert; fällt danach binnen 10 Minuten
+  ein Dienst wiederholt aus, kehrt der Lautsprecher von selbst zur vorigen Version zurück (Einstellungen > Update zeigt das
+  und hat einen Knopf zum Zurücknehmen von Hand).
+- **Update aus der Weboberfläche:** Einstellungen > Update prüft die Release-Seite und installiert ein neueres Release. Dafür
+  braucht es den Signaturschlüssel der Releases in `/data/invoke/config` (`UPDATE_PUBKEY`, setzt `install.sh` aus
+  `docs/release-key.pub`): nur damit signierte Pakete werden angenommen. Ohne Internet am Lautsprecher dort Paket und `.sig`
+  hochladen.
+- **Releases (Betreuer):** einmal einen Schlüssel erzeugen mit `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
+  den ausgegebenen öffentlichen Schlüssel in `docs/release-key.pub` eintragen, den geheimen als Secret
+  `LEUCHTFEUER_SIGNING_KEY` (und ein Gitea-Token als `RELEASE_TOKEN`) für `.gitea/workflows/release.yml` hinterlegen. Ein Tag
+  `v*` baut, signiert und veröffentlicht dann das Paket; von Hand: `./build.sh --no-tidal && tools/make-release.sh --key <datei>`.
+- **Tests ohne Lautsprecher:** `tests/run.sh` (läuft auch in der CI).
+- **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>` (prüft auch die Plugins der Tonkette, die Quellen-Regler und den Hersteller-Dienst `audio-ui`).
 - **`mcu-interface` nicht beenden** (Hersteller-Dienst für Ring und Verstärker): Der Hersteller-Überwacher startet dann seinen
   Stapel im Wiederherstellungsmodus neu, `audio-ui` verliert die Verbindung zum Router und der Verstärker bleibt stumm.
   Ein Neustart des Lautsprechers behebt das.
@@ -182,5 +230,8 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 | Dienst fehlt | `ssh root@<ip> 'ps; tail /data/invoke/log/<dienst>.log'`; der Haken startet tote Dienste alle 30 s neu |
 | Bluetooth nicht sichtbar | `scripts/verify-install.sh`; `/data/invoke/log/bluetooth-*.log`; `hciconfig hci0` muss `UP RUNNING PSCAN ISCAN` zeigen |
 | Music Assistant meldet „Legacy-Modus“ bei Sendspin | Erwartet: sendspin-go 1.8.x spricht den unverschlüsselten Dialekt; wird akzeptiert, solange „Allow legacy clients“ an ist |
-| Kein Ton, „audio-ui nicht erreichbar“ | `scripts/verify-install.sh` (Visualizer-Plugin, `audio-ui`); meist hilft ein Neustart des Lautsprechers. Fehlt `/data/invoke/lib/ladspa/invoke-viz-tap.so`, erneut `install.sh` ausführen (die Tonkette braucht es) |
+| Kein Ton, „audio-ui nicht erreichbar“ | `scripts/verify-install.sh` (Plugins, `audio-ui`, Quellen-Regler); meist hilft ein Neustart des Lautsprechers. Fehlt `/data/invoke/lib/ladspa/invoke-viz-tap.so` oder `invoke-eq.so`, erneut `install.sh` ausführen (die Tonkette braucht beide) |
+| Eine Quelle ist stumm | Einstellungen > Quellen: steht sie auf *pausiert (andere Quelle)*? Sie kommt 5 s nach dem Ende der anderen zurück, oder *Alle spielen zusammen* wählen. `amixer -c 0 sget "Quelle spotify"` sollte 255 sein |
+| Ein Dienst fällt wiederholt aus | Die Übersicht zeigt es; Einstellungen > Dienste > Protokoll. Nach einem Update geht der Lautsprecher von selbst zurück; sonst den Dienst ausschalten |
+| Wecker zur falschen Zeit | Die Übersicht warnt, wenn die Uhr falsch geht; `NTP_SERVER` prüfen und ob der Lautsprecher ihn erreicht (`/data/invoke/hook.log`) |
 | Tidal-Anmeldung scheitert | Das iFi-Zertifikat wurde evtl. gesperrt; hier nicht behebbar |

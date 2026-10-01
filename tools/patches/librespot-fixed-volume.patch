@@ -1,0 +1,29 @@
+diff --git a/playback/src/mixer/softmixer.rs b/playback/src/mixer/softmixer.rs
+index 189fc15..c37dcae 100644
+--- a/playback/src/mixer/softmixer.rs
++++ b/playback/src/mixer/softmixer.rs
+@@ -37,6 +37,11 @@ impl Mixer for SoftMixer {
+     }
+ 
+     fn get_soft_volume(&self) -> Box<dyn VolumeGetter + Send> {
++        // Leuchtfeuer: "fixed" means no attenuation at all; the speaker sets its own volume from the
++        // volume_changed event (--onevent), so the signal must not be attenuated twice.
++        if matches!(self.volume_ctrl, VolumeCtrl::Fixed) {
++            return Box::new(NoSoftVolume);
++        }
+         Box::new(SoftVolume(self.volume.clone()))
+     }
+ }
+@@ -53,3 +58,12 @@ impl VolumeGetter for SoftVolume {
+         f64::from_bits(self.0.load(Ordering::Relaxed))
+     }
+ }
++
++struct NoSoftVolume;
++
++impl VolumeGetter for NoSoftVolume {
++    #[inline]
++    fn attenuation_factor(&self) -> f64 {
++        1.0
++    }
++}

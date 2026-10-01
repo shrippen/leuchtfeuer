@@ -16,3 +16,4 @@ STAND.md
 NOTES.md
 tools/yaffs2_extract.py
 build-demo/
+dist/

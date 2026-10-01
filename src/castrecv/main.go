@@ -99,7 +99,12 @@ func (s *server) broadcast(src, ns string, payload any) {
 
 var levelRe = regexp.MustCompile(`Front Left: (\d+) `)
 
+// getVolume liefert die Lautstärke 0..1 und Stumm. Maßgeblich ist audio-ui (über WAMP, wie Drehrad und Bluetooth);
+// ohne Verbindung zum Router gilt der ALSA-Regler des Drehrads.
 func getVolume() (float64, bool) {
+	if v, m, ok := ui.get(); ok {
+		return float64(v) / 100, m
+	}
 	out, err := exec.Command("amixer", "-c", "0", "sget", *mixer).Output()
 	if err != nil {
 		return 1, muted
@@ -116,6 +121,15 @@ func setMixer(v int) {
 }
 
 func setVolume(vol map[string]any) {
+	if ui.connected() {
+		if l, ok := vol["level"].(float64); ok {
+			ui.setVolume(int(l*100 + 0.5))
+		}
+		if m, ok := vol["muted"].(bool); ok {
+			ui.setMute(m)
+		}
+		return
+	}
 	if l, ok := vol["level"].(float64); ok {
 		muted = false
 		setMixer(int(l*255 + 0.5))
@@ -158,7 +172,10 @@ func mediaStatus(reqID float64) map[string]any {
 	return map[string]any{"type": "MEDIA_STATUS", "requestId": reqID, "status": list}
 }
 
-func broadcastMedia()    { srv.broadcast(transportID, nsMedia, mediaStatus(0)) }
+func broadcastMedia() {
+	srv.broadcast(transportID, nsMedia, mediaStatus(0))
+	ui.reportState()
+}
 func broadcastReceiver() { srv.broadcast("receiver-0", nsReceiver, receiverStatus(0)) }
 
 func launch(appID string) {
@@ -330,6 +347,7 @@ func main() {
 	flag.Parse()
 	devID = deviceID()
 	pl = newPlayer(*sink, broadcastMedia)
+	ui.start()
 
 	// HTTP 8008 und HTTPS 8443: manche Sender fragen /setup/eureka_info ab
 	info := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

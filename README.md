@@ -12,17 +12,22 @@ speaker. After the install the speaker shows up as **"HK Invoke"** in:
 | **Spotify Connect** | [librespot](https://github.com/librespot-org/librespot) | needs a Spotify Premium account |
 | **UPnP / DLNA renderer** | [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect) | works with e.g. Symfonium, BubbleUPnP, foobar2000 |
 | **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | "legacy" (unencrypted) protocol dialect, see below |
-| **AirPlay** (AirPlay 1) | [shairport-sync](https://github.com/mikebrady/shairport-sync) 3.3.9 | iPhone, iPad, Mac; AirPlay 2 and multi-room are not supported |
+| **AirPlay** (AirPlay 1) | [shairport-sync](https://github.com/mikebrady/shairport-sync) 3.3.9 | iPhone, iPad, Mac; AirPlay 2 is not supported (multiroom: Snapcast or Sendspin) |
 | **Google Cast** (audio) | own receiver emulation (`src/castrecv`) | only for senders that do not verify the device with Google: Music Assistant, Home Assistant, VLC, pychromecast. **Not** YouTube / Spotify-Cast / Chrome tab |
 | **Tidal Connect** (optional) | proprietary iFi binary | **not licensed for this device**, can be revoked – opt-in, see [Legal](#legal-and-risks) |
+| **Snapcast** (optional) | [snapclient](https://github.com/badaix/snapcast) 0.31 | multiroom in sync with other Snapcast speakers; off by default, needs your snapserver |
 | **Bluetooth A2DP sink** | BlueZ 5.50 + bluez-alsa + own agent (`src/btagent`) | invisible until you press the speaker's **Bluetooth button** (2-minute pairing window, ring feedback); pairs without a prompt, remembers pairings, phone volume and the speaker's volume knob stay in sync |
 
-**Web interface** (port 80, [Kante](https://github.com/shrippen/shrippen.github.io) design, English/German):
-status, **web radio**, **alarms** (fade-in, snooze, radio or beeps) and **timers**, **button mapping**, the **Wi-Fi guard**
-(measures the real link quality to your router and switches to a better access point of the same network when it stays
-poor), **Home Assistant** (MQTT discovery: volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, temperature,
-Wi-Fi, button events), a **light ring visualizer** (spectrum, level or pulse, colour and brightness adjustable) and
-settings. Alarms and timers use your time zone and the light ring's own animations.
+**Web interface** (port 80, optional HTTPS, [Kante](https://github.com/shrippen/shrippen.github.io) design, English/German,
+live updates): status and **now playing** (title and artist from Spotify, AirPlay, Bluetooth, Cast, web radio), **web radio**,
+**alarms** (fade-in, snooze, radio, beeps or any stream address, **sunrise light** on the ring, not on public holidays,
+skip once, fade out) and **timers**, a **sleep timer**, **sound** (bass, treble, loudness, night mode), **source rules**
+(the newest source plays, the others pause) and **volume limits** per source, **announcements** over the music,
+**button mapping**, the **Wi-Fi guard** (measures the real link quality to your router and switches to a better access point
+of the same network when it stays poor), **Home Assistant** (MQTT discovery: volume, mute, web radio, Bluetooth pairing,
+timers, sleep timer, alarm buttons, announcements, the light ring as a light, now playing, temperature, Wi-Fi, button
+events; optionally over TLS), the **light ring** (visualizer: spectrum, level or pulse; lamp in any colour; timer progress),
+**services on/off**, **backup and restore**, a **diagnostics package** and **signed updates with automatic rollback**.
 
 Everything plays through the speaker's own DSP/amplifier chain; the **volume knob** controls all sources
 and stays in sync with the phone volume over Bluetooth in both directions.
@@ -61,6 +66,7 @@ git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
 #    Docker, 20-60 minutes once)
 ./install.sh
 # without questions (scripts, CI): ./install.sh --non-interactive --ip <speaker-ip> --key ~/.ssh/id_ed25519.pub
+# without building (no Docker): ./install.sh --prebuilt   (release package from Gitea, without Tidal)
 ```
 
 Then pair your phone with "HK Invoke", or pick it in Spotify / your UPnP app / Music Assistant.
@@ -70,7 +76,8 @@ The complete, step-by-step guide including the hardware part is in **[docs/INSTA
 ## Configuration
 
 `/data/invoke/config` on the speaker (template: `device/invoke/config.example`): device name, the address of
-your Music Assistant server for Sendspin, the DHCP host name. Re-running `./install.sh` updates the speaker and
+your Music Assistant server for Sendspin, the DHCP host name, which services run (`SERVICE_<NAME>="on|off"`, also in the
+web interface), the Snapcast server, the NTP server, HTTPS for the web interface and the public key for signed updates. Re-running `./install.sh` updates the speaker and
 keeps this file unless you pass `--config`.
 
 ## Emergency brake / uninstall
@@ -92,6 +99,8 @@ keeps this file unless you pass `--config`.
   `./install.sh --no-tidal` leave it out.
 - The Cast receiver is an **independent emulation** of the Cast protocol, no Google software.
 - Sendspin currently connects with the legacy (unencrypted) dialect; Music Assistant shows a notice.
+- Release packages (`install.sh --prebuilt`, updates from the web interface) contain no vendor firmware and no Tidal; web
+  updates are accepted only with a valid Ed25519 signature (`UPDATE_PUBKEY`), and a failing update is rolled back.
 - The programs installed on the speaker (librespot, gmrender-resurrect, sendspin-go, BlueZ, bluez-alsa, dropbear,
   FFmpeg/avahi for the Tidal bundle, …) keep their own licences. `build.sh` fetches the exact sources by tag/commit.
 

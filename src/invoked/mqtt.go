@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,8 +16,9 @@ import (
 
 // Home-Assistant-Anbindung über MQTT mit automatischer Erkennung (MQTT Discovery). Home Assistant kennt über MQTT
 // keinen Media-Player; angeboten werden deshalb Lautstärke (number), Stumm (switch), Radio-Sender (select),
-// Bluetooth-Kopplung (switch), Wecker-/Timer-Tasten (button), Timer (number), Messwerte (sensor) und
-// Tastendrücke (event).
+// Bluetooth-Kopplung (switch), Wecker-/Timer-Tasten (button), Timer und Schlummertimer (number), Messwerte und
+// "Läuft gerade" (sensor), Tastendrücke (event), der Leuchtring (light: Farbe, Helligkeit, Effekte) und Durchsagen
+// (text: Adresse einer Audiodatei/TTS oder chime | bell | beep). Optional verschlüsselt (TLS).
 
 type mqttBridge struct {
 	app    *app
@@ -48,7 +50,7 @@ func (m *mqttBridge) connected() bool {
 func (m *mqttBridge) Run() {
 	for {
 		s := m.app.st.Snapshot().MQTT
-		key := fmt.Sprintf("%v|%s|%d|%s|%s|%s|%s", s.Enabled, s.Host, s.Port, s.User, s.Pass, s.Discovery, m.app.cfg.Get("DEVICE_NAME", "HK Invoke"))
+		key := fmt.Sprintf("%v|%s|%d|%s|%s|%s|%s|%v|%v", s.Enabled, s.Host, s.Port, s.User, s.Pass, s.Discovery, m.app.cfg.Get("DEVICE_NAME", "HK Invoke"), s.TLS, s.Insecure)
 		m.mu.Lock()
 		changed := key != m.cfgKey
 		m.mu.Unlock()
@@ -89,14 +91,21 @@ func (m *mqttBridge) publish(sub, payload string, retain bool) {
 }
 
 func (m *mqttBridge) connect(s MQTTSettings) {
+	scheme := "tcp"
+	if s.TLS {
+		scheme = "ssl"
+	}
 	opts := mqtt.NewClientOptions().
-		AddBroker(fmt.Sprintf("tcp://%s:%d", s.Host, s.Port)).
+		AddBroker(fmt.Sprintf("%s://%s:%d", scheme, s.Host, s.Port)).
 		SetClientID("invoke-"+m.id).
 		SetAutoReconnect(true).SetConnectRetry(true).SetConnectRetryInterval(10*time.Second).
 		SetKeepAlive(30*time.Second).
 		SetWill(m.base+"/status", "offline", 0, true)
 	if s.User != "" {
 		opts.SetUsername(s.User).SetPassword(s.Pass)
+	}
+	if s.TLS {
+		opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: s.Insecure, MinVersion: tls.VersionTLS12})
 	}
 	opts.SetOnConnectHandler(func(c mqtt.Client) {
 		log.Printf("MQTT verbunden (%s:%d)", s.Host, s.Port)
@@ -158,6 +167,25 @@ func (m *mqttBridge) command(name, payload string) {
 		a.sch.Snooze()
 	case "timer_dismiss":
 		a.sch.DismissTimer()
+	case "chime":
+		a.ann.Play(announceReq{Tone: "chime"})
+	case "sleep_minutes":
+		if v, err := strconv.ParseFloat(payload, 64); err == nil {
+			a.sch.SetSleep(clamp(int(v), 0, 600))
+		}
+	case "announce":
+		r := announceReq{URL: payload}
+		if strings.HasPrefix(payload, "{") {
+			r = announceReq{}
+			json.Unmarshal([]byte(payload), &r)
+		} else if _, ok := announceTones[payload]; ok {
+			r = announceReq{Tone: payload}
+		}
+		if err := a.ann.Play(r); err != nil {
+			log.Printf("MQTT-Durchsage: %v", err)
+		}
+	case "ring":
+		m.ringCommand(payload)
 	}
 	m.publishState()
 }
@@ -177,6 +205,74 @@ func (m *mqttBridge) onEvent(kind string, data map[string]any) {
 	default:
 		m.publishState()
 	}
+}
+
+// ---- Leuchtring als Licht (JSON-Schema) ----
+
+var ringEffects = [][2]string{{"static", "Statisch"}, {"spectrum", "Spektrum"}, {"level", "Pegel"}, {"pulse", "Puls"}}
+
+func ringEffectNames() []string {
+	var out []string
+	for _, e := range ringEffects {
+		out = append(out, e[1])
+	}
+	return out
+}
+
+func (m *mqttBridge) ringState() string {
+	v := m.app.st.Snapshot().Viz
+	st := map[string]any{"state": onOff(v.Mode != "off"), "brightness": v.Brightness, "color_mode": "rgb"}
+	c := [3]float64{1, 1, 1}
+	if v.Color == "custom" {
+		c = [3]float64{float64(v.RGB[0]) / 255, float64(v.RGB[1]) / 255, float64(v.RGB[2]) / 255}
+	} else if x, ok := vizColors[v.Color]; ok && v.Color != "rainbow" {
+		c = x
+	}
+	st["color"] = map[string]int{"r": int(c[0] * 255), "g": int(c[1] * 255), "b": int(c[2] * 255)}
+	for _, e := range ringEffects {
+		if e[0] == v.Mode {
+			st["effect"] = e[1]
+		}
+	}
+	b, _ := json.Marshal(st)
+	return string(b)
+}
+
+func (m *mqttBridge) ringCommand(payload string) {
+	var c struct {
+		State      string `json:"state"`
+		Brightness *int   `json:"brightness"`
+		Color      *struct {
+			R, G, B int
+		} `json:"color"`
+		Effect string `json:"effect"`
+	}
+	if json.Unmarshal([]byte(payload), &c) != nil {
+		return
+	}
+	m.app.st.Update(func(s *Settings) {
+		v := &s.Viz
+		if c.State == "OFF" {
+			v.Mode = "off"
+			return
+		}
+		if c.Effect != "" {
+			for _, e := range ringEffects {
+				if e[1] == c.Effect {
+					v.Mode = e[0]
+				}
+			}
+		} else if v.Mode == "off" {
+			v.Mode = "static"
+		}
+		if c.Brightness != nil {
+			v.Brightness = clamp(*c.Brightness, 5, 100)
+		}
+		if c.Color != nil {
+			v.Color, v.RGB = "custom", [3]int{clamp(c.Color.R, 0, 255), clamp(c.Color.G, 0, 255), clamp(c.Color.B, 0, 255)}
+		}
+	})
+	m.app.emit("settings", nil)
 }
 
 func onOff(b bool) string {
@@ -201,8 +297,22 @@ func (m *mqttBridge) publishState() {
 	}
 	m.publish("radio", radio, true)
 	m.publish("player", map[bool]string{true: kind + ": " + name, false: "idle"}[kind != ""], true)
-	m.publish("title", title, true)
-	_ = state
+	_, _ = state, title
+	// "Läuft gerade" über alle Quellen
+	src, stitle, sartist := "idle", "", ""
+	if act := a.src.Active(); act != "" {
+		src = act
+		for _, x := range a.src.List() {
+			if x.Name == act {
+				stitle, sartist = x.Title, x.Artist
+			}
+		}
+	}
+	m.publish("source", src, true)
+	m.publish("title", stitle, true)
+	m.publish("artist", sartist, true)
+	m.publish("sleep_minutes", strconv.Itoa((a.sch.SleepRemaining()+59)/60), true)
+	m.publish("ring", m.ringState(), true)
 	ws := a.wifiFn()
 	m.publish("wifi_rssi", strconv.Itoa(ws.RSSI), true)
 	m.publish("wifi_loss", strconv.Itoa(ws.LossPct), true)
@@ -264,5 +374,14 @@ func (m *mqttBridge) discover(prefix string) {
 	put("sensor", "wifi_loss", map[string]any{"name": "WLAN-Paketverlust", "state_topic": T("wifi_loss"), "unit_of_measurement": "%", "icon": "mdi:wifi-alert", "entity_category": "diagnostic"})
 	put("sensor", "temperature", map[string]any{"name": "Temperatur", "state_topic": T("temperature"), "device_class": "temperature", "unit_of_measurement": "°C", "entity_category": "diagnostic"})
 	put("sensor", "uptime", map[string]any{"name": "Laufzeit", "state_topic": T("uptime"), "device_class": "duration", "unit_of_measurement": "s", "entity_category": "diagnostic"})
+	put("sensor", "source", map[string]any{"name": "Quelle", "state_topic": T("source"), "icon": "mdi:speaker-wireless"})
+	put("sensor", "artist", map[string]any{"name": "Interpret", "state_topic": T("artist"), "icon": "mdi:account-music"})
+	put("number", "sleep_minutes", map[string]any{"name": "Schlummertimer", "state_topic": T("sleep_minutes"), "command_topic": T("sleep_minutes/set"),
+		"min": 0, "max": 180, "step": 5, "unit_of_measurement": "min", "icon": "mdi:sleep", "mode": "box"})
+	put("text", "announce", map[string]any{"name": "Durchsage", "command_topic": T("announce/set"), "mode": "text", "max": 255, "icon": "mdi:bullhorn"})
+	put("button", "chime", map[string]any{"name": "Gong", "command_topic": T("chime/press"), "icon": "mdi:bell-ring"})
+	put("light", "ring", map[string]any{"name": "Leuchtring", "schema": "json", "state_topic": T("ring"), "command_topic": T("ring/set"),
+		"brightness": true, "brightness_scale": 100, "supported_color_modes": []string{"rgb"}, "effect": true,
+		"effect_list": ringEffectNames(), "icon": "mdi:led-strip-variant"})
 	put("event", "button", map[string]any{"name": "Taste", "state_topic": T("button"), "event_types": []string{"mic", "bluetooth", "volumeup", "volumedown", "reset", "play", "mute"}})
 }

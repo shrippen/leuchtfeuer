@@ -1,4 +1,9 @@
 #!/bin/sh
+# title: Bluetooth (bluetoothd)
+# group: bluetooth
+# process: bluetoothd
+# ports:
+# default: on
 # BlueZ 5.50 (bluetoothd) statt des Harman-Bluedroid-Stacks (aus podium.conf entfernt).
 # Lädt selbst den Treiber (das tat vorher bluetooth.sh); Kopplungen liegen unter
 # /data/invoke/bluez/var und überstehen Neustarts. Konfiguration: bluez/etc/bluetooth/main.conf.

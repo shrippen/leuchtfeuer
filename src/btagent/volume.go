@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
+	"leuchtfeuer/wamp"
 )
 
 // Lautstärke: Das Drehrad des Invoke und die Handy-Lautstärke (AVRCP-Absolutvolumen, bei bluez-alsa die
@@ -18,14 +19,11 @@ import (
 // bluealsa läuft mit --a2dp-volume und dämpft nicht selbst. Das Gerät ist Master: verbindet sich ein
 // Handy, bekommt es den Wert des Geräts.
 
-const wampAddr = "127.0.0.1:9999"
-
 func musicToPhone(n int) int { return (n*127 + 50) / 100 }
 func phoneToMusic(p int) int { return (p*100 + 63) / 127 }
 
 type volState struct {
 	mu        sync.Mutex
-	wamp      *wampClient
 	cur       int // Lautstärke der Gruppe "music" in % (-1 = unbekannt)
 	lastPhone int // zuletzt bekannter Wert am Handy (0..127, -1 = unbekannt)
 	pcm       dbus.ObjectPath
@@ -56,37 +54,65 @@ func setPhone(pcm dbus.ObjectPath, p int) {
 	}
 }
 
-// onWamp verarbeitet Ereignisse des Routers (topic "" = Verbindung verloren).
-func (s *volState) onWamp(topic string, args []any) {
-	if topic == "" {
-		s.mu.Lock()
-		s.wamp, s.cur = nil, -1
-		s.mu.Unlock()
-		return
-	}
-	if topic == "invoke.bt.pairing" {
-		if len(args) >= 1 {
-			if a, _ := args[0].(string); a != "" {
-				pw.Set(a, *window)
-			}
-		}
-		return
-	}
-	if topic == "com.harman.test.inputEvent" {
+// hub: Verbindung zum Router des Invoke (bonefish), verbindet selbst neu.
+var hub = wamp.NewHub(wamp.Addr)
+
+// setupWamp meldet die Ereignisse an; nach jeder Verbindung wird die aktuelle Lautstärke gelesen.
+func setupWamp() {
+	hub.Subscribe("com.harman.volumeChanged", vs.onVolume)
+	hub.Subscribe("com.harman.test.inputEvent", func(args []any) {
 		if len(args) >= 1 {
 			if b, _ := args[0].(string); b == "bluetooth" {
 				pw.toggle(*window)
 			}
 		}
-		return
-	}
-	if topic != "com.harman.volumeChanged" || len(args) < 2 {
+	})
+	// Befehle von invoked (Weboberfläche, Home Assistant)
+	hub.Subscribe("invoke.bt.pairing", func(args []any) {
+		if len(args) >= 1 {
+			if a, _ := args[0].(string); a != "" {
+				pw.Set(a, *window)
+			}
+		}
+	})
+	hub.Subscribe("invoke.bt.control", func(args []any) {
+		if len(args) >= 1 {
+			if a, _ := args[0].(string); a != "" {
+				media.control(a)
+			}
+		}
+	})
+	// Eine andere Quelle beginnt zu spielen (invoked, Quellen-Regel "last"): Handy anhalten.
+	hub.Subscribe("invoke.source.claim", func(args []any) {
+		if len(args) >= 1 {
+			if src, _ := args[0].(string); src != "" && src != "bluetooth" {
+				media.control("pause")
+			}
+		}
+	})
+	hub.OnConnect(func() {
+		// aktueller Wert: ein Null-Schritt mit volumeAdjust(0) liefert [Wert, "music"]
+		res, err := hub.Call("com.harman.volumeAdjust", 0)
+		if err != nil || len(res) < 1 {
+			return
+		}
+		vs.mu.Lock()
+		vs.cur = wamp.ToInt(res[0])
+		vs.mu.Unlock()
+		log.Printf("Lautstärke %d %%", wamp.ToInt(res[0]))
+	})
+	go hub.Run()
+}
+
+// onVolume: das Drehrad (oder invoked) hat die Lautstärke geändert.
+func (s *volState) onVolume(args []any) {
+	if len(args) < 2 {
 		return
 	}
 	if g, _ := args[0].(string); g != "music" {
 		return
 	}
-	n := toInt(args[1])
+	n := wamp.ToInt(args[1])
 	s.mu.Lock()
 	s.cur = n
 	pcm, last := s.pcm, s.lastPhone
@@ -110,55 +136,18 @@ func (s *volState) onPhone(p int) {
 		return // Echo unserer eigenen Änderung
 	}
 	s.lastPhone = p
-	w, cur := s.wamp, s.cur
+	cur := s.cur
 	s.mu.Unlock()
 	target := phoneToMusic(p)
-	if w == nil || cur < 0 || target == cur {
+	if !hub.Connected() || cur < 0 || target == cur {
 		return
 	}
-	res, err := w.call("com.harman.volumeAdjust", target-cur)
+	res, err := hub.Call("com.harman.volumeAdjust", target-cur)
 	if err != nil {
 		log.Printf("volumeAdjust: %v", err)
 		return
 	}
 	log.Printf("Handy %d/127 -> Gerät %d %% (volumeAdjust %+d, Ergebnis %v)", p, target, target-cur, res)
-}
-
-// ensureWamp hält die Verbindung zu bonefish und liest die aktuelle Lautstärke.
-func (s *volState) ensureWamp() {
-	s.mu.Lock()
-	have := s.wamp != nil
-	s.mu.Unlock()
-	if have {
-		return
-	}
-	w, err := wampConnect(wampAddr, s.onWamp)
-	if err != nil {
-		return
-	}
-	if err := w.subscribe("com.harman.volumeChanged"); err != nil {
-		w.conn.Close()
-		return
-	}
-	if err := w.subscribe("com.harman.test.inputEvent"); err != nil {
-		w.conn.Close()
-		return
-	}
-	if err := w.subscribe("invoke.bt.pairing"); err != nil { // Befehle von invoked (Weboberfläche, Home Assistant)
-		w.conn.Close()
-		return
-	}
-	// aktueller Wert: volumeGet liefert ihn als Schlüssel-Wert-Struktur, einfacher ist ein
-	// Null-Schritt mit volumeAdjust(0): Ergebnis [Wert, "music"]
-	res, err := w.call("com.harman.volumeAdjust", 0)
-	if err != nil || len(res) < 1 {
-		w.conn.Close()
-		return
-	}
-	s.mu.Lock()
-	s.wamp, s.cur = w, toInt(res[0])
-	s.mu.Unlock()
-	log.Printf("WAMP verbunden, Lautstärke %d %%", s.cur)
 }
 
 func volumeLoop() {
@@ -185,7 +174,6 @@ func volumeLoop() {
 				vs.onPhone(int(packed>>8) & 0x7f)
 			}
 		case <-tick.C:
-			vs.ensureWamp()
 			now := findPCM()
 			vs.mu.Lock()
 			changed := now != vs.pcm

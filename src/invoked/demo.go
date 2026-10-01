@@ -219,12 +219,24 @@ func runDemo(listen string) {
 		running[n] = true
 	}
 	a.sysFn = func() sysStatus {
-		s := sysStatus{TempC: float64(sp.TempC), UptimeSecs: sp.UpDays*86400 + 5*3600, Load1: 0.31, MemTotalMB: 462, MemFreeMB: 398, DataFreeMB: 68, DataSizeMB: 123}
-		for _, w := range watched {
-			s.Services = append(s.Services, serviceInfo{w.Name, running[w.Match]})
-		}
-		return s
+		return sysStatus{TempC: float64(sp.TempC), UptimeSecs: sp.UpDays*86400 + 5*3600, Load1: 0.31, MemTotalMB: 462, MemFreeMB: 398, DataFreeMB: 68, DataSizeMB: 123}
 	}
+	// Dienste aus den Kopfzeilen im Repo (demo/start.sh startet im Hauptverzeichnis)
+	servicesDir, runDir = "device/invoke/services", dir
+	a.svcFn = func() []serviceInfo {
+		var out []serviceInfo
+		for _, d := range serviceDefs() {
+			if d.Group == "tidal" || d.Group == "snapcast" {
+				continue
+			}
+			out = append(out, serviceInfo{serviceDef: d, Enabled: true, Running: running[d.Process] || (d.Group == "core")})
+		}
+		return out
+	}
+	a.clkFn = func() clockStatus {
+		return clockStatus{OffsetMs: 38, Checked: now.Add(-12 * time.Minute), Server: "pool.ntp.org", LastSync: now.Add(-3 * time.Hour), Synced: true}
+	}
+	a.src.Update("radio", "playing", map[string]string{"title": sp.Playing.Title.in(lang)})
 	wr := sp.WifiRaw
 	a.wifiFn = func() wifiStatus {
 		return wifiStatus{SSID: fmt.Sprint(wr["ssid"]), BSSID: fmt.Sprint(wr["bssid"]), FreqMHz: toInt(wr["freq"]), RSSI: toInt(wr["rssi"]), LinkMbps: toInt(wr["link_mbps"]),
@@ -238,6 +250,7 @@ func runDemo(listen string) {
 		a.buttons = append(a.buttons, buttonEvent{Time: now.Add(-time.Duration(e.Ago) * time.Second), Name: e.Name, Value: e.Value, Do: e.Action})
 	}
 	wrapAuth = func(_ *webServer, h http.Handler) http.Handler { return h }
+	a.ann = newAnnouncer(a, "null")
 	w := &webServer{app: a, login: newLoginState("")}
 	log.Printf("Demo (%s) auf %s", lang, listen)
 	w.Run(listen)

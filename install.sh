@@ -22,6 +22,9 @@
 #                        random one is generated on first install and the existing one is kept on updates.
 #                        Change it later with scripts/set-web-password.sh.
 #   --tidal / --no-tidal install / skip Tidal Connect (proprietary iFi program, see README)
+#   --prebuilt [TAG]     use the release package from Gitea instead of building (no Docker needed; without Tidal).
+#                        TAG = release tag, default the latest. The package is checked against its .sha256 and,
+#                        when docs/release-key.pub holds a key and Go is installed, against its signature.
 #   --no-reboot          do not reboot at the end
 #   --dry-run            only show what would be done
 #   --non-interactive    never ask: use the options and defaults (aliases: --yes, -y)
@@ -32,7 +35,8 @@ cd "$(dirname "$0")"
 # shellcheck source=scripts/lib.sh
 . scripts/lib.sh
 
-IP=""; KEY=""; CONFIG=""; TIDAL=""; REBOOT=""; DRY=0; WEBPASS=${INVOKE_WEB_PASSWORD:-}
+IP=""; KEY=""; CONFIG=""; TIDAL=""; REBOOT=""; DRY=0; WEBPASS=${INVOKE_WEB_PASSWORD:-}; PREBUILT=""
+RELEASES=${INVOKE_RELEASES:-https://git.arianw.de/api/v1/repos/shrippen/leuchtfeuer/releases}
 while [ $# -gt 0 ]; do
   case $1 in
     --ip) IP=$2; shift 2 ;;
@@ -41,10 +45,11 @@ while [ $# -gt 0 ]; do
     --web-password) WEBPASS=$2; shift 2 ;;
     --tidal) TIDAL=1; shift ;;
     --no-tidal) TIDAL=0; shift ;;
+    --prebuilt) PREBUILT=latest; shift; case ${1:-} in v*|[0-9]*) PREBUILT=$1; shift ;; esac ;;
     --no-reboot) REBOOT=0; shift ;;
     --dry-run) DRY=1; shift ;;
     --non-interactive|--yes|-y) INTERACTIVE=0; shift ;;
-    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,34p' "$0"; exit 0 ;;
     *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -126,6 +131,19 @@ richte SSH und den Autostart-Haken ein und mache dann über SSH weiter."
 fi
 
 # ====================================================================== settings
+if [ "$MODE" = first ] && [ "$INTERACTIVE" = 1 ]; then
+  say "Before you start: your NAND backup" "Vorher: deine NAND-Sicherung"
+  info "The backup from docs/INSTALL.md part 1 (backup/<time>/ in this folder) is the only copy of your speaker's
+factory_setting partition (certificates, MAC, calibration). If this computer's disk fails, it is gone. Copy the
+backup folder to a second place now (USB stick, NAS, cloud drive)." \
+"Die Sicherung aus docs/INSTALL.md Teil 1 (backup/<zeit>/ in diesem Ordner) ist die einzige Kopie der Partition
+factory_setting deines Lautsprechers (Zertifikate, MAC, Kalibrierung). Geht die Platte dieses Rechners kaputt, ist sie
+weg. Kopiere den Ordner backup jetzt an einen zweiten Ort (USB-Stick, NAS, Cloud-Speicher)."
+  ls -d backup/*/ 2>/dev/null | sed 's/^/    /' || true
+  ask_yn "Is there a second copy of the NAND backup outside this computer?" "Gibt es eine zweite Kopie der NAND-Sicherung außerhalb dieses Rechners?" n \
+    || wait_enter "Copy it now, then press Enter to continue." "Kopiere sie jetzt und drücke dann Enter."
+fi
+
 say "Step 5: settings" "Schritt 5: Einstellungen"
 d_srv=""
 host_tz(){ local t; t=$(timedatectl show -p Timezone --value 2>/dev/null || true); [ -n "$t" ] || t=$(cat /etc/timezone 2>/dev/null || true)
@@ -238,12 +256,17 @@ Bluetooth funktionieren auch ohne."
 fi
 
 # ====================================================================== build
+if [ -n "$PREBUILT" ]; then
+  [ "$TIDAL" = 1 ] && warn "Tidal Connect is not part of the release package; skipped" "Tidal Connect ist nicht im Release-Paket; übersprungen"
+  TIDAL=0
+fi
 need=(build/dropbear/dropbearmulti build/librespot/librespot build/gmrender/gmediarender
       build/sendspin/sendspin-player build/castrecv/castrecv build/btagent/btagent
       build/bluez/bluetoothd build/bluez/bluealsa build/bluez/bluealsa-aplay build/bluez/hciconfig
-      build/bluez/hcitool build/bluez/lib/libsbc.so.1 build/shim/avahi-user-shim.so build/invoked/invoked build/shairport/shairport-sync build/viztap/invoke-viz-tap.so)
+      build/bluez/hcitool build/bluez/lib/libsbc.so.1 build/shim/avahi-user-shim.so build/invoked/invoked build/shairport/shairport-sync build/viztap/invoke-viz-tap.so
+      build/viztap/invoke-eq.so build/snapclient/snapclient)
 if [ "$TIDAL" = 1 ]; then need+=(build/tidal/bin/tidal_connect_application build/tidal/cert/IfiAudio_ZenStream.dat); fi
-missing=(); for f in "${need[@]}"; do [ -e "$f" ] || missing+=("$f"); done
+missing=(); [ -n "$PREBUILT" ] || for f in "${need[@]}"; do [ -e "$f" ] || missing+=("$f"); done
 if [ ${#missing[@]} -gt 0 ]; then
   say "Step 7: building the programs" "Schritt 7: Programme bauen"
   info "These programs have not been built yet: ${missing[*]}" "Diese Programme sind noch nicht gebaut: ${missing[*]}"
@@ -261,35 +284,57 @@ und braucht einige GB Platz; fertige Teile werden beim nächsten Mal übersprung
 fi
 
 # ====================================================================== staging (file tree as on the speaker)
+# fetch_prebuilt <Ziel>: Release-Paket laden, prüfen und auspacken
+fetch_prebuilt(){
+  local dst=$1 api tag url sha sig pub
+  command -v curl >/dev/null || die "curl is missing" "curl fehlt"
+  if [ "$PREBUILT" = latest ]; then api="$RELEASES/latest"; else api="$RELEASES/tags/$PREBUILT"; fi
+  say "Step 7: release package" "Schritt 7: Release-Paket"
+  local js; js=$(curl -fsSL "$api") || die "release not found ($api)" "Release nicht gefunden ($api)"
+  tag=$(printf '%s' "$js" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')
+  url=$(printf '%s' "$js" | python3 -c 'import json,sys; print(next(a["browser_download_url"] for a in json.load(sys.stdin)["assets"] if a["name"].endswith("-invoke.tar.gz")))') \
+    || die "release $tag has no package" "Release $tag hat kein Paket"
+  info "Release $tag" "Release $tag"
+  curl -fsSL -o "$STAGE/pkg.tar.gz" "$url" || die "download failed" "Download fehlgeschlagen"
+  curl -fsSL -o "$STAGE/pkg.sha256" "$url.sha256" || die "checksum missing" "Prüfsumme fehlt"
+  sha=$(awk '{print $1}' "$STAGE/pkg.sha256")
+  [ "$(sha256sum "$STAGE/pkg.tar.gz" | awk '{print $1}')" = "$sha" ] || die "checksum does not match" "Prüfsumme stimmt nicht"
+  ok "checksum" "Prüfsumme"
+  pub=$(grep -v '^#' docs/release-key.pub 2>/dev/null | head -n 1 || true)
+  if [ -n "$pub" ] && command -v go >/dev/null; then
+    curl -fsSL -o "$STAGE/pkg.tar.gz.sig" "$url.sig" || die "signature missing" "Signatur fehlt"
+    (cd src/relsign && go run . verify "$pub" "$STAGE/pkg.tar.gz") || die "signature does not match" "Signatur stimmt nicht"
+    ok "signature" "Signatur"
+  else
+    warn "signature not checked (no key in docs/release-key.pub or no Go)" "Signatur nicht geprüft (kein Schlüssel in docs/release-key.pub oder kein Go)"
+  fi
+  mkdir -p "$dst"; tar -xzf "$STAGE/pkg.tar.gz" -C "$dst"
+}
+
 assemble(){
   local S=$STAGE/invoke d=device/invoke name=""
-  mkdir -p "$S"/{bin,services,lib/ladspa,bluez/bin,bluez/lib,bluez/etc/bluetooth,bluez/var,tidal}
-  cp "$d/boot.sh" "$d/hook.sh" "$d/podium.conf" "$d/ports.local" "$d/asound-music.conf" "$d/ca-certificates.crt" "$S/"
-  if [ "$DRY" = 1 ] && [ ! -e build/dropbear/dropbearmulti ]; then return 0; fi
-  cp build/dropbear/dropbearmulti "$S/"
-  cp build/librespot/librespot build/gmrender/gmediarender build/sendspin/sendspin-player \
-     build/castrecv/castrecv build/btagent/btagent build/invoked/invoked build/shairport/shairport-sync "$S/bin/"
-  cp build/bluez/{bluetoothd,bluealsa,bluealsa-aplay,hciconfig,hcitool} "$S/bluez/bin/"
-  cp build/bluez/lib/libsbc.so.1 "$S/bluez/lib/"
-  cp build/viztap/invoke-viz-tap.so "$S/lib/ladspa/"   # needed by asound-music.conf: without it no sound
-  cp "$d/services/"{librespot,gmrender,sendspin,castrecv,shairport,invoked,volume-sync,bluetooth-1-bluetoothd,bluetooth-2-agent,bluetooth-3-bluealsa,bluetooth-4-aplay}.sh "$S/services/"
-  if [ "$TIDAL" = 1 ]; then
-    cp -a build/tidal/bin build/tidal/cert build/tidal/lib build/tidal/sbin "$S/tidal/"
-    cp build/shim/avahi-user-shim.so "$S/tidal/lib/"
-    cp "$d/tidal/avahi-daemon.conf" "$d/tidal/dbus-system.conf" "$S/tidal/"
-    cp "$d/services/"tidal-{1-dbus,2-avahi,3-connect}.sh "$S/services/"
+  if [ "$DRY" = 1 ] && [ -z "$PREBUILT" ] && [ ! -e build/dropbear/dropbearmulti ]; then
+    mkdir -p "$S"; cp "$d/boot.sh" "$d/hook.sh" "$d/apply-update.sh" "$S/"; return 0
   fi
+  if [ -n "$PREBUILT" ]; then fetch_prebuilt "$S"
+  elif [ "$TIDAL" = 1 ]; then scripts/assemble.sh "$S" --tidal
+  else scripts/assemble.sh "$S"; fi
+  # gerätebezogen: BlueZ-Konfiguration mit dem Namen aus den Einstellungen
+  mkdir -p "$S/bluez/etc/bluetooth" "$S/bluez/var"
   cp "$d/bluez/main.conf" "$S/bluez/etc/bluetooth/main.conf"
   if [ -n "$CONFIG" ]; then
     name=$(cfgval DEVICE_NAME "$(cat "$CONFIG")")   # speaker name in BlueZ main.conf matches the settings
     [ -n "$name" ] && sed -i "s/^Name = .*/Name = $name/" "$S/bluez/etc/bluetooth/main.conf"
     cp "$CONFIG" "$S/config"
   fi
-  # first install: the key is the only one; on update it is appended on the speaker instead (see below)
+  # eigene Firewall-Ports: nur bei der Erstinstallation die (leere) Vorlage, sonst bleibt die Datei des Nutzers
+  [ "$MODE" = first ] && cp "$d/ports.local" "$S/ports.local"
   [ "$MODE" = first ] && cp "$KEY" "$S/authorized_keys"
-  chmod 755 "$S"/boot.sh "$S"/hook.sh "$S"/dropbearmulti "$S"/bin/* "$S"/bluez/bin/* "$S"/services/*.sh 2>/dev/null || true
-  find "$S/tidal" -name '*.so*' -exec chmod 755 {} + 2>/dev/null || true
-  chmod 755 "$S"/tidal/bin/* "$S"/tidal/sbin/* 2>/dev/null || true
+  # Updates aus der Weboberfläche: öffentlicher Release-Schlüssel, falls einer im Repo steht und die config neu ist
+  local pub; pub=$(grep -v '^#' docs/release-key.pub 2>/dev/null | head -n 1 || true)
+  if [ -n "$pub" ] && [ -f "$S/config" ] && ! grep -q '^UPDATE_PUBKEY=' "$S/config"; then
+    printf 'UPDATE_PUBKEY="%s"\n' "$pub" >> "$S/config"
+  fi
   return 0
 }
 assemble
@@ -353,10 +398,10 @@ alle Dienste startet und beobachtet. Auf dem Lautsprecher wird ein Host-Schlüss
 ich mit dem richtigen Gerät spreche."
   if [ $DRY = 0 ]; then
     adbsh 'mkdir -p /data/invoke/log'
-    for f in dropbearmulti boot.sh hook.sh authorized_keys config ports.local; do
+    for f in dropbearmulti boot.sh hook.sh apply-update.sh authorized_keys config ports.local; do
       adb -s "$A" push "$STAGE/invoke/$f" "/data/invoke/$f" >/dev/null
     done
-    adbsh 'chmod 755 /data/invoke/dropbearmulti /data/invoke/boot.sh /data/invoke/hook.sh; chmod 600 /data/invoke/authorized_keys'
+    adbsh 'chmod 755 /data/invoke/dropbearmulti /data/invoke/boot.sh /data/invoke/hook.sh /data/invoke/apply-update.sh; chmod 600 /data/invoke/authorized_keys'
     for k in ed25519 ecdsa; do
       adbsh "[ -s /data/invoke/host_$k ] || /data/invoke/dropbearmulti dropbearkey -t $k -f /data/invoke/host_$k >/dev/null 2>&1"
     done
@@ -388,7 +433,7 @@ if [ $DRY = 1 ]; then
   (cd "$STAGE/invoke" && find . -type f | sort | head -70); echo "[dry-run] ... transfer via tar over SSH"
 else
   (cd "$STAGE/invoke" && find . -type f | sort | while read -r f; do sha256sum "$f"; done) > "$STAGE/local.sha"
-  sshd 'cd /data/invoke 2>/dev/null && find . -type f ! -path "./log/*" ! -path "./librespot-cache/*" ! -path "./sendspin/*" ! -path "./bluez/var/*" ! -path "./.stage/*" | sort | while read -r f; do sha256sum "$f"; done' > "$STAGE/remote.sha" 2>/dev/null || : > "$STAGE/remote.sha"
+  sshd 'cd /data/invoke 2>/dev/null && find . -type f ! -path "./log/*" ! -path "./librespot-cache/*" ! -path "./sendspin/*" ! -path "./bluez/var/*" ! -path "./.stage/*" ! -path "./.prev/*" ! -name sessions.json ! -name invoked.json ! -name "web-tls.*" ! -name update-pending ! -name update-rolledback | sort | while read -r f; do sha256sum "$f"; done' > "$STAGE/remote.sha" 2>/dev/null || : > "$STAGE/remote.sha"
   awk 'NR==FNR{r[$2]=$1; next} !($2 in r) || r[$2]!=$1 {print $2}' "$STAGE/remote.sha" "$STAGE/local.sha" > "$STAGE/changed.txt"
   n=$(wc -l < "$STAGE/changed.txt"); total=$(wc -l < "$STAGE/local.sha")
   info "$n of $total files are new or changed" "$n von $total Dateien sind neu oder geändert"
@@ -401,28 +446,31 @@ else
 adb root shell is closed for good." \
        "Neue Dateien werden an ihren Platz verschoben (laufende Programme werden nicht gestört), der Autostart-Haken wird neu
 gestartet, und die adb-Root-Shell wird dauerhaft geschlossen."
-  sshd 'sh -s' <<'REMOTE'
+  # apply-update.sh (aus der Stufe, sonst das installierte) sichert den alten Stand nach .prev, setzt die neuen Dateien
+  # in Kraft und meldet das Update dem Hook: fällt danach ein Dienst wiederholt aus, kommt der alte Stand zurück.
+  WATCHARG=""; [ "$MODE" = first ] && WATCHARG=nowatch
+  sshd "sh -s -- $WATCHARG" <<'REMOTE'
 set -e
-cd /data/invoke/.stage
-# podium.conf and the CA bundle are bind-mounted: write in place (same inode), or the mount would not see the new file
-PODIUM_CHANGED=0
-if [ -f podium.conf ]; then
-  cmp -s podium.conf /data/invoke/podium.conf 2>/dev/null || PODIUM_CHANGED=1
-  cat podium.conf > /data/invoke/podium.conf; rm podium.conf
+A=/data/invoke/.stage/apply-update.sh; [ -f "$A" ] || A=/data/invoke/apply-update.sh
+if [ -f "$A" ]; then sh "$A" apply /data/invoke/.stage norestart ${1:-}
+else
+  # sehr alte Installation ohne apply-update.sh: Dateien direkt verschieben
+  cd /data/invoke/.stage
+  [ -f podium.conf ] && { cmp -s podium.conf /data/invoke/podium.conf 2>/dev/null || echo 1 > /run/invoke-podium-changed; cat podium.conf > /data/invoke/podium.conf; rm podium.conf; }
+  [ -f ca-certificates.crt ] && { cat ca-certificates.crt > /data/invoke/ca-certificates.crt; rm ca-certificates.crt; }
+  find . -type f | while read -r f; do d=/data/invoke/$(dirname "$f"); mkdir -p "$d"; mv -f "$f" "/data/invoke/$f"; done
+  cd /data/invoke && rm -rf .stage
 fi
-[ -f ca-certificates.crt ] && { cat ca-certificates.crt > /data/invoke/ca-certificates.crt; rm ca-certificates.crt; }
-find . -type f | while read -r f; do
-  d=/data/invoke/$(dirname "$f"); mkdir -p "$d"; mv -f "$f" "/data/invoke/$f"
-done
-cd /data/invoke && rm -rf .stage
-chmod 600 authorized_keys 2>/dev/null || true
-echo "$PODIUM_CHANGED" > /run/invoke-podium-changed
+chmod 600 /data/invoke/authorized_keys 2>/dev/null || true
 REMOTE
   # update: make sure the key is among the authorized keys (append, never remove other keys)
   if [ "$MODE" = update ]; then
     sshd 'k=$(cat); grep -qxF "$k" /data/invoke/authorized_keys 2>/dev/null || echo "$k" >> /data/invoke/authorized_keys' < "$KEY"
   fi
   if [ "$TIDAL" = 0 ]; then sshd 'rm -f /data/invoke/services/tidal-*.sh'; fi
+  # ports.local älterer Versionen enthielt die Ports aller Dienste: durch die leere Vorlage ersetzen (der Hook öffnet
+  # die Ports jetzt je nach eingeschalteten Diensten). Eigene Änderungen bleiben.
+  sshd 'f=/data/invoke/ports.local; [ -f $f ] && [ "$(md5sum < $f | cut -d" " -f1)" = 10189e266e2db551527e95196cce327b ] && cat > $f' < device/invoke/ports.local || true
   sshd 'rm -f /data/invoke/bin/sendspin-player.old /data/invoke/podium.conf.vor-bluez'
   # older installations: the comment line in dnsmasq.conf carried the former project name (the hook lines stay as they are)
   sshd 'if grep -q "Invoke-Hack: Autostart-Haken" /data/dnsmasq.conf; then
@@ -477,7 +525,9 @@ if [ $WEBPASS_SHOW = 1 ]; then WEBPW=$(t "password $WEBPASS (shown only now; cha
 else WEBPW=$(t "the password you set, or the existing one (reset: scripts/set-web-password.sh)" "das von dir gesetzte oder vorhandene Passwort (zurücksetzen: scripts/set-web-password.sh)"); fi
 info "What now:
   - Web interface: http://$IP/  (login page, $WEBPW):
-    status, web radio, alarms, timers, button mapping, Wi-Fi guard, Home Assistant, light ring visualizer, settings.
+    status and now playing, web radio, alarms (sunrise light, holidays), timers, sleep timer, sound (bass, treble,
+    loudness, night mode), source rules and volume limits, button mapping, Wi-Fi guard, Home Assistant, light ring,
+    services on/off, backup and restore, updates.
   - Light ring visualizer: off by default; switch it on in Settings > Light ring (needs the restart of the speaker).
   - Bluetooth: press the speaker's Bluetooth button briefly, then pair it on your phone within 2 minutes (no PIN).
     It stays paired and reconnects by itself.
@@ -489,7 +539,9 @@ info "What now:
   - Remove again: ./uninstall.sh" \
 "Wie weiter:
   - Weboberfläche: http://$IP/  (Anmeldeseite, $WEBPW):
-    Status, Webradio, Wecker, Timer, Tastenbelegung, WLAN-Wächter, Home Assistant, Leuchtring-Visualizer, Einstellungen.
+    Status und „Läuft gerade“, Webradio, Wecker (Lichtwecker, Feiertage), Timer, Schlummertimer, Klang (Bass, Höhen,
+    Loudness, Nachtmodus), Quellen-Regel und Lautstärkegrenzen, Tastenbelegung, WLAN-Wächter, Home Assistant, Leuchtring,
+    Dienste an/aus, Sichern und Wiederherstellen, Updates.
   - Leuchtring-Visualizer: anfangs aus; einschalten unter Einstellungen > Leuchtring (braucht den Neustart des Lautsprechers).
   - Bluetooth: den Bluetooth-Knopf am Lautsprecher kurz drücken und ihn innerhalb von 2 Minuten am Handy koppeln
     (ohne PIN). Er bleibt gekoppelt und verbindet sich selbst wieder.

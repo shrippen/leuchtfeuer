@@ -162,14 +162,11 @@ func (p *pairingWindow) check() {
 
 // led spielt eine Leuchtring-Animation ab (best effort; läuft nur, wenn die WAMP-Verbindung steht).
 func led(pattern string) {
-	vs.mu.Lock()
-	w := vs.wamp
-	vs.mu.Unlock()
-	if w == nil {
+	if !hub.Connected() {
 		return
 	}
 	go func() {
-		if _, err := w.call("com.harman.ledAnimate", pattern); err != nil {
+		if _, err := hub.Call("com.harman.ledAnimate", pattern); err != nil {
 			log.Printf("ledAnimate %s: %v", pattern, err)
 		}
 	}()

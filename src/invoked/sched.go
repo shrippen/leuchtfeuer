@@ -27,6 +27,10 @@ type scheduler struct {
 	run    *alarmRun
 	tdone  map[string]bool
 	tlocal *time.Location
+
+	// Schlummertimer: zu diesem Zeitpunkt leiser werden und alles anhalten
+	sleepEnd  time.Time
+	sleepBusy bool
 }
 
 func newScheduler(a *app) *scheduler {
@@ -85,8 +89,19 @@ func (s *scheduler) tick() {
 			s.ring(run.Alarm, true)
 		}
 	}
+	today := now.Format("2006-01-02")
 	for _, a := range set.Alarms {
-		if !a.Enabled || a.Time != hm || !dayMatch(a.Days, now.Weekday()) {
+		if a.SkipDate != "" && a.SkipDate < today { // "einmal aussetzen" ist vorbei
+			id := a.ID
+			s.app.st.Update(func(st *Settings) {
+				for i := range st.Alarms {
+					if st.Alarms[i].ID == id {
+						st.Alarms[i].SkipDate = ""
+					}
+				}
+			})
+		}
+		if !a.Enabled || a.Time != hm || !s.ringsOn(a, now) {
 			continue
 		}
 		s.mu.Lock()
@@ -96,6 +111,16 @@ func (s *scheduler) tick() {
 		if !already {
 			s.ring(a, false)
 		}
+	}
+	// Schlummertimer
+	s.mu.Lock()
+	sleepDue := !s.sleepEnd.IsZero() && !s.app.clock().Before(s.sleepEnd) && !s.sleepBusy
+	if sleepDue {
+		s.sleepBusy = true
+	}
+	s.mu.Unlock()
+	if sleepDue {
+		go s.sleepNow()
 	}
 	// Timer
 	for _, tm := range set.Timers {
@@ -129,7 +154,9 @@ func (s *scheduler) ring(a Alarm, resume bool) {
 		}
 	}
 	s.app.vol.SetMute(false)
-	if strings.HasPrefix(a.Source, "radio:") {
+	s.app.src.Update("alarm", "playing", map[string]string{"title": a.Name})
+	switch {
+	case strings.HasPrefix(a.Source, "radio:"):
 		idx, _ := strconv.Atoi(strings.TrimPrefix(a.Source, "radio:"))
 		set := s.app.st.Snapshot()
 		if idx >= 0 && idx < len(set.Radio) {
@@ -137,7 +164,9 @@ func (s *scheduler) ring(a Alarm, resume bool) {
 		} else {
 			s.app.pl.PlayTone("alarm", a.Name, toneAlarm, true)
 		}
-	} else {
+	case strings.HasPrefix(a.Source, "url:"):
+		s.app.pl.PlayURL("alarm", a.Name, strings.TrimPrefix(a.Source, "url:"))
+	default:
 		s.app.pl.PlayTone("alarm", a.Name, toneAlarm, true)
 	}
 	s.app.led.Animate("L_111_c_alarm", true)
@@ -179,6 +208,7 @@ func (s *scheduler) endRun(restore bool) *alarmRun {
 	if r == nil {
 		return nil
 	}
+	defer s.app.src.Update("alarm", "idle", nil)
 	if r.rampStop != nil {
 		select {
 		case <-r.rampStop:
@@ -196,7 +226,52 @@ func (s *scheduler) endRun(restore bool) *alarmRun {
 	return r
 }
 
+// StopAlarm beendet den Wecker; mit "Ausblenden" (FadeOut) wird er vorher über einige Sekunden leiser.
 func (s *scheduler) StopAlarm() bool {
+	s.mu.Lock()
+	r := s.run
+	s.mu.Unlock()
+	if r != nil && r.Ringing && r.FadeOut > 0 {
+		if r.rampStop != nil {
+			select {
+			case <-r.rampStop:
+			default:
+				close(r.rampStop)
+			}
+			r.rampStop = nil
+		}
+		go func() {
+			s.fade(r.FadeOut)
+			s.mu.Lock()
+			same := s.run == r
+			s.mu.Unlock()
+			if same {
+				s.stopAlarmNow()
+			}
+		}()
+		return true
+	}
+	return s.stopAlarmNow()
+}
+
+// fade senkt die Lautstärke über secs Sekunden auf 0 (ohne sie zu speichern).
+func (s *scheduler) fade(secs int) {
+	v, _, _ := s.app.vol.Get()
+	if v <= 0 || secs <= 0 {
+		return
+	}
+	steps := v
+	if steps > 20 {
+		steps = 20
+	}
+	iv := time.Duration(secs) * time.Second / time.Duration(steps)
+	for i := 1; i <= steps; i++ {
+		time.Sleep(iv)
+		s.app.vol.SetVolume(v - v*i/steps)
+	}
+}
+
+func (s *scheduler) stopAlarmNow() bool {
 	r := s.endRun(true)
 	if r != nil {
 		s.app.emit("alarm", map[string]any{"name": r.Name, "state": "stopped"})
@@ -224,6 +299,7 @@ func (s *scheduler) Snooze() bool {
 	r.Ringing = false
 	r.SnoozedTo = s.Now().Add(time.Duration(mins) * time.Minute)
 	s.mu.Unlock()
+	s.app.src.Update("alarm", "idle", nil)
 	s.app.emit("alarm", map[string]any{"name": r.Name, "state": "snoozed"})
 	return true
 }
@@ -248,33 +324,152 @@ func (s *scheduler) State() alarmState {
 	return alarmState{Active: true, Name: s.run.Name, State: st, SnoozeT: s.run.SnoozedTo}
 }
 
+// ringsOn: klingelt der Wecker am Tag von t (Wochentag, einmal aussetzen, Feiertage)?
+func (s *scheduler) ringsOn(a Alarm, t time.Time) bool {
+	if !dayMatch(a.Days, t.Weekday()) {
+		return false
+	}
+	if a.SkipDate != "" && a.SkipDate == t.Format("2006-01-02") {
+		return false
+	}
+	if a.SkipHolidays && holidayName(s.app.st.Snapshot().Holidays, t) != "" {
+		return false
+	}
+	return true
+}
+
+// nextOccurrence liefert den nächsten Weckzeitpunkt eines Weckers nach now (Nullwert: keiner in 2 Wochen).
+func (s *scheduler) nextOccurrence(a Alarm, now time.Time) time.Time {
+	hm := strings.Split(a.Time, ":")
+	if len(hm) != 2 {
+		return time.Time{}
+	}
+	h, _ := strconv.Atoi(hm[0])
+	m, _ := strconv.Atoi(hm[1])
+	for d := 0; d < 15; d++ {
+		t := time.Date(now.Year(), now.Month(), now.Day()+d, h, m, 0, 0, now.Location())
+		if t.After(now) && s.ringsOn(a, t) {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 // NextAlarm liefert den nächsten Weckzeitpunkt (Nullwert, wenn keiner aktiv ist).
 func (s *scheduler) NextAlarm() (time.Time, string) {
 	now := s.Now()
-	set := s.app.st.Snapshot()
 	var best time.Time
 	var name string
-	for _, a := range set.Alarms {
+	for _, a := range s.app.st.Snapshot().Alarms {
 		if !a.Enabled {
 			continue
 		}
-		hm := strings.Split(a.Time, ":")
-		if len(hm) != 2 {
-			continue
-		}
-		h, _ := strconv.Atoi(hm[0])
-		m, _ := strconv.Atoi(hm[1])
-		for d := 0; d < 8; d++ {
-			t := time.Date(now.Year(), now.Month(), now.Day()+d, h, m, 0, 0, now.Location())
-			if t.After(now) && dayMatch(a.Days, t.Weekday()) {
-				if best.IsZero() || t.Before(best) {
-					best, name = t, a.Name
-				}
-				break
-			}
+		if t := s.nextOccurrence(a, now); !t.IsZero() && (best.IsZero() || t.Before(best)) {
+			best, name = t, a.Name
 		}
 	}
 	return best, name
+}
+
+// SkipNext lässt den nächsten Termin eines Weckers einmal ausfallen (oder hebt das wieder auf).
+func (s *scheduler) SkipNext(id string, skip bool) (string, error) {
+	now := s.Now()
+	var day string
+	err := s.app.st.Update(func(st *Settings) {
+		for i := range st.Alarms {
+			if st.Alarms[i].ID != id {
+				continue
+			}
+			if !skip {
+				st.Alarms[i].SkipDate = ""
+				return
+			}
+			a := st.Alarms[i]
+			a.SkipDate = ""
+			if t := s.nextOccurrence(a, now); !t.IsZero() {
+				day = t.Format("2006-01-02")
+				st.Alarms[i].SkipDate = day
+			}
+		}
+	})
+	if err == nil && skip && day == "" {
+		return "", fmt.Errorf("kein nächster Termin")
+	}
+	s.app.emit("settings", nil)
+	return day, err
+}
+
+// SunriseProgress: läuft gerade ein Lichtwecker? p = 0 ... 1 bis zur Weckzeit.
+func (s *scheduler) SunriseProgress() (float64, bool) {
+	now := s.Now()
+	s.mu.Lock()
+	ringing := s.run != nil
+	s.mu.Unlock()
+	if ringing {
+		return 0, false
+	}
+	best, ok := 0.0, false
+	for _, a := range s.app.st.Snapshot().Alarms {
+		if !a.Enabled || a.Sunrise <= 0 {
+			continue
+		}
+		t := s.nextOccurrence(a, now.Add(-time.Second))
+		if t.IsZero() {
+			continue
+		}
+		win := time.Duration(a.Sunrise) * time.Minute
+		if left := t.Sub(now); left >= 0 && left <= win {
+			p := 1 - float64(left)/float64(win)
+			if !ok || p > best {
+				best, ok = p, true
+			}
+		}
+	}
+	return best, ok
+}
+
+// ---- Schlummertimer ----
+
+// SetSleep startet den Schlummertimer (Minuten; 0 = aus).
+func (s *scheduler) SetSleep(mins int) {
+	s.mu.Lock()
+	if mins <= 0 {
+		s.sleepEnd = time.Time{}
+	} else {
+		s.sleepEnd = s.app.clock().Add(time.Duration(mins) * time.Minute)
+	}
+	s.mu.Unlock()
+	s.app.emit("sleep", nil)
+}
+
+// SleepRemaining: Sekunden bis zum Schlummer-Ende (0 = aus).
+func (s *scheduler) SleepRemaining() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sleepEnd.IsZero() {
+		return 0
+	}
+	r := int(s.sleepEnd.Sub(s.app.clock()).Seconds())
+	if r < 1 {
+		r = 1
+	}
+	return r
+}
+
+// sleepNow: 30 s ausblenden, alles anhalten, alte Lautstärke wiederherstellen (für das nächste Mal).
+func (s *scheduler) sleepNow() {
+	log.Printf("Schlummertimer abgelaufen: ausblenden und anhalten")
+	v, _, _ := s.app.vol.Get()
+	s.fade(30)
+	s.app.src.StopAll()
+	time.Sleep(time.Second)
+	if v > 0 {
+		s.app.vol.SetVolume(v)
+	}
+	s.mu.Lock()
+	s.sleepEnd, s.sleepBusy = time.Time{}, false
+	s.mu.Unlock()
+	s.app.emit("sleep", nil)
 }
 
 // ---- Timer ----

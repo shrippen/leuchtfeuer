@@ -24,18 +24,23 @@ import (
 )
 
 type VizSettings struct {
-	Mode       string `json:"mode"`       // off | spectrum | level | pulse
-	Color      string `json:"color"`      // rainbow | white | warm | blue | green | red | purple
+	Mode       string `json:"mode"`       // off | spectrum | level | pulse | static (gleichmäßiges Licht)
+	Color      string `json:"color"`      // rainbow | white | warm | blue | green | red | purple | custom
+	RGB        [3]int `json:"rgb"`        // eigene Farbe (Color "custom"), 0 ... 255
 	Brightness int    `json:"brightness"` // 5 ... 100 %
 	Rotate     int    `json:"rotate"`     // 0 ... 11: LED, bei der Spektrum und Pegel beginnen
+	TimerRing  bool   `json:"timerRing"`  // laufender Timer: Restzeit als Füllstand auf dem Ring
 }
 
-var vizModes = map[string]bool{"off": true, "spectrum": true, "level": true, "pulse": true}
+var vizModes = map[string]bool{"off": true, "spectrum": true, "level": true, "pulse": true, "static": true}
 
 var vizColors = map[string][3]float64{
 	"white": {1, 1, 1}, "warm": {1, .55, .16}, "blue": {.16, .43, 1}, "green": {.12, 1, .24},
-	"red": {1, .08, .04}, "purple": {.67, .16, 1}, "rainbow": {},
+	"red": {1, .08, .04}, "purple": {.67, .16, 1}, "rainbow": {}, "custom": {},
 }
+
+// ringScene: Anzeige mit Vorrang vor dem Visualizer (Lichtwecker, Timer-Fortschritt). ok = jetzt etwas zeigen.
+type ringScene func(now time.Time, fr *ringFrame) (ok bool)
 
 const (
 	vizLEDs    = 12
@@ -71,6 +76,7 @@ type visualizer struct {
 	phase   float64
 	tapOK   atomic.Bool
 	showing atomic.Bool
+	scenes  []ringScene
 }
 
 func newVisualizer(a *app) *visualizer {
@@ -128,11 +134,32 @@ func (v *visualizer) step(now time.Time) {
 		}
 		playing = now.Sub(v.lastNew) < 300*time.Millisecond
 	}
-	if set.Mode == "off" || v.held() || muted {
+	if v.held() {
 		v.stop(false)
 		return
 	}
 	var fr ringFrame
+	for _, sc := range v.scenes {
+		if sc(now, &fr) {
+			if err := v.ring.Write(&fr); err == nil {
+				v.active = true
+				v.showing.Store(false)
+			}
+			return
+		}
+	}
+	if set.Mode == "static" {
+		renderRing(&fr, nil, set, 0)
+		if err := v.ring.Write(&fr); err == nil {
+			v.active = true
+			v.showing.Store(false)
+		}
+		return
+	}
+	if set.Mode == "off" || muted {
+		v.stop(true)
+		return
+	}
 	if playing {
 		v.fade = 0
 		v.analyze(set)
@@ -285,6 +312,72 @@ func fft(a []complex128) {
 	}
 }
 
+// ---- Szenen ----
+
+// sunriseColor: Farbe des Lichtweckers bei Fortschritt p (0 ... 1): tiefrot -> orange -> warmweiß, immer heller.
+func sunriseColor(p float64) [3]byte {
+	p = clamp01(p)
+	stops := [][3]float64{{60, 2, 0}, {255, 60, 0}, {255, 150, 40}, {255, 210, 150}}
+	x := p * float64(len(stops)-1)
+	i := int(x)
+	if i >= len(stops)-1 {
+		i = len(stops) - 2
+	}
+	f := x - float64(i)
+	g := 0.03 + 0.97*p*p // Helligkeit wie ein Sonnenaufgang: lange dunkel, dann schnell
+	var out [3]byte
+	for k := 0; k < 3; k++ {
+		out[k] = byte(math.Round((stops[i][k]*(1-f) + stops[i+1][k]*f) * g))
+	}
+	return out
+}
+
+// sunriseScene: vor einem Wecker mit Lichtwecker den Ring langsam aufhellen.
+func (a *app) sunriseScene(now time.Time, fr *ringFrame) bool {
+	p, ok := a.sch.SunriseProgress()
+	if !ok {
+		return false
+	}
+	c := sunriseColor(p)
+	for i := range fr {
+		fr[i] = c
+	}
+	return true
+}
+
+// timerScene: Restzeit des nächsten Timers als Füllstand (im Uhrzeigersinn ab der Start-LED), sanft gedimmt.
+func (a *app) timerScene(now time.Time, fr *ringFrame) bool {
+	set := a.st.Snapshot()
+	if !set.Viz.TimerRing || len(set.Timers) == 0 {
+		return false
+	}
+	t := set.Timers[0]
+	for _, x := range set.Timers {
+		if x.End.Before(t.End) {
+			t = x
+		}
+	}
+	rem := t.End.Sub(a.clock()).Seconds()
+	if rem <= 0 || t.Total <= 0 {
+		return false
+	}
+	frac := clamp01(rem / float64(t.Total))
+	scale := float64(clampInt(set.Viz.Brightness, 5, 100)) / 100 * 0.5
+	lit := frac * vizLEDs
+	for i := 0; i < vizLEDs; i++ {
+		x := clamp01(lit - float64(i))
+		p := ((i+set.Viz.Rotate)%vizLEDs + vizLEDs) % vizLEDs
+		col := [3]float64{.16, .7, 1}
+		if frac < 0.1 {
+			col = [3]float64{1, .45, .05} // letzte 10 %: orange
+		}
+		for k := 0; k < 3; k++ {
+			fr[p][k] = byte(math.Round(255 * scale * x * col[k]))
+		}
+	}
+	return true
+}
+
 // renderRing setzt die Werte (0 ... 1) als Farben auf die LEDs.
 func renderRing(fr *ringFrame, vals []float64, set VizSettings, phase float64) {
 	scale := float64(clampInt(set.Brightness, 5, 100)) / 100
@@ -299,12 +392,23 @@ func renderRing(fr *ringFrame, vals []float64, set VizSettings, phase float64) {
 		}
 	}
 	col := func(i int) [3]float64 {
+		if set.Color == "custom" {
+			return [3]float64{float64(set.RGB[0]) / 255, float64(set.RGB[1]) / 255, float64(set.RGB[2]) / 255}
+		}
 		if c, ok := vizColors[set.Color]; ok && set.Color != "rainbow" {
 			return c
 		}
 		return hue(float64(i)/vizLEDs*0.8 + phase)
 	}
 	switch set.Mode {
+	case "static":
+		for i := 0; i < vizLEDs; i++ {
+			c := col(i)
+			if set.Color == "rainbow" || set.Color == "" {
+				c = hue(float64(i) / vizLEDs)
+			}
+			put(i, c, 1)
+		}
 	case "level": // symmetrisch von der Start-LED aus, wie ein Pegelmesser
 		l := vals[0] * vizLEDs / 2
 		for i := 0; i < vizLEDs/2; i++ {

@@ -1,10 +1,3 @@
-tcp 57500
-tcp 49494
-udp 1900
-tcp 2019
-tcp 8009
-tcp 8008
-tcp 8443
-tcp 80
-tcp 5000
-udp 6001:6011
+# Zusätzliche Ports, die die Firewall des Lautsprechers öffnen soll (eine Zeile je Port: "tcp 1234" oder "udp 5678",
+# Bereiche als "udp 6001:6011"). Die Ports der Dienste öffnet der Hook selbst, je nachdem welche eingeschaltet sind;
+# hier gehört nur hinein, was du zusätzlich brauchst. Änderungen wirken nach höchstens 30 s.

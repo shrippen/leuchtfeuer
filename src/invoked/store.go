@@ -22,11 +22,19 @@ type Alarm struct {
 	Time     string `json:"time"` // "07:30"
 	Days     []int  `json:"days"` // 0 = Sonntag ... 6 = Samstag; leer = täglich
 	Enabled  bool   `json:"enabled"`
-	Source   string `json:"source"` // "tone" oder "radio:<Index>"
+	Source   string `json:"source"` // "tone", "radio:<Index>" oder "url:<Adresse>" (Stream oder Datei, z. B. vom Musikserver)
 	Volume   int    `json:"volume"` // Ziel-Lautstärke in %, 0 = unverändert
 	RampSecs int    `json:"rampSecs"`
 	Snooze   int    `json:"snoozeMin"`
 	MaxMins  int    `json:"maxMins"` // automatisch stoppen
+	// Lichtwecker: so viele Minuten vor der Weckzeit wird der Leuchtring langsam heller (rot -> warmweiß), 0 = aus
+	Sunrise int `json:"sunriseMin"`
+	// Beim Stoppen über so viele Sekunden leiser werden, statt abrupt zu enden
+	FadeOut int `json:"fadeOutSecs"`
+	// An Feiertagen (Settings.Holidays) nicht klingeln
+	SkipHolidays bool `json:"skipHolidays"`
+	// Einmal aussetzen: an diesem Tag (JJJJ-MM-TT, Zeitzone des Weckers) nicht klingeln
+	SkipDate string `json:"skipDate"`
 }
 
 type Timer struct {
@@ -38,6 +46,8 @@ type Timer struct {
 
 type MQTTSettings struct {
 	Enabled   bool   `json:"enabled"`
+	TLS       bool   `json:"tls"`      // verschlüsselt (mqtts, meist Port 8883)
+	Insecure  bool   `json:"insecure"` // Zertifikat nicht prüfen (selbst signierter Broker)
 	Host      string `json:"host"`
 	Port      int    `json:"port"`
 	User      string `json:"user"`
@@ -63,7 +73,11 @@ type Settings struct {
 	Buttons  map[string]map[string]string `json:"buttons"` // Taste -> Druckart -> Aktion
 	MQTT     MQTTSettings                 `json:"mqtt"`
 	Wifi     WifiSettings                 `json:"wifi"`
-	Viz      VizSettings                  `json:"viz"` // Leuchtring als Visualizer (viz.go)
+	Viz      VizSettings                  `json:"viz"`      // Leuchtring als Visualizer (viz.go)
+	Sources  SourceSettings               `json:"sources"`  // Quellen-Regel und Lautstärkegrenzen (sources.go)
+	Eq       EqSettings                   `json:"eq"`       // Klang (eq.go)
+	Holidays string                       `json:"holidays"` // Feiertage für Wecker: "" = aus, "DE" oder "DE-<Land>" (holidays.go)
+	Update   UpdateSettings               `json:"update"`   // Updates aus der Oberfläche (update.go)
 }
 
 func defaultSettings() Settings {
@@ -77,9 +91,11 @@ func defaultSettings() Settings {
 		Buttons: map[string]map[string]string{
 			"mic": {"short": "mute_toggle"},
 		},
-		MQTT: MQTTSettings{Port: 1883, Discovery: "homeassistant"},
-		Wifi: WifiSettings{Enabled: true, IntervalSec: 20, LossPct: 20, RttMs: 150, Prefer5GHz: false, PenaltyMins: 30},
-		Viz:  VizSettings{Mode: "off", Color: "rainbow", Brightness: 60},
+		MQTT:    MQTTSettings{Port: 1883, Discovery: "homeassistant"},
+		Wifi:    WifiSettings{Enabled: true, IntervalSec: 20, LossPct: 20, RttMs: 150, Prefer5GHz: false, PenaltyMins: 30},
+		Viz:     VizSettings{Mode: "off", Color: "rainbow", Brightness: 60, TimerRing: true},
+		Sources: SourceSettings{Policy: "last", Limits: map[string]SourceLimit{}, DuckDB: 15},
+		Eq:      defaultEq(),
 	}
 }
 
@@ -124,6 +140,16 @@ func mergeDefaults(s Settings) Settings {
 	if s.Viz.Mode == "" {
 		s.Viz = d.Viz
 	}
+	if s.Sources.Policy == "" {
+		s.Sources.Policy = d.Sources.Policy
+		s.Sources.DuckDB = d.Sources.DuckDB
+	}
+	if s.Sources.Limits == nil {
+		s.Sources.Limits = map[string]SourceLimit{}
+	}
+	if s.Eq.Version == 0 {
+		s.Eq = d.Eq
+	}
 	return s
 }
 
@@ -144,6 +170,7 @@ func (st *store) Update(f func(s *Settings)) error {
 }
 
 // Viz liefert die Visualizer-Einstellungen ohne JSON-Rundlauf (wird 25-mal je Sekunde gelesen).
+// RGB ist ein Array (kein Slice): die Kopie teilt nichts.
 func (st *store) Viz() VizSettings {
 	st.mu.Lock()
 	defer st.mu.Unlock()

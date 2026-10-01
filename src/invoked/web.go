@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -9,8 +10,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -74,6 +73,12 @@ type statusResp struct {
 	WebDefault bool            `json:"webDefaultPassword"`
 	Demo       bool            `json:"demo"`
 	Viz        map[string]bool `json:"viz"` // Leuchtring-Visualizer: Tonabgriff gefunden, zeigt gerade an
+	Sources    []sourceInfo    `json:"sources"`
+	Active     string          `json:"activeSource"`
+	SleepSecs  int             `json:"sleepSecs"`
+	Clock      clockStatus     `json:"clock"`
+	Update     updateInfo      `json:"update"`
+	Holiday    string          `json:"holiday"` // heute Feiertag (Name) in der eingestellten Region
 }
 
 type timerView struct {
@@ -94,8 +99,11 @@ func (w *webServer) status() statusResp {
 		Alarm: a.sch.State(), Wifi: a.wifiFn(), Sys: a.sysFn(), Bluetooth: a.btFn(),
 		BTMode: a.cfg.Get("BLUETOOTH_PAIRING", "button"), MQTT: a.mqttOK(), Buttons: a.Buttons(),
 		Now: a.sch.Now().Format(time.RFC3339), Timezone: set.Timezone, Demo: demoMode,
-		Viz: map[string]bool{"tap": demoMode, "active": false},
+		Viz:     map[string]bool{"tap": demoMode, "active": false},
+		Sources: a.src.List(), Active: a.src.Active(), SleepSecs: a.sch.SleepRemaining(), Clock: a.clkFn(),
+		Update: a.updateStatus(), Holiday: holidayName(set.Holidays, a.sch.Now()),
 	}
+	s.Sys.Services = a.svcFn()
 	if a.viz != nil {
 		s.Viz = a.viz.Status()
 	}
@@ -120,7 +128,7 @@ type deviceSettings struct {
 	SendspinServer   string `json:"sendspinServer"`
 	DHCPHostname     string `json:"dhcpHostname"`
 	BluetoothPairing string `json:"bluetoothPairing"`
-	AirPlay          string `json:"airplay"` // on | off
+	AirPlay          string `json:"airplay"` // on | off (nur lesend; geschaltet wird über die Dienstgruppe airplay)
 	WebPassword      string `json:"webPassword,omitempty"`
 }
 
@@ -149,8 +157,9 @@ func (w *webServer) settings() map[string]any {
 		set.Buttons = map[string]map[string]string{}
 	}
 	return map[string]any{
-		"settings": set, "device": w.device(), "actions": actionNames,
-		"services": []string{"librespot", "gmrender", "sendspin", "castrecv", "shairport", "tidal-3-connect", "bluetooth-1-bluetoothd", "bluetooth-2-agent", "bluetooth-3-bluealsa", "bluetooth-4-aplay", "volume-sync", "invoked"},
+		"settings": set, "device": w.device(), "actions": actionNames, "holidayRegions": holidayRegions,
+		"sourceNames": sourceNames, "version": currentVersion(),
+		"services": serviceDefs(), "groups": serviceGroups(w.app.cfg),
 	}
 }
 
@@ -185,6 +194,16 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			v[i].RampSecs = clamp(v[i].RampSecs, 0, 1800)
 			v[i].Snooze = clamp(v[i].Snooze, 0, 60)
 			v[i].MaxMins = clamp(v[i].MaxMins, 0, 240)
+			v[i].Sunrise = clamp(v[i].Sunrise, 0, 60)
+			v[i].FadeOut = clamp(v[i].FadeOut, 0, 120)
+			if v[i].SkipDate != "" {
+				if _, err := time.Parse("2006-01-02", v[i].SkipDate); err != nil {
+					v[i].SkipDate = ""
+				}
+			}
+			if u, ok := strings.CutPrefix(v[i].Source, "url:"); ok && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+				return fmt.Errorf("Wecker %d: Adresse muss mit http:// oder https:// beginnen", i+1)
+			}
 		}
 		return a.st.Update(func(s *Settings) { s.Alarms = v })
 	case "buttons":
@@ -219,6 +238,9 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			if v.Discovery == "" {
 				v.Discovery = "homeassistant"
 			}
+			if v.TLS && v.Port == 1883 {
+				v.Port = 8883
+			}
 			s.MQTT = v
 		})
 	case "wifi":
@@ -244,7 +266,60 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		}
 		v.Brightness = clamp(v.Brightness, 5, 100)
 		v.Rotate = clamp(v.Rotate, 0, vizLEDs-1)
+		for k := range v.RGB {
+			v.RGB[k] = clamp(v.RGB[k], 0, 255)
+		}
 		return a.st.Update(func(s *Settings) { s.Viz = v })
+	case "sources":
+		var v SourceSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if v.Policy != "last" && v.Policy != "mix" {
+			return fmt.Errorf("Quellen-Regel last oder mix")
+		}
+		v.Max = clamp(v.Max, 0, 100)
+		v.DuckDB = clamp(v.DuckDB, 0, 40)
+		lim := map[string]SourceLimit{}
+		for n, l := range v.Limits {
+			l.Max, l.Start = clamp(l.Max, 0, 100), clamp(l.Start, 0, 100)
+			if l.Max > 0 || l.Start > 0 {
+				lim[n] = l
+			}
+		}
+		v.Limits = lim
+		return a.st.Update(func(s *Settings) { s.Sources = v })
+	case "eq":
+		var v EqSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		v.Version, v.Bass, v.Treble = 1, clamp(v.Bass, -12, 12), clamp(v.Treble, -12, 12)
+		return a.st.Update(func(s *Settings) { s.Eq = v })
+	case "holidays":
+		var v struct {
+			Region string `json:"region"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		ok := v.Region == ""
+		for _, h := range holidayRegions {
+			ok = ok || h == v.Region
+		}
+		if !ok {
+			return fmt.Errorf("unbekannte Feiertags-Region %q", v.Region)
+		}
+		return a.st.Update(func(s *Settings) { s.Holidays = v.Region })
+	case "update":
+		var v UpdateSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if v.URL != "" && !strings.HasPrefix(v.URL, "https://") {
+			return fmt.Errorf("Release-Adresse muss mit https:// beginnen")
+		}
+		return a.st.Update(func(s *Settings) { s.Update = v })
 	case "timezone":
 		var v struct {
 			Timezone string `json:"timezone"`
@@ -272,9 +347,6 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		if v.BluetoothPairing == "button" || v.BluetoothPairing == "always" {
 			kv["BLUETOOTH_PAIRING"] = v.BluetoothPairing
 		}
-		if v.AirPlay == "on" || v.AirPlay == "off" {
-			kv["AIRPLAY"] = v.AirPlay
-		}
 		if v.WebPassword != "" {
 			if err := checkNewPassword(v.WebPassword); err != nil {
 				return err
@@ -288,50 +360,6 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		return a.cfg.Set(kv)
 	}
 	return fmt.Errorf("unbekannter Bereich %q", section)
-}
-
-// restartService beendet den Dienst; hook.sh startet ihn innerhalb von 30 s neu.
-func restartService(name string) error {
-	ok := map[string]bool{"librespot": true, "gmrender": true, "sendspin": true, "castrecv": true, "shairport": true,
-		"tidal-3-connect": true, "bluetooth-1-bluetoothd": true, "bluetooth-2-agent": true, "bluetooth-3-bluealsa": true,
-		"bluetooth-4-aplay": true, "volume-sync": true, "invoked": true}
-	if !ok[name] {
-		return fmt.Errorf("unbekannter Dienst")
-	}
-	b, err := os.ReadFile("/run/invoke-svc-" + name + ".pid")
-	if err != nil {
-		return fmt.Errorf("Dienst läuft nicht (kein PID)")
-	}
-	return exec.Command("kill", strings.TrimSpace(string(b))).Run()
-}
-
-func tailLog(name string, lines int) (string, error) {
-	ok := map[string]bool{"librespot": true, "gmrender": true, "sendspin": true, "castrecv": true, "shairport": true,
-		"tidal-3-connect": true, "bluetooth-1-bluetoothd": true, "bluetooth-2-agent": true, "bluetooth-3-bluealsa": true,
-		"bluetooth-4-aplay": true, "volume-sync": true, "invoked": true, "hook": true}
-	if !ok[name] {
-		return "", fmt.Errorf("unbekanntes Protokoll")
-	}
-	path := "/data/invoke/log/" + name + ".log"
-	if name == "hook" {
-		path = "/data/invoke/hook.log"
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	l := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
-	if len(l) > lines {
-		l = l[len(l)-lines:]
-	}
-	// lange dmix-Debugzeilen der ALSA-Bibliothek ausblenden
-	var out []string
-	for _, x := range l {
-		if !strings.HasPrefix(x, "dmix<") && len(x) < 400 {
-			out = append(out, x)
-		}
-	}
-	return strings.Join(out, "\n"), nil
 }
 
 func (w *webServer) routes() http.Handler {
@@ -480,11 +508,180 @@ func (w *webServer) routes() http.Handler {
 		a.led.Animate("L_106_c_success", false)
 		writeJSON(rw, map[string]bool{"ok": true})
 	})
+	mux.HandleFunc("/api/events", w.events)
+	post("/api/services/group", func(r *http.Request) error {
+		var v struct {
+			Group   string `json:"group"`
+			Enabled bool   `json:"enabled"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if err := setGroup(a.cfg, v.Group, v.Enabled); err != nil {
+			return err
+		}
+		a.emit("settings", nil)
+		return nil
+	})
+	post("/api/announce", func(r *http.Request) error {
+		var v announceReq
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.ann.Play(v)
+	})
+	post("/api/sleep", func(r *http.Request) error {
+		var v struct {
+			Minutes int `json:"minutes"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		a.sch.SetSleep(clamp(v.Minutes, 0, 600))
+		return nil
+	})
+	post("/api/alarms/skip", func(r *http.Request) error {
+		var v struct {
+			ID   string `json:"id"`
+			Skip bool   `json:"skip"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		_, err := a.sch.SkipNext(v.ID, v.Skip)
+		return err
+	})
+	post("/api/bluetooth/control", func(r *http.Request) error {
+		var v struct {
+			Action string `json:"action"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		switch v.Action {
+		case "play", "pause", "stop", "next", "previous":
+			a.h.Publish("invoke.bt.control", v.Action)
+			return nil
+		}
+		return fmt.Errorf("play, pause, stop, next oder previous")
+	})
+	mux.HandleFunc("/api/backup", func(rw http.ResponseWriter, r *http.Request) {
+		sendTarGz(rw, fileName("leuchtfeuer-sicherung", a.cfg.Get("DEVICE_NAME", "invoke")), writeBackup)
+	})
+	mux.HandleFunc("/api/diag", func(rw http.ResponseWriter, r *http.Request) {
+		sendTarGz(rw, fileName("leuchtfeuer-diagnose", a.cfg.Get("DEVICE_NAME", "invoke")), w.writeDiag)
+	})
+	post("/api/restore", func(r *http.Request) error {
+		n, err := restoreBackup(http.MaxBytesReader(nil, r.Body, 60<<20))
+		if err != nil {
+			return err
+		}
+		log.Printf("Sicherung zurückgespielt (%d Dateien), Dienste starten neu", n)
+		restartAllServices()
+		return nil
+	})
+	mux.HandleFunc("/api/update", func(rw http.ResponseWriter, r *http.Request) {
+		info, err := a.checkUpdate()
+		if err != nil {
+			info.Message = err.Error()
+		}
+		writeJSON(rw, info)
+	})
+	post("/api/update/install", func(r *http.Request) error { return a.startUpdate() })
+	post("/api/update/upload", func(r *http.Request) error {
+		r.Body = http.MaxBytesReader(nil, r.Body, 310<<20)
+		return a.uploadUpdate(r)
+	})
+	post("/api/update/rollback", func(r *http.Request) error { return rollbackUpdate() })
 	return wrapAuth(w, mux)
 }
 
+// events: Server-Sent Events statt Abfrage alle 2 s. Bei jeder Änderung (Lautstärke, Quelle, Wecker, Einstellungen ...)
+// und sonst alle 10 s kommt der vollständige Status; "settings" meldet geänderte Einstellungen. Timer zählt die
+// Oberfläche selbst herunter.
+func (w *webServer) events(rw http.ResponseWriter, r *http.Request) {
+	fl, ok := rw.(http.Flusher)
+	if !ok {
+		http.Error(rw, "kein Streaming", http.StatusInternalServerError)
+		return
+	}
+	rw.Header().Set("Content-Type", "text/event-stream")
+	rw.Header().Set("Cache-Control", "no-store")
+	rw.Header().Set("X-Accel-Buffering", "no")
+	kick := make(chan string, 8)
+	stop := w.app.Listen(func(kind string, _ map[string]any) {
+		select {
+		case kick <- kind:
+		default:
+		}
+	})
+	defer stop()
+	send := func(event string, v any) bool {
+		b, _ := json.Marshal(v)
+		if _, err := fmt.Fprintf(rw, "event: %s\ndata: %s\n\n", event, b); err != nil {
+			return false
+		}
+		fl.Flush()
+		return true
+	}
+	if !send("status", w.status()) {
+		return
+	}
+	t := time.NewTicker(10 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case kind := <-kick:
+			time.Sleep(150 * time.Millisecond) // Ereignisse bündeln
+			settings := kind == "settings"
+		drain:
+			for {
+				select {
+				case k := <-kick:
+					settings = settings || k == "settings"
+				default:
+					break drain
+				}
+			}
+			if settings && !send("settings", map[string]bool{"changed": true}) {
+				return
+			}
+			if !send("status", w.status()) {
+				return
+			}
+		case <-t.C:
+			if !send("status", w.status()) {
+				return
+			}
+		}
+	}
+}
+
+// Run startet die Weboberfläche; mit WEB_TLS="on" zusätzlich HTTPS (HTTP leitet dann um).
 func (w *webServer) Run(addr string) {
-	srv := &http.Server{Addr: addr, Handler: w.routes(), ReadHeaderTimeout: 10 * time.Second}
+	h := w.routes()
+	cfg := w.app.cfg
+	if cfg.Get("WEB_TLS", "") == "on" {
+		port := cfg.Get("WEB_TLS_PORT", "443")
+		host := cfg.Get("DHCP_HOSTNAME", "invoke")
+		cert, err := ensureCert(invokeDir, host)
+		if err == nil {
+			w.login.secure = true
+			go func() {
+				srv := &http.Server{Addr: addr, Handler: redirectHTTPS(port), ReadHeaderTimeout: 10 * time.Second}
+				log.Printf("HTTP auf %s leitet auf HTTPS um", addr)
+				log.Print(srv.ListenAndServe())
+			}()
+			srv := &http.Server{Addr: ":" + port, Handler: h, ReadHeaderTimeout: 10 * time.Second,
+				TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}}
+			log.Printf("Weboberfläche auf :%s (HTTPS)", port)
+			log.Fatal(srv.ListenAndServeTLS("", ""))
+		}
+		log.Printf("HTTPS: %v - weiter nur mit HTTP", err)
+	}
+	srv := &http.Server{Addr: addr, Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	log.Printf("Weboberfläche auf %s ", addr)
 	log.Fatal(srv.ListenAndServe())
 }

@@ -19,9 +19,30 @@ BLUETOOTH_PAIRING="button"
 # Zeitzone für Wecker und Timer (das Gerät selbst läuft auf Pacific Time). IANA-Name, z. B. Europe/Berlin.
 TIMEZONE="Europe/Berlin"
 
-# AirPlay-Empfänger (iPhone, iPad, Mac): "on" oder "off"
-AIRPLAY="on"
+# Dienste ein- und ausschalten (auch in der Weboberfläche, Einstellungen > Dienste). Ausgeschaltete Dienste startet der
+# Hook nicht, ihre Ports bleiben zu. Vorgabe: alle an außer Snapcast.
+SERVICE_SPOTIFY="on"
+SERVICE_UPNP="on"
+SERVICE_CAST="on"
+SERVICE_AIRPLAY="on"
+SERVICE_SENDSPIN="on"
+SERVICE_BLUETOOTH="on"
+SERVICE_TIDAL="on"
+SERVICE_SNAPCAST="off"
+
+# Snapcast (Multiroom): Adresse des snapservers, "host" oder "host:1704". Nötig, sobald SERVICE_SNAPCAST="on".
+SNAPCAST_SERVER=""
+
+# Uhrzeit: NTP-Server, mit dem der Hook die Uhr stellt (Wecker brauchen die richtige Zeit)
+NTP_SERVER="pool.ntp.org"
 
 # Weboberfläche (Port 80, Anmeldeseite): Das Passwort steht hier nie im Klartext, sondern als gesalzener Hash
 # (WEB_PASSWORD_HASH). Setzen mit install.sh oder scripts/set-web-password.sh, oder in der Oberfläche (Einstellungen).
 # Port optional: WEB_PORT="80"
+# HTTPS mit eigenem Zertifikat (der Browser warnt beim ersten Mal): WEB_TLS="on", Port WEB_TLS_PORT="443".
+# Dann leitet HTTP auf HTTPS um.
+WEB_TLS="off"
+
+# Updates aus der Weboberfläche: öffentlicher Ed25519-Schlüssel (Base64) des Release-Signierers. Leer = Updates nur mit
+# install.sh. Der Schlüssel der offiziellen Releases steht in docs/release-key.pub.
+UPDATE_PUBKEY=""

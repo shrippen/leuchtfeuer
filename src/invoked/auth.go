@@ -107,26 +107,96 @@ func setPasswordFromStdin(cfgPath string) error {
 
 // ---- Anmeldung mit Sitzung ----
 
+// Sitzungen: im Speicher und (nur als SHA-256 des Schlüssels) in /data/invoke/sessions.json, damit ein Neustart von
+// invoked niemanden abmeldet. Abgelaufene Sitzungen und alte Fehlversuche räumt ein Hintergrundlauf alle 10 Minuten weg.
 type loginState struct {
 	mu       sync.Mutex
 	hash     string
-	sessions map[string]time.Time
+	sessions map[string]time.Time // SHA-256 (hex) des Sitzungsschlüssels -> Ablauf
 	fails    map[string]*failure
+	path     string // Ablage der Sitzungen ("" = nicht speichern)
+	secure   bool   // nur über HTTPS: Cookie mit Secure
 }
 
 type failure struct {
 	n     int
 	until time.Time
+	last  time.Time
 }
 
 func newLoginState(hash string) *loginState {
 	return &loginState{hash: hash, sessions: map[string]time.Time{}, fails: map[string]*failure{}}
 }
 
+func tokenKey(t string) string {
+	h := sha256.Sum256([]byte(t))
+	return hex.EncodeToString(h[:])
+}
+
+// load liest gespeicherte Sitzungen (nur noch gültige).
+func (l *loginState) load(path string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.path = path
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var m map[string]time.Time
+	if json.Unmarshal(b, &m) != nil {
+		return
+	}
+	for k, exp := range m {
+		if time.Now().Before(exp) && len(k) == 64 {
+			l.sessions[k] = exp
+		}
+	}
+}
+
+// saveLocked schreibt die Sitzungen atomar (l.mu gehalten).
+func (l *loginState) saveLocked() {
+	if l.path == "" {
+		return
+	}
+	b, _ := json.Marshal(l.sessions)
+	tmp := l.path + ".new"
+	if os.WriteFile(tmp, b, 0o600) == nil {
+		os.Rename(tmp, l.path)
+	}
+}
+
+// cleanup entfernt abgelaufene Sitzungen und Fehlversuche, die älter als 10 Minuten sind.
+func (l *loginState) cleanup() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now, changed := time.Now(), false
+	for k, exp := range l.sessions {
+		if now.After(exp) {
+			delete(l.sessions, k)
+			changed = true
+		}
+	}
+	for ip, f := range l.fails {
+		if now.After(f.until) && now.Sub(f.last) > 10*time.Minute {
+			delete(l.fails, ip)
+		}
+	}
+	if changed {
+		l.saveLocked()
+	}
+}
+
+func (l *loginState) janitor() {
+	for range time.Tick(10 * time.Minute) {
+		l.cleanup()
+	}
+}
+
 func (l *loginState) setHash(h string) {
 	l.mu.Lock()
 	l.hash = h
 	l.sessions = map[string]time.Time{} // alle Sitzungen beenden
+	l.saveLocked()
 	l.mu.Unlock()
 }
 
@@ -135,11 +205,12 @@ func (l *loginState) valid(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
+	k := tokenKey(c.Value)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	exp, ok := l.sessions[c.Value]
+	exp, ok := l.sessions[k]
 	if ok && time.Now().After(exp) {
-		delete(l.sessions, c.Value)
+		delete(l.sessions, k)
 		return false
 	}
 	return ok
@@ -183,6 +254,7 @@ func (l *loginState) login(rw http.ResponseWriter, r *http.Request) {
 	}
 	if !verifyPassword(v.Password, hash) {
 		l.mu.Lock()
+		f.last = time.Now()
 		if f.n++; f.n >= maxFailures {
 			f.n, f.until = 0, time.Now().Add(lockDuration)
 		}
@@ -196,22 +268,25 @@ func (l *loginState) login(rw http.ResponseWriter, r *http.Request) {
 	t := hex.EncodeToString(tok)
 	l.mu.Lock()
 	f.n = 0
-	l.sessions[t] = time.Now().Add(sessionLife)
+	l.sessions[tokenKey(t)] = time.Now().Add(sessionLife)
 	for k, exp := range l.sessions { // abgelaufene aufräumen
 		if time.Now().After(exp) {
 			delete(l.sessions, k)
 		}
 	}
+	l.saveLocked()
+	secure := l.secure
 	l.mu.Unlock()
 	http.SetCookie(rw, &http.Cookie{Name: sessionName, Value: t, Path: "/", MaxAge: int(sessionLife.Seconds()),
-		HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode})
 	writeJSON(rw, map[string]bool{"ok": true})
 }
 
 func (l *loginState) logout(rw http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionName); err == nil {
 		l.mu.Lock()
-		delete(l.sessions, c.Value)
+		delete(l.sessions, tokenKey(c.Value))
+		l.saveLocked()
 		l.mu.Unlock()
 	}
 	http.SetCookie(rw, &http.Cookie{Name: sessionName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode})

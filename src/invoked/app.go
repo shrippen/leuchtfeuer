@@ -47,11 +47,17 @@ type app struct {
 	wifi    *wifiWatch
 	mq      *mqttBridge
 	viz     *visualizer // nil im Demo-Modus
+	src     *sourceHub
+	mix     *mixSync // nil im Demo-Modus
+	ann     *announcer
+	eq      *eqWriter
 	started time.Time
 	version string
 
 	clock  func() time.Time
 	sysFn  func() sysStatus
+	svcFn  func() []serviceInfo
+	clkFn  func() clockStatus
 	wifiFn func() wifiStatus
 	btFn   func() btState
 	mqttOK func() bool
@@ -60,24 +66,40 @@ type app struct {
 	mu       sync.Mutex
 	buttons  []buttonEvent
 	lastRadi int
-	listener []func(kind string, data map[string]any)
+	listener map[int]func(kind string, data map[string]any)
+	nextL    int
 }
 
 func newApp(cfg *shellConfig, st *store) *app {
 	a := &app{cfg: cfg, st: st, started: time.Now(), version: version}
 	a.clock = time.Now
 	a.h = newHub()
+	a.src = newSourceHub(a)
 	vc := newVolumeCtl(a.h)
-	vc.onChg = func() { a.emit("volume", nil) }
+	vc.onChg = func() {
+		a.emit("volume", nil)
+		go a.src.EnforceMax()
+	}
 	a.vol = vc
-	pl := newPlayer("invoke_music")
-	pl.onChange = func() { a.emit("player", nil) }
+	pl := newPlayer(map[string]string{"radio": "invoke_radio", "": "invoke_music"})
+	pl.onChange = func() {
+		kind, _, state, title := pl.Info()
+		if kind == "radio" {
+			a.src.Update("radio", state, map[string]string{"title": title})
+		} else {
+			a.src.Update("radio", "idle", nil)
+		}
+		a.emit("player", nil)
+	}
 	a.pl = pl
+	a.ann = newAnnouncer(a, "invoke_announce")
 	a.led = &ledHW{h: a.h}
 	a.sch = newScheduler(a)
 	a.wifi = newWifiWatch(a)
 	a.mq = newMQTT(a)
-	a.sysFn = collectSys
+	a.sysFn = cachedSys(collectSys, 5*time.Second)
+	a.svcFn = func() []serviceInfo { return serviceStatus(cfg, time.Now().Unix()) }
+	a.clkFn = clockState
 	a.wifiFn = a.wifi.Status
 	a.btFn = readBT
 	a.mqttOK = a.mq.connected
@@ -88,17 +110,29 @@ func newApp(cfg *shellConfig, st *store) *app {
 // emit meldet ein Ereignis an alle Zuhörer (MQTT, ...).
 func (a *app) emit(kind string, data map[string]any) {
 	a.mu.Lock()
-	ls := append([]func(string, map[string]any){}, a.listener...)
+	ls := make([]func(string, map[string]any), 0, len(a.listener))
+	for i := 0; i < a.nextL; i++ {
+		if f, ok := a.listener[i]; ok {
+			ls = append(ls, f)
+		}
+	}
 	a.mu.Unlock()
 	for _, f := range ls {
 		f(kind, data)
 	}
 }
 
-func (a *app) Listen(f func(kind string, data map[string]any)) {
+// Listen meldet einen Zuhörer an; die zurückgegebene Funktion meldet ihn wieder ab.
+func (a *app) Listen(f func(kind string, data map[string]any)) func() {
 	a.mu.Lock()
-	a.listener = append(a.listener, f)
+	if a.listener == nil {
+		a.listener = map[int]func(string, map[string]any){}
+	}
+	id := a.nextL
+	a.nextL++
+	a.listener[id] = f
 	a.mu.Unlock()
+	return func() { a.mu.Lock(); delete(a.listener, id); a.mu.Unlock() }
 }
 
 // ---- Webradio ----
@@ -207,6 +241,14 @@ func (a *app) Do(action string) error {
 		return a.vol.ToggleMute()
 	case "bt_pairing":
 		a.h.Publish("invoke.bt.pairing", "toggle")
+	case "sleep_toggle": // Schlummertimer 30 Minuten an / aus
+		if a.sch.SleepRemaining() > 0 {
+			a.sch.SetSleep(0)
+		} else {
+			a.sch.SetSleep(30)
+		}
+	case "chime":
+		return a.ann.Play(announceReq{Tone: "chime"})
 	default:
 		return fmt.Errorf("unbekannte Aktion %q", action)
 	}
@@ -214,4 +256,4 @@ func (a *app) Do(action string) error {
 }
 
 var actionNames = []string{"none", "smart", "mute_toggle", "volume_up", "volume_down", "radio_toggle", "radio_next",
-	"alarm_stop", "alarm_snooze", "timer_dismiss", "timers_cancel", "stop_all", "bt_pairing"}
+	"alarm_stop", "alarm_snooze", "timer_dismiss", "timers_cancel", "stop_all", "bt_pairing", "sleep_toggle", "chime"}
