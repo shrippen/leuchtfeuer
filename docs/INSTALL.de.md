@@ -1,12 +1,12 @@
 # Installationsanleitung
 
-Der vollständige Weg vom Werkszustand eines Invoke bis zum Zustand aus der [README](../README.de.md). Die
-Hardware-Teile (1-3) wurden einmal an einem Gerät durchgeführt; der Software-Teil (4-5) ist mit `build.sh` und
+Der vollständige Weg vom Werkszustand eines Invoke bis zum Zustand aus der [README](README.de.md). Die
+Hardware-Teile (1-3) wurden einmal an einem Gerät durchgeführt; der Software-Teil (4) ist mit `build.sh` und
 `install.sh` automatisiert.
 
 > **Teststand.** Der Update-Weg von `install.sh` (SSH, Übertragung per Prüfsummenvergleich, Neustart,
 > `verify-install.sh`) wurde gegen das fertige Gerät ausgeführt und hat den Zustand exakt reproduziert. Der Weg der
-> **Erstinstallation über adb** (Teil 5, „frisches StockRoot-Gerät“) ist umgesetzt und durchgesehen, wurde aber **noch nicht
+> **Erstinstallation über adb** (Teil 4, „frisches StockRoot-Gerät“) ist umgesetzt und durchgesehen, wurde aber **noch nicht
 > an einem fabrikfrischen Gerät ausgeführt**; das gilt auch für `wifi-setup.sh` und `uninstall.sh` (die Formularfelder der
 > WLAN-Einrichtung stammen aus der Hersteller-Bibliothek). Probleme bitte als Issue melden. **Alles einmal lesen, bevor
 > es losgeht.**
@@ -92,44 +92,38 @@ Router nachsehen. Prüfen: `adb connect <ip>:5555 && adb shell id` muss `uid=0(r
 > Laufzeiten; näher stellen oder an einen guten Access Point binden (`wpa_cli` / Router). Alles Folgende läuft über das
 > WLAN; eine schlechte Verbindung macht `install.sh` langsam, aber es setzt fort (nur geänderte Dateien werden übertragen).
 
-## 4. Software bauen
+## 4. Installieren (baut die Software bei Bedarf)
 
 ```sh
-./build.sh            # dropbear, librespot, gmrender, sendspin, castrecv, btagent, BlueZ+bluez-alsa, (Tidal-Bündel)
-./build.sh --no-tidal # ohne das proprietäre Tidal-Connect-Bündel
+./install.sh
 ```
 
-Braucht Docker (Toolchain-Images entstehen beim ersten Mal) und Go. Beim ersten Mal etwa 20-60 Minuten; fertige Teile
-werden übersprungen (`--force` baut neu). Ergebnisse in `build/`.
+Der Installer ist **interaktiv**: Er erklärt jeden Schritt und fragt, was er braucht. Er
+1. prüft deinen Rechner (`ssh`, `tar`, `adb`),
+2. fragt nach der IP-Adresse des Lautsprechers (steht im Router) und prüft, dass sie antwortet,
+3. lässt dich einen SSH-Schlüssel wählen (oder erzeugen); der **öffentliche** Schlüssel kommt auf den Lautsprecher, der
+   private bleibt bei dir,
+4. stellt fest, ob es eine Erstinstallation (über adb) oder ein Update (über SSH) ist,
+5. fragt die Einstellungen ab: Name des Lautsprechers, Adresse deines Music Assistant für Sendspin, DHCP-Hostname,
+6. fragt, ob **Tidal Connect** installiert werden soll (Standard: nein, weil für diesen Lautsprecher nicht lizenziert),
+7. baut die Programme, falls sie fehlen (`./build.sh`: Docker + Go, beim ersten Mal 20-60 Minuten, Ergebnis in `build/`),
+8. zeigt eine Zusammenfassung und fragt, bevor etwas geändert wird,
+9. bei einem **frischen StockRoot-Gerät**: verbindet sich per adb (Port 5555), prüft Root, Firmware und freien Platz,
+   richtet das eigene dropbear mit gerätespezifischem Host-Schlüssel und deinem Schlüssel ein, hängt den Autostart-Haken
+   an `/data/dnsmasq.conf` (Original als `dnsmasq.conf.orig` gesichert), wartet auf SSH (und prüft dabei den selbst
+   erzeugten Host-Schlüssel),
+10. kopiert alle Dateien per SSH (nur geänderte), schließt adb, bietet einen Neustart an und führt zuletzt
+    `scripts/verify-install.sh` aus.
 
-## 5. Installieren
+Die Meldungen sind je nach `$LANG` englisch oder deutsch (erzwingen mit `INVOKE_LANG=en|de`). Optionen überspringen
+Fragen: `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--dry-run`. **Nicht interaktiv** (Skripte):
+`./install.sh --non-interactive --ip <ip> --key <pub> [--config DATEI] [--no-tidal]`. Späteres erneutes Ausführen
+aktualisiert den Lautsprecher; nur geänderte Dateien werden übertragen, und deine Einstellungen auf dem Lautsprecher
+bleiben, außer du wählst neue. Separat bauen: `./build.sh [--no-tidal] [--force]`.
 
-1. Konfigurationsvorlage kopieren und anpassen (optional, es gibt Standardwerte):
+Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
 
-   ```sh
-   cp device/invoke/config.example config
-   $EDITOR config     # DEVICE_NAME, SENDSPIN_SERVER („host:8927“ deines Music Assistant), DHCP_HOSTNAME
-   ```
-
-2. Installer mit deinem **öffentlichen** SSH-Schlüssel starten (der private muss im `ssh-agent` oder daneben liegen):
-
-   ```sh
-   ./install.sh --ip <ip-des-lautsprechers> --key ~/.ssh/id_ed25519.pub --config config
-   ```
-
-   Bei einem frischen StockRoot-Gerät: verbindet sich per adb (Port 5555), prüft Root, Firmware (StockRoot 11.1842) und
-   Platz auf `/data`, richtet das eigene dropbear mit gerätespezifischem Host-Schlüssel und deinem Schlüssel ein,
-   hängt den Autostart-Haken an `/data/dnsmasq.conf` (das Original wird vorher als `dnsmasq.conf.orig` gesichert), wartet
-   auf SSH (und prüft dabei den selbst erzeugten Host-Schlüssel), kopiert alle Dateien per SSH, schließt adb, startet
-   neu und führt zuletzt `scripts/verify-install.sh` aus.
-
-   Nützliche Optionen: `--dry-run`, `--no-tidal`, `--no-reboot`, `--yes`. Späteres erneutes Ausführen aktualisiert den
-   Lautsprecher; nur geänderte Dateien werden übertragen, deine `config` auf dem Lautsprecher bleibt, außer man gibt
-   `--config` an.
-
-3. Nach dem Neustart ~2 Minuten warten; der Haken startet alle Dienste binnen etwa 90 s.
-
-## 6. Benutzen
+## 5. Benutzen
 
 | Quelle | Wie |
 |---|---|
@@ -148,7 +142,7 @@ Viele Router (z. B. FRITZ!Box) leiten Multicast nicht zwischen WLAN und LAN weit
 Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die IP verwenden (Cast „known hosts“,
 `SENDSPIN_SERVER`) oder den Client ins WLAN setzen.
 
-## 7. Wartung
+## 6. Wartung
 
 - **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>`.
 - **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>`.
@@ -158,7 +152,7 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 - **Werkszustand:** Die Hersteller-Firmware lässt sich mit dem Hersteller-Werkzeug erneut flashen (`l2nand -m 83` mit
   dem Hersteller-Abbild); eine beschädigte `factory_setting` aus der Sicherung wiederherstellen.
 
-## 8. Fehlersuche
+## 7. Fehlersuche
 
 | Symptom | Prüfen |
 |---|---|

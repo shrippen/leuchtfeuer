@@ -42,18 +42,18 @@ Requirements: an Invoke, a Linux PC (developed on Arch), USB cable for the servi
 `go` ≥ 1.22, `curl`, `git`, `unzip`, `python3`, `socat`, `telnet`. The Invoke must be reachable in your Wi-Fi.
 
 ```sh
-git clone https://git.arianw.de/shrippen/invoke-hack.git && cd invoke-hack   # (mirrored on GitHub)
+git clone https://git.arianw.de/shrippen/invoke-hack.git && cd invoke-hack
 
 # 1. FIRST read docs/INSTALL.md parts 1-3: back up the NAND, flash StockRoot, put the speaker in your Wi-Fi.
-# 2. build everything (Docker, 20-60 minutes once)
-./build.sh                 # add --no-tidal to skip the Tidal bundle
-# 3. install
-./install.sh --ip <speaker-ip> --key ~/.ssh/id_ed25519.pub
+# 2. install: the installer is interactive, it asks and explains every step (and builds the programs if needed:
+#    Docker, 20-60 minutes once)
+./install.sh
+# without questions (scripts, CI): ./install.sh --non-interactive --ip <speaker-ip> --key ~/.ssh/id_ed25519.pub
 ```
 
 Then pair your phone with "HK Invoke", or pick it in Spotify / your UPnP app / Music Assistant.
 The complete, step-by-step guide including the hardware part is in **[docs/INSTALL.md](docs/INSTALL.md)**
-([Deutsch](docs/INSTALL.de.md), [README auf Deutsch](README.de.md)).
+([Deutsch](docs/INSTALL.de.md), [README auf Deutsch](docs/README.de.md)).
 
 ## Configuration
 

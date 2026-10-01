@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
-# Baut alle Programme für den Invoke (ARMv7) nach build/. Braucht Docker (Toolchains für glibc 2.23 und
-# musl), Go ≥ 1.22 (castrecv, btagent), curl, git. Dauer je nach Rechner 20-60 Minuten; bereits gebaute
-# Teile werden übersprungen (mit --force neu bauen).
+# Builds all programs for the Invoke (ARMv7) into build/. Needs Docker (toolchains for glibc 2.23 and musl),
+# Go >= 1.22 (castrecv, btagent), curl, git. 20-60 minutes depending on the computer; finished parts are skipped
+# (--force rebuilds). / Baut alle Programme für den Invoke (ARMv7) nach build/.
 #
 #   ./build.sh [--force] [--no-tidal]
 #
-# Ergebnis: build/dropbear, librespot, gmrender, sendspin, castrecv, btagent, bluez, shim, (tidal)
+# Result: build/dropbear, librespot, gmrender, sendspin, castrecv, btagent, bluez, shim, (tidal)
 set -euo pipefail
 cd "$(dirname "$0")"
+. scripts/lib.sh
 force=0; tidal=1
 for a in "$@"; do
   case $a in
     --force) force=1 ;;
     --no-tidal) tidal=0 ;;
     -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-    *) echo "unbekannte Option: $a" >&2; exit 2 ;;
+    *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
-for c in docker go curl git file; do command -v $c >/dev/null || { echo "fehlt: $c" >&2; exit 1; }; done
+for c in docker go curl git file; do command -v $c >/dev/null || die "$c is missing" "$c fehlt"; done
 
 step(){ # step <Name> <Ergebnisdatei> <Skript>
-  if [ $force = 0 ] && [ -e "$2" ]; then echo "== $1: vorhanden ($2)"; return; fi
-  echo "== $1 ..."; "$3"
+  if [ $force = 0 ] && [ -e "$2" ]; then ok "$1: already built ($2)" "$1: schon gebaut ($2)"; return; fi
+  say "$1 ..." "$1 ..."; "$3"
 }
 step "dropbear (SSH)"         build/dropbear/dropbearmulti    tools/build-dropbear.sh
 step "librespot (Spotify)"    build/librespot/librespot       tools/build-librespot.sh
@@ -34,4 +35,4 @@ step "avahi-Shim"             build/shim/avahi-user-shim.so   tools/build-shim.s
 if [ $tidal = 1 ]; then
   step "Tidal-Connect-Bündel" build/tidal/bin/tidal_connect_application tools/build-tidal-bundle.sh
 fi
-echo "Fertig. Weiter mit ./install.sh"
+info "Done. Next: ./install.sh" "Fertig. Weiter mit ./install.sh"

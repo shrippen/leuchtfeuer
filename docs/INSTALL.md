@@ -1,10 +1,10 @@
 # Installation guide
 
 Complete path from a factory Invoke to the state described in the [README](../README.md). The hardware parts
-(1-3) were done once on one device; the software part (4-5) is automated by `build.sh` and `install.sh`.
+(1-3) were done once on one device; the software part (4) is automated by `build.sh` and `install.sh`.
 
 > **Test status.** The update path of `install.sh` (SSH, checksum-based transfer, reboot, `verify-install.sh`) was run
-> against the finished device and reproduced the state exactly. The **first-install path over adb** (part 5, "fresh
+> against the finished device and reproduced the state exactly. The **first-install path over adb** (part 4, "fresh
 > StockRoot device") is implemented and reviewed but has **not yet been run on a factory-fresh device**; the same is
 > true for `wifi-setup.sh` and `uninstall.sh` (the form fields of the Wi-Fi setup are taken from the vendor library).
 > Report problems as issues. **Read everything once before you start.**
@@ -89,43 +89,36 @@ speaker's IP in the router. Check: `adb connect <ip>:5555 && adb shell id` must 
 > latency; put it closer or bind it to a good access point (`wpa_cli` / router). Everything below works over
 > the Wi-Fi, a bad link makes `install.sh` slow but it resumes (it only transfers changed files).
 
-## 4. Build the software
+## 4. Install (builds the software if needed)
 
 ```sh
-./build.sh            # dropbear, librespot, gmrender, sendspin, castrecv, btagent, BlueZ+bluez-alsa, (Tidal bundle)
-./build.sh --no-tidal # without the proprietary Tidal Connect bundle
+./install.sh
 ```
 
-Needs Docker (toolchain images are built on first use) and Go. About 20-60 minutes the first time; finished parts
-are skipped on later runs (`--force` rebuilds). Results are in `build/`.
+The installer is **interactive**: it explains each step and asks for what it needs. It
+1. checks your computer (`ssh`, `tar`, `adb`),
+2. asks for the speaker's IP address (find it in your router) and checks it answers,
+3. lets you pick (or create) an SSH key; the **public** key is copied to the speaker, the private key stays with you,
+4. finds out whether this is a first installation (over adb) or an update (over SSH),
+5. asks for the settings: speaker name, address of your Music Assistant for Sendspin, DHCP host name,
+6. asks whether to install **Tidal Connect** (default: no, because it is not licensed for this speaker),
+7. builds the programs if they are missing (`./build.sh`: Docker + Go, 20-60 minutes the first time, results in `build/`),
+8. shows a summary and asks before it changes anything,
+9. on a **fresh StockRoot device**: connects over adb (port 5555), checks root, firmware and free space, installs the own
+   dropbear with a per-device host key and your key, adds the autostart hook to `/data/dnsmasq.conf` (original saved as
+   `dnsmasq.conf.orig`), waits for SSH (checking the host key that it generated),
+10. copies all files over SSH (only changed ones), closes adb, offers a reboot, and finally runs
+    `scripts/verify-install.sh`.
 
-## 5. Install
+Messages are in English or German depending on `$LANG` (force with `INVOKE_LANG=en|de`). Options skip questions:
+`--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--dry-run`. **Non-interactive** (scripts):
+`./install.sh --non-interactive --ip <ip> --key <pub> [--config FILE] [--no-tidal]`. Running it again later updates the
+speaker; only changed files are transferred, and your settings on the speaker are kept unless you choose new ones.
+Build separately with `./build.sh [--no-tidal] [--force]`.
 
-1. Copy the config template and edit it (optional, there are defaults):
+After the reboot the services come up within about 90 s.
 
-   ```sh
-   cp device/invoke/config.example config
-   $EDITOR config     # DEVICE_NAME, SENDSPIN_SERVER ("host:8927" of your Music Assistant), DHCP_HOSTNAME
-   ```
-
-2. Run the installer with your **public** SSH key (the private key must be in `ssh-agent` or next to it):
-
-   ```sh
-   ./install.sh --ip <speaker-ip> --key ~/.ssh/id_ed25519.pub --config config
-   ```
-
-   What it does on a fresh StockRoot device: connects over adb (port 5555), checks it is root and the firmware is
-   StockRoot 11.1842 and `/data` has room, installs the own dropbear with a per-device host key and your key,
-   adds the autostart hook to `/data/dnsmasq.conf` (after saving the original as `dnsmasq.conf.orig`), waits
-   for SSH (checking the host key that it generated), copies all files over SSH, closes adb, reboots, and finally
-   runs `scripts/verify-install.sh`.
-
-   Useful options: `--dry-run`, `--no-tidal`, `--no-reboot`, `--yes`. Running it again later updates the speaker;
-   only changed files are transferred, your `config` on the speaker is kept unless you pass `--config`.
-
-3. Wait ~2 minutes after the reboot; the hook starts all services within about 90 s.
-
-## 6. Use it
+## 5. Use it
 
 | Source | How |
 |---|---|
@@ -144,7 +137,7 @@ Many routers (e.g. FRITZ!Box) do not forward multicast between Wi-Fi and LAN. A 
 the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (Cast known hosts,
 `SENDSPIN_SERVER`), or put the client on the Wi-Fi.
 
-## 7. Maintenance
+## 6. Maintenance
 
 - **Update:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>`.
 - **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>`.
@@ -154,7 +147,7 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 - **Factory state:** the vendor firmware can be flashed again with the vendor tool (`l2nand -m 83` with the vendor
   image); restore `factory_setting` from your backup if it was damaged.
 
-## 8. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Check |
 |---|---|

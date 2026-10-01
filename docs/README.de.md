@@ -34,8 +34,8 @@ Der Invoke läuft mit Linux 3.8 (Yocto + Android-Teile) auf einem Marvell BG2CD.
    kürzen, die Audiodienste am Laufen halten.
 3. Alle Programme werden mit Docker und Go für das Gerät gebaut (glibc 2.23 / musl, ARMv7), siehe `build.sh`.
 
-Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (englisch). Forschungsnotizen:
-[docs/RESEARCH-NOTES.md](docs/RESEARCH-NOTES.md).
+Details: [docs/ARCHITECTURE.md](ARCHITECTURE.md) (englisch). Forschungsnotizen:
+[docs/RESEARCH-NOTES.md](RESEARCH-NOTES.md).
 
 ## Schnellstart
 
@@ -43,18 +43,17 @@ Voraussetzungen: ein Invoke, ein Linux-PC (entwickelt unter Arch), USB-Kabel fü
 `docker`, `go` ≥ 1.22, `curl`, `git`, `unzip`, `python3`, `socat`, `telnet`. Der Invoke muss im WLAN erreichbar sein.
 
 ```sh
-git clone https://git.arianw.de/shrippen/invoke-hack.git && cd invoke-hack   # (auf GitHub gespiegelt)
+git clone https://git.arianw.de/shrippen/invoke-hack.git && cd invoke-hack
 
 # 1. ZUERST docs/INSTALL.de.md Teile 1-3 lesen: NAND sichern, StockRoot flashen, Lautsprecher ins WLAN bringen.
-# 2. alles bauen (Docker, einmalig 20-60 Minuten)
-./build.sh                 # mit --no-tidal ohne das Tidal-Bündel
-# 3. installieren
-./install.sh --ip <ip-des-lautsprechers> --key ~/.ssh/id_ed25519.pub
+# 2. installieren: fragt und erklärt Schritt für Schritt (baut bei Bedarf auch alles, Docker, einmalig 20-60 Minuten)
+./install.sh
+# (ohne Rückfragen: ./install.sh --non-interactive --ip <ip> --key ~/.ssh/id_ed25519.pub)
 ```
 
 Danach das Handy mit „HK Invoke“ koppeln oder ihn in Spotify / der UPnP-App / Music Assistant auswählen.
-Die vollständige Schritt-für-Schritt-Anleitung samt Hardware-Teil steht in **[docs/INSTALL.de.md](docs/INSTALL.de.md)**
-([English](docs/INSTALL.md), [README in English](README.md)).
+Die vollständige Schritt-für-Schritt-Anleitung samt Hardware-Teil steht in **[docs/INSTALL.de.md](INSTALL.de.md)**
+([English](INSTALL.md), [README in English](../README.md)).
 
 ## Konfiguration
 
@@ -71,7 +70,7 @@ lässt diese Datei unverändert, außer man gibt `--config` an.
 ## Rechtliches und Risiken
 
 - **Du kannst den Lautsprecher unbrauchbar machen.** Flashen des NAND über USB geschieht auf eigene Gefahr. Mach zuerst
-  die Sicherung aus [docs/INSTALL.de.md](docs/INSTALL.de.md) Teil 1 und bewahre sie auf: Die Partition `factory_setting`
+  die Sicherung aus [docs/INSTALL.de.md](INSTALL.de.md) Teil 1 und bewahre sie auf: Die Partition `factory_setting`
   (Zertifikate, MAC, Kalibrierung) gibt es nur im Lautsprecher und in dieser Sicherung. Niemals `l2nand 83` ohne `-m`.
 - Dieses Projekt **enthält keine Harman- oder Marvell-Firmware**; `scripts/fetch.sh` lädt sie aus den öffentlichen
   Releases von coggy9/HKHacking. Die NAND-Sicherung nicht weitergeben (enthält die Geräteschlüssel).
@@ -87,7 +86,7 @@ lässt diese Datei unverändert, außer man gibt `--config` an.
 
 ## Lizenz
 
-MIT, siehe [LICENSE](LICENSE). Das gilt für Code und Dokumentation dieses Repositories; die gebauten und installierten
+MIT, siehe [LICENSE](../LICENSE). Das gilt für Code und Dokumentation dieses Repositories; die gebauten und installierten
 Programme (librespot, gmrender-resurrect, BlueZ, …) und die Hersteller-Firmware behalten ihre eigenen Lizenzen und Bedingungen.
 
 ## Danksagung
