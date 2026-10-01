@@ -1,0 +1,199 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Leuchtfeuer",
+        "description": "Connect a Harman Kardon Invoke running Leuchtfeuer. Create an API key on the speaker under System > Access (scope \"full\").",
+        "data": {
+          "host": "Host",
+          "api_key": "API key"
+        },
+        "data_description": {
+          "host": "Address of the speaker, e.g. invoke.lan or http://192.168.1.23 (https with a self-signed certificate works).",
+          "api_key": "Key starting with lf_ (scope \"full\")."
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Leuchtfeuer found",
+        "description": "Set up {name} at {host}? Enter an API key from System > Access on the speaker.",
+        "data": {
+          "api_key": "API key"
+        },
+        "data_description": {
+          "api_key": "Key starting with lf_ (scope \"full\")."
+        }
+      },
+      "reauth_confirm": {
+        "title": "New API key",
+        "description": "The API key for {name} ({host}) was rejected. Enter a new one.",
+        "data": {
+          "api_key": "API key"
+        },
+        "data_description": {
+          "api_key": "Key starting with lf_ (scope \"full\")."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot reach the speaker.",
+      "invalid_auth": "The API key is invalid.",
+      "read_only_key": "The API key may only read. Create one with scope \"full\".",
+      "invalid_host": "Invalid address.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This speaker is already configured.",
+      "reauth_successful": "The API key was updated."
+    }
+  },
+  "entity": {
+    "button": {
+      "briefing": {
+        "name": "Briefing"
+      },
+      "voice": {
+        "name": "Listen"
+      },
+      "stop_all": {
+        "name": "Stop all"
+      },
+      "chime": {
+        "name": "Chime"
+      }
+    },
+    "sensor": {
+      "soc_temperature": {
+        "name": "SoC temperature"
+      },
+      "wifi_signal": {
+        "name": "Wi-Fi signal",
+        "state_attributes": {
+          "ssid": {
+            "name": "SSID"
+          }
+        }
+      },
+      "next_alarm": {
+        "name": "Next alarm",
+        "state_attributes": {
+          "name": {
+            "name": "Name"
+          }
+        }
+      },
+      "active_source": {
+        "name": "Active source",
+        "state": {
+          "none": "None",
+          "spotify": "Spotify",
+          "upnp": "UPnP/DLNA",
+          "cast": "Google Cast",
+          "airplay": "AirPlay",
+          "bluetooth": "Bluetooth",
+          "sendspin": "Sendspin",
+          "tidal": "Tidal",
+          "snapcast": "Snapcast",
+          "radio": "Web radio",
+          "alarm": "Alarm",
+          "announce": "Announcement",
+          "briefing": "Briefing",
+          "measure": "Room measurement"
+        }
+      },
+      "voice_state": {
+        "name": "Voice assistant",
+        "state": {
+          "off": "Off",
+          "idle": "Idle",
+          "listening": "Listening",
+          "thinking": "Thinking",
+          "speaking": "Speaking"
+        }
+      },
+      "last_heard": {
+        "name": "Last heard",
+        "state_attributes": {
+          "answer": {
+            "name": "Answer"
+          }
+        }
+      }
+    },
+    "switch": {
+      "voice_microphone": {
+        "name": "Voice microphone"
+      }
+    }
+  },
+  "selector": {
+    "tone": {
+      "options": {
+        "chime": "Chime",
+        "bell": "Bell",
+        "beep": "Beep"
+      }
+    },
+    "action": {
+      "options": {
+        "none": "Nothing",
+        "smart": "Smart (snooze / dismiss / mute)",
+        "mute_toggle": "Toggle mute",
+        "volume_up": "Volume up",
+        "volume_down": "Volume down",
+        "radio_toggle": "Radio on/off",
+        "radio_next": "Next station",
+        "radio_1": "Station 1",
+        "radio_2": "Station 2",
+        "radio_3": "Station 3",
+        "radio_4": "Station 4",
+        "radio_5": "Station 5",
+        "alarm_stop": "Stop alarm",
+        "alarm_snooze": "Snooze alarm",
+        "timer_dismiss": "Dismiss timer",
+        "timers_cancel": "Cancel all timers",
+        "stop_all": "Stop all",
+        "bt_pairing": "Bluetooth pairing",
+        "sleep_toggle": "Sleep timer 30 min on/off",
+        "chime": "Chime",
+        "briefing": "Briefing",
+        "voice": "Voice assistant: listen",
+        "voice_mute": "Voice assistant: microphone on/off"
+      }
+    }
+  },
+  "services": {
+    "announce": {
+      "name": "Announce",
+      "description": "Play a sound or tone over the music, which is lowered meanwhile.",
+      "fields": {
+        "url": {
+          "name": "URL",
+          "description": "Audio URL or media source (media-source://...)."
+        },
+        "tone": {
+          "name": "Tone",
+          "description": "Built-in tone instead of a URL."
+        },
+        "volume": {
+          "name": "Volume",
+          "description": "Volume of the announcement in %. Empty = current volume."
+        }
+      }
+    },
+    "action": {
+      "name": "Action",
+      "description": "Run a Leuchtfeuer action (as mapped to the buttons).",
+      "fields": {
+        "action": {
+          "name": "Action",
+          "description": "The action to run."
+        }
+      }
+    },
+    "briefing": {
+      "name": "Briefing",
+      "description": "Start the briefing."
+    }
+  }
+}

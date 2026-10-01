@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leuchtfeuer — network speaker firmware for the Harman Kardon Invoke</title>
+<meta name="description" content="Turn the abandoned Harman Kardon Invoke into a network speaker: Spotify Connect, AirPlay, UPnP/DLNA, Cast, Sendspin, Snapcast and Bluetooth, with a web interface, alarms and Home Assistant.">
+<meta property="og:title" content="Leuchtfeuer — network speaker firmware for the Harman Kardon Invoke">
+<meta property="og:description" content="Spotify Connect, AirPlay, UPnP/DLNA, Cast, Sendspin, Snapcast and Bluetooth on the Harman Kardon Invoke, with a web interface, alarms and Home Assistant.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<!-- Umami tracker: mandatory on every landing page, same tag and ID everywhere, do not change -->
+<script defer src="https://um.arianw.de/script.js" data-website-id="056d39ee-6a9d-4b14-9902-5a1ac399df08"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://shrippen.github.io/v1/shrippen.css">
+<script src="https://shrippen.github.io/v1/shrippen.js"></script>
+<!-- Assets live next to this file. Screenshots come from the demo mode (demo/start.sh, demo "Studio Weber"). -->
+</head>
+<body>
+
+<nav class="nav"><div class="nav-inner">
+  <a class="nav-brand" href="#"><img src="logo.svg" alt="">Leuchtfeuer</a>
+  <div class="nav-links">
+    <a href="#features"><span lang="en">Features</span><span lang="de">Funktionen</span></a>
+    <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/INSTALL.md"><span lang="en">Install</span><span lang="de">Installation</span></a>
+    <a class="nav-hl" href="https://git.arianw.de/shrippen/leuchtfeuer">Gitea</a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="de" aria-pressed="false">DE</button>
+    </div>
+  </div>
+</div></nav>
+
+<header class="hero">
+  <img class="hero-wm" src="logo.svg" alt="" aria-hidden="true">
+  <div class="hero-main">
+    <h1 style="font-size:clamp(2.6rem,8.4vw,6.6rem)">Leucht<br class="split">feuer</h1>
+    <p class="tagline" lang="en">The Harman Kardon Invoke was a Cortana speaker until Harman gave it up. Leuchtfeuer turns it into a plain network speaker: Spotify, AirPlay, UPnP, Cast, Music Assistant, Snapcast and Bluetooth, all through its own amplifier, with a web interface, alarms and Home Assistant. No voice assistant, no cloud.</p>
+    <p class="tagline" lang="de">Der Harman Kardon Invoke war ein Cortana-Lautsprecher, bis Harman ihn aufgab. Leuchtfeuer macht daraus einen normalen Netzwerk-Lautsprecher: Spotify, AirPlay, UPnP, Cast, Music Assistant, Snapcast und Bluetooth, alles über den eigenen Verstärker, mit Weboberfläche, Weckern und Home Assistant. Kein Sprachassistent, keine Cloud.</p>
+  </div>
+
+  <div class="hero-side">
+    <div class="install-card">
+      <label>Installation</label>
+      <div class="cmd-row">
+        <div class="cmd-box">./install.sh --prebuilt</div>
+        <button class="copy-btn" type="button" title="Copy" aria-label="Copy">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        </button>
+      </div>
+      <p class="install-note" lang="en">First back up the NAND and flash the rooted image (guide parts 1-3). The installer asks and explains every step; without <code>--prebuilt</code> it builds everything with Docker.</p>
+      <p class="install-note" lang="de">Vorher den NAND sichern und das gerootete Abbild flashen (Anleitung Teile 1-3). Der Installer fragt und erklärt jeden Schritt; ohne <code>--prebuilt</code> baut er alles mit Docker.</p>
+      <div class="install-links">
+        <a class="btn btn-primary" href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/INSTALL.md"><span lang="en">Guide</span><span lang="de">Anleitung</span></a>
+        <a class="btn btn-ghost" href="https://git.arianw.de/shrippen/leuchtfeuer"><span lang="en">Source</span><span lang="de">Quelltext</span></a>
+      </div>
+    </div>
+
+    <div class="hero-shot">
+      <img src="overview.webp" alt="Leuchtfeuer web interface: volume, now playing, alarms and timers, sleep timer, services">
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="section"><div class="callout callout-warn"><span lang="en"><strong>Note:</strong> flashing can brick the speaker. Back up the NAND first and keep the backup in a second place; it holds the only copy of your speaker's factory data. Built with AI assistance.</span><span lang="de"><strong>Hinweis:</strong> Flashen kann den Lautsprecher unbrauchbar machen. Zuerst den NAND sichern und die Sicherung an einem zweiten Ort aufbewahren; sie ist die einzige Kopie der Werksdaten deines Lautsprechers. Mit KI-Unterstützung entstanden.</span></div></div>
+
+<section class="features" id="features">
+  <div class="feat" data-tier="yellow">
+    <span class="feat-tag"><span lang="en">Receivers</span><span lang="de">Empfänger</span></span>
+    <h3 lang="en">Every app finds it</h3><h3 lang="de">Jede App findet ihn</h3>
+    <p lang="en">Spotify Connect, AirPlay, UPnP/DLNA, Cast (for Music Assistant, Home Assistant, VLC), Sendspin, Snapcast multiroom and Bluetooth with the volume knob in sync. Tidal Connect optional.</p>
+    <p lang="de">Spotify Connect, AirPlay, UPnP/DLNA, Cast (für Music Assistant, Home Assistant, VLC), Sendspin, Snapcast-Multiroom und Bluetooth mit synchronem Drehrad. Tidal Connect auf Wunsch.</p>
+  </div>
+  <div class="feat" data-tier="blue">
+    <span class="feat-tag"><span lang="en">At home</span><span lang="de">Zu Hause</span></span>
+    <h3 lang="en">Alarms, radio, light</h3><h3 lang="de">Wecker, Radio, Licht</h3>
+    <p lang="en">A morning briefing with weather, appointments and the news, alarms with a sunrise light and a backup tone, station search, room correction measured with your phone, an optional voice satellite for Home Assistant.</p>
+    <p lang="de">Ein Morgen-Briefing mit Wetter, Terminen und Nachrichten, Wecker mit Lichtwecker und Ersatzton, Sendersuche, Raumkorrektur mit dem Handy gemessen, auf Wunsch ein Sprach-Satellit für Home Assistant.</p>
+  </div>
+  <div class="feat" data-tier="red">
+    <span class="feat-tag"><span lang="en">Safe to run</span><span lang="de">Sicher im Betrieb</span></span>
+    <h3 lang="en">Closed by default</h3><h3 lang="de">Von Haus aus zu</h3>
+    <p lang="en">SSH with key only, the open root shell closed, a firewall for switched-on services only, signed updates that roll back by themselves, API keys, Prometheus metrics, a hardware watchdog.</p>
+    <p lang="de">SSH nur mit Schlüssel, die offene Root-Shell zu, eine Firewall nur für eingeschaltete Dienste, signierte Updates, die sich selbst zurücknehmen, API-Schlüssel, Prometheus-Metriken, ein Hardware-Watchdog.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="showcase">
+    <div class="showcase-text">
+      <span class="showcase-tag">Home Assistant</span>
+      <h2 lang="en">Part of the house</h2><h2 lang="de">Teil des Hauses</h2>
+      <p lang="en">The speaker registers itself over MQTT: volume, mute, web radio, timers, sleep timer, alarm buttons, now playing, the light ring as a light, button events, and announcements over the music for text-to-speech or the door bell.</p>
+      <p lang="de">Der Lautsprecher meldet sich selbst per MQTT an: Lautstärke, Stumm, Webradio, Timer, Schlummertimer, Wecker-Tasten, Läuft gerade, der Leuchtring als Licht, Tasten-Ereignisse und Durchsagen über die Musik für Sprachausgabe oder die Türklingel.</p>
+    </div>
+    <figure><img src="settings.webp" alt="Leuchtfeuer settings: sound, sources and volume, light ring, services, backup"></figure>
+  </div>
+</section>
+
+<section class="section">
+  <h2 lang="en">How it works</h2><h2 lang="de">So funktioniert es</h2>
+  <div class="flow">
+    <div class="flow-node"><b><span lang="en">rooted stock image</span><span lang="de">gerootetes Original-Abbild</span></b><span lang="en">flashed once over the service USB port</span><span lang="de">einmal über den Service-USB-Port geflasht</span></div>
+    <div class="flow-arrow" aria-hidden="true"></div>
+    <div class="flow-node"><b><span lang="en">hook in /data</span><span lang="de">Haken in /data</span></b><span lang="en">starts and watches the services, firewall, SSH</span><span lang="de">startet und überwacht die Dienste, Firewall, SSH</span></div>
+    <div class="flow-arrow" aria-hidden="true"></div>
+    <div class="flow-node"><b><span lang="en">receivers · leuchtfeuerd</span><span lang="de">Empfänger · leuchtfeuerd</span></b><span lang="en">one audio chain into the speaker's own DSP and amplifier</span><span lang="de">eine Tonkette in den eigenen DSP und Verstärker</span></div>
+  </div>
+</section>
+
+<section class="section">
+  <h2 lang="en">Prerequisites</h2><h2 lang="de">Voraussetzungen</h2>
+  <ul lang="en"><li>A Harman Kardon Invoke and a USB cable for its service port</li><li>A Linux PC with adb, ssh and curl (Docker and Go only to build yourself)</li><li>Wi-Fi; for Snapcast a snapserver, for Sendspin Music Assistant</li></ul>
+  <ul lang="de"><li>Ein Harman Kardon Invoke und ein USB-Kabel für seinen Service-Port</li><li>Ein Linux-PC mit adb, ssh und curl (Docker und Go nur zum Selberbauen)</li><li>WLAN; für Snapcast ein snapserver, für Sendspin Music Assistant</li></ul>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <img src="logo.svg" alt="">
+      <div><span class="foot-name">Leuchtfeuer</span>
+        <span class="foot-tag"><span lang="en">Network speaker firmware tools for the Harman Kardon Invoke</span><span lang="de">Netzwerk-Lautsprecher-Werkzeuge für den Harman Kardon Invoke</span></span></div>
+    </div>
+    <nav class="foot-cols" aria-label="Footer">
+      <div><h4><span lang="en">Project</span><span lang="de">Projekt</span></h4>
+        <a href="#features"><span lang="en">Features</span><span lang="de">Funktionen</span></a>
+        <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/ARCHITECTURE.md"><span lang="en">Architecture</span><span lang="de">Aufbau</span></a></div>
+      <div><h4><span lang="en">Source</span><span lang="de">Quelltext</span></h4>
+        <a href="https://git.arianw.de/shrippen/leuchtfeuer">Gitea</a><a href="https://git.arianw.de/shrippen/leuchtfeuer/issues">Issues</a></div>
+    </nav>
+  </div>
+  <div class="foot-meta"><p>shrippen · Kante</p></div>
+</footer>
+
+</body>
+</html>

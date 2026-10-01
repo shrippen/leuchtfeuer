@@ -1,0 +1,25 @@
+# Prüfungen ohne Lautsprecher bei jedem Push und Pull Request (tests/run.sh): Go vet/gofmt/Tests (mit Race-Detector),
+# Klang-Plugin, Hook, Update-Skript, Zielgerät generic (Ende zu Ende), Shell-Syntax und shellcheck, Weboberfläche.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Werkzeuge
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck build-essential file curl
+      - name: tests/run.sh
+        run: tests/run.sh

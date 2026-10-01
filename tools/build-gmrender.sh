@@ -19,7 +19,7 @@ docker run --rm -v "$out:/out" invoke-xenial-armhf bash -euc '
   git checkout -q 3d87b3678bef4d0886cc526fe75d5e1285704310
   git rev-parse HEAD > /out/source.commit
   ./autogen.sh >/dev/null 2>&1
-  ./configure -q --host=$H --prefix=/data/invoke >/dev/null
+  ./configure -q --host=$H --prefix=/data/leuchtfeuer >/dev/null
   make -s -j$(nproc) >/dev/null
   $H-strip src/gmediarender && cp src/gmediarender /out/
   $H-readelf -d /out/gmediarender | grep NEEDED > /out/needed.txt

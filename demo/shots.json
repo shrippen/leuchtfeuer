@@ -3,18 +3,83 @@
   "start": "PORT={port} demo/start.sh {lang}",
   "ready": "http://127.0.0.1:{port}/api/status",
   "base": "http://127.0.0.1:{port}",
-  "viewport": [1360, 960],
+  "viewport": [
+    1360,
+    960
+  ],
   "setup": [
-    { "goto": "{base}/" },
-    { "eval": "localStorage.setItem('shrippen-lang', '{lang}')" },
-    { "goto": "{base}/" },
-    { "wait": "#c-play" }
+    {
+      "goto": "{base}/"
+    },
+    {
+      "eval": "localStorage.setItem('shrippen-lang', '{lang}')"
+    },
+    {
+      "goto": "{base}/"
+    },
+    {
+      "wait": "#c-play"
+    }
   ],
   "shots": [
-    { "name": "overview", "url": "{base}/#/", "wait": "#c-svc .status", "settle": 600, "page": "overview" },
-    { "name": "alarms", "url": "{base}/#/alarms", "wait": ".alarm", "settle": 600, "full_page": true },
-    { "name": "radio", "url": "{base}/#/radio", "wait": ".r-name", "settle": 400 },
-    { "name": "network", "url": "{base}/#/network", "wait": "#w-live", "settle": 400 },
-    { "name": "buttons", "url": "{base}/#/buttons", "wait": ".b-act", "settle": 400 }
+    {
+      "name": "overview",
+      "url": "{base}/#/",
+      "wait": "#c-svc .status",
+      "settle": 600,
+      "page": "overview"
+    },
+    {
+      "name": "alarms",
+      "url": "{base}/#/alarms",
+      "wait": ".alarm",
+      "settle": 600,
+      "full_page": true
+    },
+    {
+      "name": "radio",
+      "url": "{base}/#/radio",
+      "wait": ".r-name",
+      "settle": 400
+    },
+    {
+      "name": "network",
+      "url": "{base}/#/network",
+      "wait": "#w-live",
+      "settle": 400
+    },
+    {
+      "name": "buttons",
+      "url": "{base}/#/buttons",
+      "wait": ".b-act",
+      "settle": 400
+    },
+    {
+      "name": "settings",
+      "url": "{base}/#/settings",
+      "wait": "#svc-list",
+      "settle": 600,
+      "full_page": true
+    },
+    {
+      "name": "briefing",
+      "url": "{base}/#/briefing",
+      "wait": "#bi-list",
+      "settle": 600,
+      "full_page": true
+    },
+    {
+      "name": "devices",
+      "url": "{base}/#/devices",
+      "wait": "#pe-list .item",
+      "settle": 600
+    },
+    {
+      "name": "system",
+      "url": "{base}/#/system",
+      "wait": "#tk-list .item",
+      "settle": 800,
+      "full_page": true
+    }
   ]
 }

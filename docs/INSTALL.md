@@ -103,7 +103,8 @@ The installer is **interactive**: it explains each step and asks for what it nee
 5. asks for the settings: speaker name, address of your Music Assistant for Sendspin, DHCP host name,
 6. asks whether to install **Tidal Connect** (default: no, because it is not licensed for this speaker),
 7. builds the programs if they are missing (`./build.sh`: Docker + Go, 20-60 minutes the first time, results in `build/`;
-   includes the LADSPA tap plugin for the light ring visualizer),
+   includes the two LADSPA plugins of the audio chain: visualizer tap and sound), or with `--prebuilt` downloads the
+   release package instead,
 8. shows a summary and asks before it changes anything,
 9. on a **fresh StockRoot device**: connects over adb (port 5555), checks root, firmware and free space, installs the own
    dropbear with a per-device host key and your key, adds the autostart hook to `/data/dnsmasq.conf` (original saved as
@@ -111,11 +112,16 @@ The installer is **interactive**: it explains each step and asks for what it nee
 10. copies all files over SSH (only changed ones), closes adb, offers a reboot, and finally runs
     `scripts/verify-install.sh`.
 
-Messages are in English or German depending on `$LANG` (force with `INVOKE_LANG=en|de`). Options skip questions:
+Messages are in English or German depending on `$LANG` (force with `LEUCHTFEUER_LANG=en|de`). Options skip questions:
 `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--dry-run`. **Non-interactive** (scripts):
 `./install.sh --non-interactive --ip <ip> --key <pub> [--config FILE] [--no-tidal]`. Running it again later updates the
 speaker; only changed files are transferred, and your settings on the speaker are kept unless you choose new ones.
 Build separately with `./build.sh [--no-tidal] [--force]`.
+
+**Without building:** `./install.sh --prebuilt [TAG]` takes the release package from Gitea (latest release or the given
+tag) instead of building: no Docker, a few minutes. It is checked against its `.sha256` and, when
+`docs/release-key.pub` holds the release key and Go is installed, against its signature. The package does not contain
+Tidal Connect (proprietary, not ours to hand out); build it yourself if you want it.
 
 After the reboot the services come up within about 90 s.
 
@@ -130,9 +136,11 @@ After the reboot the services come up within about 90 s.
 | AirPlay | "HK Invoke" appears in the AirPlay menu of iPhone, iPad and Mac (AirPlay 1, audio only) |
 | Web interface | `http://<speaker-ip>/` (port 80): login page, password set by `install.sh` (or a random one shown once at the end of a first install). The speaker stores only a salted PBKDF2 hash. Change it in Settings, or later with `scripts/set-web-password.sh` |
 | Tidal | "HK Invoke" appears in the Tidal app's Tidal Connect list |
+| Snapcast | off by default. Settings > Services > Snapcast on, and `SNAPCAST_SERVER="host"` in `/data/leuchtfeuer/config`; the speaker then joins your snapserver as a client (multiroom, in sync with the other rooms). The server should send 48000:16:2 (FLAC or PCM); set about 100 ms latency for this client in snapweb |
 
-The volume knob sets all sources. Logs are in `/data/invoke/log/` on the speaker
-(`ssh root@<ip> 'tail -f /data/invoke/log/*.log'`).
+The volume knob sets all sources; the volume slider in Spotify, AirPlay, Cast and Bluetooth moves the same volume (UPnP
+keeps its own software volume on top). Logs are in `/data/leuchtfeuer/log/` on the speaker
+(`ssh root@<ip> 'tail -f /data/leuchtfeuer/log/*.log'`).
 
 ### Web interface, alarms, Home Assistant
 
@@ -146,7 +154,34 @@ The volume knob sets all sources. Logs are in `/data/invoke/log/` on the speaker
 - **Home Assistant:** Home Assistant tab: enter your MQTT broker. The speaker registers itself via MQTT discovery (device with
   volume, mute, web radio, pairing, timers, alarm buttons, sensors, button events).
 - **Light ring:** can follow the music of all receivers as a visualizer (Settings > Light ring: spectrum, level or pulse,
-  colour, brightness, start LED; off by default). Volume knob, mute, alarm, timer and buttons keep their own animations.
+  colour, brightness, start LED; off by default) or glow as a lamp in any colour. A running timer shows its remaining time
+  as a filling ring. Volume knob, mute, alarm, timer and buttons keep their own animations. In Home Assistant the ring is a
+  light with colour, brightness and effects.
+- **Alarms, more:** *sunrise light* (the ring brightens from deep red to warm white over N minutes before the alarm),
+  *not on public holidays* (pick the German state under Alarms & timers), *skip next* (one time), *fade out when stopped*,
+  and any stream or file address as sound (e.g. a file on your music server).
+- **Sleep timer:** Overview, 15-90 minutes: the music fades out over 30 s and every source stops.
+- **Now playing:** title and artist of Spotify, AirPlay, Bluetooth, Cast and web radio; UPnP, Sendspin, Tidal and
+  Snapcast show as playing while they use the speaker. Bluetooth can be paused and skipped from the web interface.
+- **Sources and volume** (Settings): when a second source starts, the newest plays and the others pause (Bluetooth and
+  Cast really pause, web radio stops, the rest are muted until they start again, and come back 5 s after the newest one
+  ends). *All play together* restores the old behaviour. A highest volume overall and per source, and a start volume per
+  source (e.g. Bluetooth always starts at 25 %).
+- **Sound** (Settings): bass and treble (±12 dB), *loudness* (more bass and treble the quieter it plays) and *night mode*
+  (evens out loud and quiet passages). Works for every source, changes apply at once.
+- **Announcements:** Home Assistant sends an audio address (text-to-speech, door bell) or `chime` / `bell` / `beep` to the
+  *Announcement* text entity; the music is lowered meanwhile (Settings > Sources: by how many dB). The Overview has test
+  buttons, a button can be mapped to the chime.
+- **Services** (Settings): switch Spotify, UPnP, Cast, AirPlay, Sendspin, Bluetooth, Tidal and Snapcast on or off. A
+  switched-off service is not started and its ports stay closed. A service that keeps crashing is restarted with growing
+  pauses (30 s ... 30 min) and marked as failing.
+- **Back up and restore** (Settings): one file with settings, pairings, Spotify login and SSH keys (contains secrets);
+  restoring it brings everything back, e.g. after a factory reset. The *diagnostics package* (status, settings without
+  secrets, logs) is meant for bug reports.
+- **HTTPS:** `WEB_TLS="on"` in `/data/leuchtfeuer/config` makes the web interface use HTTPS with its own certificate (the browser
+  warns once); HTTP then redirects. MQTT can use TLS too (Home Assistant tab).
+- **Clock:** the speaker sets its clock by NTP after start and every 6 h (`NTP_SERVER`); the Overview warns if it is off by
+  more than 2 s.
 
 ### Discovery across Wi-Fi ↔ LAN
 
@@ -156,13 +191,36 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 
 ## 6. Maintenance
 
-- **Update:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>`.
-- **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>` (also checks the visualizer plugin and the vendor `audio-ui`).
+- **Update:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (or `./install.sh --prebuilt`). Before new files
+  are put in place the old ones are saved to `/data/leuchtfeuer/.prev`; if a service then keeps failing within 10 minutes, the
+  speaker goes back to the previous version by itself (Settings > Update shows it, and has a button to roll back by hand).
+- **Update from the web interface:** Settings > Update checks the release page and installs a newer release. It needs the
+  release signing key in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, set by `install.sh` from `docs/release-key.pub`): only
+  packages signed with that key are accepted. Without internet on the speaker, upload the package and its `.sig` there.
+- **Releases (maintainer):** create a key once with `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
+  put the printed public key into `docs/release-key.pub`, store the private key as secret `LEUCHTFEUER_SIGNING_KEY` (and a
+  Gitea token as `RELEASE_TOKEN`) for `.gitea/workflows/release.yml`. A tag `v*` then builds, signs and publishes the
+  package; locally: `./build.sh --no-tidal && tools/make-release.sh --key <file>`.
+- **Tests without a speaker:** `tests/run.sh` (also run by the CI).
+- **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>` (also checks the audio chain plugins, the source controls and the vendor `audio-ui`).
+- **Device test:** `scripts/smoke.sh --ip <ip> --key <pub> [--token lf_…] [--listen]`. It goes deeper than verify and
+  writes a Markdown report:
+  - each source PCM opens
+  - controls and the sound plugin file are there
+  - CPU of the audio chain
+  - clock, NTP and watchdog
+  - every capture device is recorded with its level, to find the microphone for the voice assistant
+  - with a key: API, security headers and origin check
+  - with `--listen`: chime, radio, ducking, cross-fade and briefing, asked one by one
+- **Hardware watchdog:** `WATCHDOG="on"` in `/data/leuchtfeuer/config` (only if `smoke.sh` found `/dev/watchdog` and nothing else
+  holds it). `leuchtfeuerd -watchdog` sets a 60 s timeout and feeds it only while the hook is alive. After 3 boots without
+  30 minutes of stable uptime it stays off; to re-arm, delete `/data/leuchtfeuer/watchdog-unstable`. The emergency brake
+  closes it cleanly.
 - **Do not kill `mcu-interface`** (vendor ring/amplifier controller): the vendor supervisor then restarts its stack in recovery
   mode, `audio-ui` drops off the router and the amplifier stays muted. A reboot of the speaker fixes it.
-- **Emergency brake:** `ssh root@<ip> 'touch /data/invoke/disable-hook'`, reboot → original behaviour.
+- **Emergency brake:** `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'`, reboot → original behaviour.
 - **Uninstall:** `./uninstall.sh --ip <ip> --key <pub> [--purge]` (removes the autostart hook, restores
-  `dnsmasq.conf`, reboots; `--purge` also deletes `/data/invoke`).
+  `dnsmasq.conf`, reboots; `--purge` also deletes `/data/leuchtfeuer`).
 - **Factory state:** the vendor firmware can be flashed again with the vendor tool (`l2nand -m 83` with the vendor
   image); restore `factory_setting` from your backup if it was damaged.
 
@@ -173,8 +231,11 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 | `adb shell id` is not root | Not StockRoot (firmware 12.x has adbd off and port 22 closed) – part 2 |
 | `install.sh` slow or timing out | Wi-Fi link (ping loss); move the speaker, re-run – unchanged files are skipped |
 | SSH refuses | `--key` must be the public key matching your private key / agent; too many agent keys can exhaust dropbear's 10 tries → `-o IdentitiesOnly=yes` |
-| Service missing | `ssh root@<ip> 'ps; tail /data/invoke/log/<service>.log'`; the hook restarts dead services every 30 s |
-| Bluetooth not visible | `scripts/verify-install.sh`; `/data/invoke/log/bluetooth-*.log`; `hciconfig hci0` must say `UP RUNNING PSCAN ISCAN` |
+| Service missing | `ssh root@<ip> 'ps; tail /data/leuchtfeuer/log/<service>.log'`; the hook restarts dead services every 30 s |
+| Bluetooth not visible | `scripts/verify-install.sh`; `/data/leuchtfeuer/log/bluetooth-*.log`; `hciconfig hci0` must say `UP RUNNING PSCAN ISCAN` |
 | Music Assistant says "legacy mode" for Sendspin | Expected: sendspin-go 1.8.x speaks the unencrypted dialect; accepted while "Allow legacy clients" is on |
-| No sound, "audio-ui not reachable" | `scripts/verify-install.sh` (visualizer plugin, `audio-ui`); a reboot of the speaker usually fixes it. If `/data/invoke/lib/ladspa/invoke-viz-tap.so` is missing, run `install.sh` again (the audio chain needs it) |
+| No sound, "audio-ui not reachable" | `scripts/verify-install.sh` (plugins, `audio-ui`, source controls); a reboot of the speaker usually fixes it. If `/data/leuchtfeuer/lib/ladspa/leuchtfeuer-viz-tap.so` or `leuchtfeuer-eq.so` is missing, run `install.sh` again (the audio chain needs both) |
+| One source is silent | Settings > Sources: is it marked *paused (other source)*? It comes back 5 s after the other source stops, or switch to *All play together*. `amixer -c 0 sget "Quelle spotify"` should be 255 |
+| A service keeps failing | Overview shows it; Settings > Services > Log. After an update the speaker rolls back by itself; otherwise switch the service off |
+| Alarm at the wrong time | Overview warns if the clock is off; check `NTP_SERVER` and that the speaker reaches it (`/data/leuchtfeuer/hook.log`) |
 | Tidal login fails | iFi certificate may have been revoked; not fixable here |

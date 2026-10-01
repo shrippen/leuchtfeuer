@@ -1,5 +1,0 @@
-#!/bin/sh
-# D-Bus-Systembus (dbus-daemon des Geräts) nur für avahi-daemon/Tidal Connect.
-mkdir -p /run/dbus
-rm -f /run/dbus/pid /run/dbus/system_bus_socket
-exec /usr/bin/dbus-daemon --config-file=/data/invoke/tidal/dbus-system.conf --nofork --nopidfile

@@ -3,15 +3,15 @@
 # Setzt nachträglich das Passwort der Weboberfläche , ohne die Installation zu wiederholen.
 #
 #   ./scripts/set-web-password.sh                      interactive (asks for the IP, key and password)
-#   INVOKE_WEB_PASSWORD=secret ./scripts/set-web-password.sh --ip 192.168.1.50 --key ~/.ssh/id_ed25519.pub
+#   LEUCHTFEUER_WEB_PASSWORD=secret ./scripts/set-web-password.sh --ip 192.168.1.50 --key ~/.ssh/id_ed25519.pub
 #   ./scripts/set-web-password.sh --ip IP --key KEY --random     generate a random password and print it
 #
 # The password is also changeable in the web interface (Settings). Rule: at least 6 characters. The speaker stores only a salted
-# PBKDF2 hash (WEB_PASSWORD_HASH in /data/invoke/config), never the password itself.
+# PBKDF2 hash (WEB_PASSWORD_HASH in /data/leuchtfeuer/config), never the password itself.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib.sh
-IP=""; KEY=""; PW=${INVOKE_WEB_PASSWORD:-}; RANDOM_PW=0
+IP=""; KEY=""; PW=${LEUCHTFEUER_WEB_PASSWORD:-}; RANDOM_PW=0
 while [ $# -gt 0 ]; do
   case $1 in
     --ip) IP=$2; shift 2 ;; --key) KEY=$2; shift 2 ;; --password) PW=$2; shift 2 ;; --random) RANDOM_PW=1; shift ;;
@@ -33,8 +33,8 @@ if [ -z "$PW" ] && [ "$INTERACTIVE" = 1 ]; then ask_web_password PW; fi
 valid_web_password "$PW" || die "the password needs at least 6 characters" "das Passwort braucht mindestens 6 Zeichen"
 case $PW in *$'\n'*) die "no line breaks in the password" "keine Zeilenumbrüche im Passwort" ;; esac
 
-# the password travels on stdin (not in the command line); invoked hashes it with a random salt and writes the hash
-printf '%s\n' "$PW" | S '/data/invoke/bin/invoked -set-password && { p=$(cat /run/invoke-svc-invoked.pid 2>/dev/null); [ -n "$p" ] && kill "$p"; true; }' \
+# the password travels on stdin (not in the command line); leuchtfeuerd hashes it with a random salt and writes the hash
+printf '%s\n' "$PW" | S '/data/leuchtfeuer/bin/leuchtfeuerd -set-password && { p=$(cat /run/leuchtfeuer-svc-leuchtfeuerd.pid 2>/dev/null); [ -n "$p" ] && kill "$p"; true; }' \
   || die "could not set the password (is Leuchtfeuer installed and up to date? run ./install.sh)" \
          "Passwort konnte nicht gesetzt werden (Leuchtfeuer installiert und aktuell? ./install.sh ausführen)"
 ok "web password set (stored as a salted hash); the web interface restarts within 30 seconds, existing logins end" \

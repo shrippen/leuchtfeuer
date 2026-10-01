@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Baut BlueZ 5.50 (bluetoothd), bluez-alsa mit AAC (fdk-aac statisch; A2DP-Empfänger, bluealsa-aplay) für den
 # Invoke: glibc 2.23 armhf (Xenial-Cross), libsbc (Xenial-Paket)/libbluetooth statisch, GLib/D-Bus/ALSA dynamisch
-# aus dem Gerät. Pfade zur Laufzeit liegen unter /data/invoke/bluez (Zustand der Kopplungen auf /data).
+# aus dem Gerät. Pfade zur Laufzeit liegen unter /data/leuchtfeuer/bluez (Zustand der Kopplungen auf /data).
 #   tools/build-bluez.sh   -> build/bluez/{bluetoothd,bluealsa,bluealsa-aplay,...}
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
@@ -12,7 +12,7 @@ docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
 docker image inspect invoke-xenial-armhf-bt >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf-bt -f "$here/tools/docker/xenial-armhf-bt.Dockerfile" "$here/tools/docker"
 docker run --rm -v "$out:/out" invoke-xenial-armhf-bt bash -euc '
-  H=arm-linux-gnueabihf; P=/opt/bt; R=/data/invoke/bluez
+  H=arm-linux-gnueabihf; P=/opt/bt; R=/data/leuchtfeuer/bluez
   export PKG_CONFIG_LIBDIR=/usr/lib/$H/pkgconfig:/usr/share/pkgconfig:$P/lib/pkgconfig
   cd /tmp
   # AAC-Codec (fdk-aac), statisch: iPhones und viele Android-Geräte senden damit besser als mit SBC
@@ -49,6 +49,8 @@ PC
   cp /tmp/bz$R/libexec/bluetooth/bluetoothd /out/ 2>/dev/null || cp /tmp/bz$R/lib/bluetooth/bluetoothd /out/ 2>/dev/null || find /tmp/bz -name bluetoothd -exec cp {} /out/ \;
   for t in hciconfig hcitool btmgmt l2ping sdptool; do find /tmp/bz -name $t -type f -exec cp {} /out/ \; ; done
   find /tmp/ba -type f \( -name bluealsa -o -name bluealsa-aplay \) -exec cp {} /out/ \;
+  # ALSA-Plugin "bluealsa": Ausgabe an Bluetooth-Lautsprecher (A2DP-Quelle), siehe asound-target.conf
+  find /tmp/ba -type f -name libasound_module_pcm_bluealsa.so -exec cp {} /out/ \;
   $H-strip /out/* 2>/dev/null || true
   for f in /out/bluetoothd /out/bluealsa /out/bluealsa-aplay; do echo "== $f"; $H-readelf -d $f | grep NEEDED; done > /out/needed.txt
 '

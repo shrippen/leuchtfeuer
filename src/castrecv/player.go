@@ -188,3 +188,21 @@ func splitLines(data []byte, atEOF bool) (int, []byte, error) {
 	}
 	return 0, nil, nil
 }
+
+// report liefert Zustand und Titel für leuchtfeuerd: state playing | paused | buffering | idle.
+func (p *player) report() map[string]any {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	st := map[string]any{"state": map[string]string{"PLAYING": "playing", "PAUSED": "paused", "BUFFERING": "buffering"}[p.state], "title": "", "artist": "", "album": ""}
+	if st["state"] == "" {
+		st["state"] = "idle"
+	}
+	if md, ok := p.media["metadata"].(map[string]any); ok {
+		for from, to := range map[string]string{"title": "title", "artist": "artist", "albumName": "album"} {
+			if v, ok := md[from].(string); ok {
+				st[to] = v
+			}
+		}
+	}
+	return st
+}

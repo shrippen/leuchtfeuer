@@ -20,8 +20,8 @@ import (
 // com.harman.ledAnimate mit vorhandenen Animationen (eine eigene Pairing-Animation gibt es nicht).
 
 const (
-	ledOpen   = "L_106_c_success"  // Fenster geöffnet / Gerät gekoppelt
-	ledClosed = "L_312_d_shorttap" // Fenster geschlossen
+	ledOpen   = "bt_open"   // Fenster geöffnet / Gerät gekoppelt (Animation des Zielgeräts, falls es einen Ring hat)
+	ledClosed = "bt_closed" // Fenster geschlossen
 )
 
 type pairingWindow struct {
@@ -60,7 +60,7 @@ func pairedSet() map[string]bool {
 	return set
 }
 
-// writeState schreibt den Zustand nach /run/invoke-bt-state.json (liest invoked für Weboberfläche und Home Assistant).
+// writeState schreibt den Zustand nach $LEUCHTFEUER_RUN/leuchtfeuer-bt-state.json (liest leuchtfeuerd für Weboberfläche und Home Assistant).
 func (p *pairingWindow) writeState() {
 	p.mu.Lock()
 	open := p.always || p.open
@@ -70,9 +70,13 @@ func (p *pairingWindow) writeState() {
 	}
 	p.mu.Unlock()
 	b, _ := json.Marshal(map[string]any{"open": open, "until": until})
-	tmp := "/run/invoke-bt-state.json.new"
+	run := os.Getenv("LEUCHTFEUER_RUN")
+	if run == "" {
+		run = "/run"
+	}
+	tmp := run + "/leuchtfeuer-bt-state.json.new"
 	if os.WriteFile(tmp, b, 0o644) == nil {
-		os.Rename(tmp, "/run/invoke-bt-state.json")
+		os.Rename(tmp, run+"/leuchtfeuer-bt-state.json")
 	}
 }
 
@@ -160,17 +164,14 @@ func (p *pairingWindow) check() {
 	}
 }
 
-// led spielt eine Leuchtring-Animation ab (best effort; läuft nur, wenn die WAMP-Verbindung steht).
-func led(pattern string) {
-	vs.mu.Lock()
-	w := vs.wamp
-	vs.mu.Unlock()
-	if w == nil {
+// led spielt eine Ring-Animation ab (leuchtfeuerd übersetzt sie fürs Zielgerät; ohne Ring ohne Wirkung).
+func led(name string) {
+	if !lf.Connected() {
 		return
 	}
 	go func() {
-		if _, err := w.call("com.harman.ledAnimate", pattern); err != nil {
-			log.Printf("ledAnimate %s: %v", pattern, err)
+		if err := lf.Post("/ring", map[string]string{"animation": name}, nil); err != nil {
+			log.Printf("Ring %s: %v", name, err)
 		}
 	}()
 }

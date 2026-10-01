@@ -2,7 +2,10 @@ module castrecv
 
 go 1.22
 
-require github.com/grandcat/zeroconf v1.0.0
+require (
+	github.com/grandcat/zeroconf v1.0.0
+	leuchtfeuer/lfbus v0.0.0
+)
 
 require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
@@ -11,3 +14,5 @@ require (
 	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
 	golang.org/x/sys v0.0.0-20190924154521-2837fb4f24fe // indirect
 )
+
+replace leuchtfeuer/lfbus => ../lfbus

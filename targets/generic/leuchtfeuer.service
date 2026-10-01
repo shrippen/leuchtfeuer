@@ -1,0 +1,19 @@
+# Leuchtfeuer auf einem beliebigen Linux (Zielgerät "generic"). Der Hook startet und überwacht die Dienste
+# (Weboberfläche, Spotify, AirPlay, Cast ...); alles läuft in dieser Unit und endet mit ihr.
+# Installiert von targets/generic/install.sh nach /etc/systemd/system/leuchtfeuer.service.
+[Unit]
+Description=Leuchtfeuer (Musikempfänger und Weboberfläche)
+Wants=network-online.target sound.target
+After=network-online.target sound.target bluetooth.target
+
+[Service]
+Environment=LEUCHTFEUER_DIR=@DIR@
+Environment=LEUCHTFEUER_RUN=/run/leuchtfeuer
+RuntimeDirectory=leuchtfeuer
+ExecStart=/bin/sh @DIR@/hook.sh
+KillMode=control-group
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -26,7 +26,7 @@ docker run --rm -v "$out:/out" -e TAG="$tag" invoke-xenial-armhf-bt bash -euc '
   git rev-parse HEAD > /out/source.commit
   autoreconf -fi >/dev/null 2>&1
   ./configure --host=$H --with-alsa --with-ssl=openssl --with-tinysvcmdns --with-metadata --with-apple-alac CPPFLAGS="-I/opt/alac/include" CXXFLAGS="-I/opt/alac/include -O2" \
-     --sysconfdir=/data/invoke/shairport >/dev/null
+     --sysconfdir=/data/leuchtfeuer/shairport >/dev/null
   # popt, libconfig, OpenSSL und ALAC statisch einbinden (erst nach configure: dessen Pthread-Prüfung verträgt kein -Bstatic)
   L=/usr/lib/$H
   CXXLIB=$($H-g++ -print-file-name=libstdc++.a)

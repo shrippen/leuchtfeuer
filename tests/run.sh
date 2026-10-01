@@ -1,0 +1,34 @@
+#!/bin/sh
+# Alle Prüfungen, die ohne Lautsprecher laufen (auch in der CI): Go (vet, gofmt, Tests mit Race-Detector),
+# Klang-Plugin, Hook, Update-Skript, Shell-Syntax (shellcheck, falls vorhanden) und die Weboberfläche (node --check).
+#   tests/run.sh
+set -u
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT"
+fail=0
+step(){ printf '\n== %s\n' "$1"; shift; "$@" || { echo "FEHLER: $*"; fail=1; }; }
+for m in wamp lfbus leuchtfeuerd btagent castrecv relsign; do
+  [ -d src/$m ] || continue
+  step "go vet $m" sh -c "cd src/$m && go vet ./..."
+  step "gofmt $m" sh -c "cd src/$m && test -z \"\$(gofmt -l .)\" || { gofmt -l .; exit 1; }"
+  step "go test $m" sh -c "cd src/$m && go test -race -count=1 ./..."
+done
+step "go vet leuchtfeuerd (Demo)" sh -c "cd src/leuchtfeuerd && go vet -tags demo ./..."
+step "Klang-Plugin" sh -c "cc -O2 -Wall -Wextra -Werror -o /tmp/leuchtfeuer-eq-test tests/eq_test.c device/src/leuchtfeuer-eq.c -lm && /tmp/leuchtfeuer-eq-test"
+step "Visualizer-Plugin übersetzt" sh -c "cc -shared -fPIC -O2 -Wall -Wextra -Werror -o /tmp/leuchtfeuer-tap.so device/src/leuchtfeuer-viz-tap.c"
+step "Hook" sh tests/hook_test.sh
+step "apply-update.sh" sh tests/apply_update_test.sh
+step "Umzug älterer Installationen" sh tests/migrate_test.sh
+if command -v curl >/dev/null && command -v cc >/dev/null; then
+  step "Zielgerät generic (Ende zu Ende)" sh tests/generic_e2e.sh
+fi
+step "Shell-Syntax" sh -c 'for f in device/leuchtfeuer/*.sh device/leuchtfeuer/services/*.sh targets/*/*.sh targets/*/services/*.sh; do sh -n "$f" || exit 1; done; for f in *.sh scripts/*.sh tools/*.sh tests/*.sh; do bash -n "$f" || exit 1; done'
+if command -v shellcheck >/dev/null; then
+  step "shellcheck (Gerät, POSIX sh)" shellcheck -s sh -S warning -e SC3043 device/leuchtfeuer/*.sh device/leuchtfeuer/services/*.sh targets/*/target.sh targets/*/boot.sh targets/*/setup.sh targets/*/services/*.sh
+fi
+step "Weboberfläche (Syntax)" sh -c "node --check src/leuchtfeuerd/web/app.js && node --check src/leuchtfeuerd/web/roomeq.js && node --check src/leuchtfeuerd/web/login.js"
+step "Raum einmessen (Auswertung)" node tests/roomeq_test.js
+step "Home-Assistant-Integration" sh tests/homeassistant/run.sh
+echo
+[ $fail = 0 ] && echo "Alles in Ordnung." || echo "Es gibt Fehler."
+exit $fail

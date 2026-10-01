@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HK Invoke</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="kante/shrippen.css">
+  <link rel="stylesheet" href="kante/fonts.css">
+  <link rel="stylesheet" href="app.css">
+  <script src="kante/shrippen.js"></script>
+</head>
+<body>
+  <nav class="nav brand-on">
+    <div class="nav-inner">
+      <a class="nav-brand" href="#/"><img class="brand-logo" src="favicon.svg" alt="Leuchtfeuer" width="22" height="22"><span id="brand">HK Invoke</span></a>
+      <div class="nav-links">
+        <span class="app-conn" id="conn"></span>
+        <div class="lang" role="group" aria-label="Language">
+          <button type="button" data-lang="en" aria-pressed="true">EN</button>
+          <button type="button" data-lang="de" aria-pressed="false">DE</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <main class="app">
+    <div class="tabs" id="tabs" role="tablist"><button role="tab" data-r="overview" aria-selected="true"><span lang="en">Overview</span><span lang="de">Übersicht</span></button><button role="tab" data-r="radio" aria-selected="false"><span lang="en">Radio</span><span lang="de">Radio</span></button><button role="tab" data-r="alarms" aria-selected="false"><span lang="en">Alarms &amp; timers</span><span lang="de">Wecker &amp; Timer</span></button><button role="tab" data-r="briefing" aria-selected="false"><span lang="en">Briefing</span><span lang="de">Briefing</span></button><button role="tab" data-r="buttons" aria-selected="false"><span lang="en">Buttons</span><span lang="de">Tasten</span></button><button role="tab" data-r="network" aria-selected="false"><span lang="en">Network</span><span lang="de">Netzwerk</span></button><button role="tab" data-r="ha" aria-selected="false"><span lang="en">Home Assistant</span><span lang="de">Home Assistant</span></button><button role="tab" data-r="devices" aria-selected="false"><span lang="en">Speakers</span><span lang="de">Geräte</span></button><button role="tab" data-r="settings" aria-selected="false"><span lang="en">Settings</span><span lang="de">Einstellungen</span></button><button role="tab" data-r="system" aria-selected="false"><span lang="en">System</span><span lang="de">System</span></button></div>
+    <div id="view"></div>
+  </main>
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+  <script src="roomeq.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
