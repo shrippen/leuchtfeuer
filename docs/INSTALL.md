@@ -126,10 +126,26 @@ After the reboot the services come up within about 90 s.
 | Spotify | "HK Invoke" appears in the Spotify app's device list (same Wi-Fi; Premium) |
 | UPnP/DLNA | pick "HK Invoke" as renderer in your UPnP app; https:// streams work (current CA bundle) |
 | Music Assistant | the player appears via Sendspin (set `SENDSPIN_SERVER`) and, if the Cast provider finds it, as a Chromecast; add it by IP in the Google Cast provider's known hosts if mDNS does not cross your Wi-Fi/LAN |
+| AirPlay | "HK Invoke" appears in the AirPlay menu of iPhone, iPad and Mac (AirPlay 1, audio only) |
+| Web interface | `http://<speaker-ip>:8080`, user `admin`, password in `/data/invoke/config` (`WEB_PASSWORD`, shown by `install.sh`; change it in Settings) |
 | Tidal | "HK Invoke" appears in the Tidal app's Tidal Connect list |
 
 The volume knob sets all sources. Logs are in `/data/invoke/log/` on the speaker
 (`ssh root@<ip> 'tail -f /data/invoke/log/*.log'`).
+
+### Web interface, alarms, Home Assistant
+
+- **Alarms/timers:** set the time zone first (Alarms & timers tab). An alarm can fade in over N seconds to a target volume, play
+  beeps or a web radio station, snooze and stop itself after a limit. The timer beeps use the light ring's timer animation.
+  The mic button is mapped to *smart* (snooze an alarm / end a timer / mute) by default; see the Buttons tab, which also logs
+  the name and value of every button the speaker reports so you can map them.
+- **Wi-Fi guard:** Network tab. It pings the router every 20 s; after two poor measurements in a row (default: 20 % loss or
+  150 ms) it scans for other access points of your network, switches to the best one that is not marked poor and checks again.
+  "Find access points" lists them and lets you switch by hand; *Dry run* only logs.
+- **Home Assistant:** Home Assistant tab: enter your MQTT broker. The speaker registers itself via MQTT discovery (device with
+  volume, mute, web radio, pairing, timers, alarm buttons, sensors, button events).
+- **Light ring:** shows the speaker's states (volume knob, alarm, timer, pairing). It cannot follow the music (see
+  [ARCHITECTURE.md](ARCHITECTURE.md), *Light ring*).
 
 ### Discovery across Wi-Fi ↔ LAN
 

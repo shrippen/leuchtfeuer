@@ -123,11 +123,13 @@ fi
 # ====================================================================== settings
 say "Step 5: settings" "Schritt 5: Einstellungen"
 d_srv=""
+host_tz(){ local t; t=$(timedatectl show -p Timezone --value 2>/dev/null || true); [ -n "$t" ] || t=$(cat /etc/timezone 2>/dev/null || true)
+  [ -n "$t" ] || t=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||'); echo "${t:-Europe/Berlin}"; }
 if [ -n "$CONFIG" ]; then
   [ -f "$CONFIG" ] || die "settings file $CONFIG not found" "Einstellungsdatei $CONFIG nicht gefunden"
   ok "using $CONFIG" "verwende $CONFIG"
 else
-  d_name="HK Invoke"; d_srv=""; d_host="invoke"; d_bt="button"; keep=0
+  d_name="HK Invoke"; d_srv=""; d_host="invoke"; d_bt="button"; d_tz=$(host_tz); d_air="on"; keep=0
   if [ "$MODE" = update ]; then
     cur=$(sshd 'cat /data/invoke/config' 2>/dev/null || true)
     if [ -n "$cur" ]; then
@@ -137,6 +139,8 @@ else
       d_srv=$(cfgval SENDSPIN_SERVER "$cur")
       d_host=$(cfgval DHCP_HOSTNAME "$cur"); d_host=${d_host:-invoke}
       d_bt=$(cfgval BLUETOOTH_PAIRING "$cur"); d_bt=${d_bt:-button}
+      t=$(cfgval TIMEZONE "$cur"); d_tz=${t:-$d_tz}
+      t=$(cfgval AIRPLAY "$cur"); d_air=${t:-on}
       if [ "$INTERACTIVE" = 0 ] || ask_yn "Keep these settings?" "Diese Einstellungen behalten?" y; then keep=1; fi
     else
       [ "$INTERACTIVE" = 0 ] && keep=1
@@ -145,7 +149,8 @@ else
   if [ $keep = 1 ]; then
     ok "settings stay as they are" "Einstellungen bleiben unverändert"
   elif [ "$INTERACTIVE" = 0 ]; then
-    CONFIG=device/invoke/config.example; ok "defaults ($CONFIG)" "Standardwerte ($CONFIG)"
+    CONFIG="$STAGE/config.chosen"; sed "s|^TIMEZONE=.*|TIMEZONE=\"$d_tz\"|" device/invoke/config.example > "$CONFIG"
+    ok "defaults (device/invoke/config.example, time zone $d_tz)" "Standardwerte (device/invoke/config.example, Zeitzone $d_tz)"
   else
     note "Name shown in Spotify, UPnP/DLNA apps, Cast, Music Assistant and in the Bluetooth list." \
          "Name, unter dem der Lautsprecher in Spotify, UPnP/DLNA-Apps, Cast, Music Assistant und der Bluetooth-Liste erscheint."
@@ -168,8 +173,12 @@ sichtbar und koppelbereit (schon gekoppelte Handys verbinden sich immer von selb
 jeder in Reichweite kann koppeln."
     ask s_bt "Bluetooth pairing (button/always)" "Bluetooth-Kopplung (button/always)" "$d_bt"
     case $s_bt in button|always) ;; *) warn "unknown value, using 'button'" "unbekannter Wert, nehme 'button'"; s_bt=button ;; esac
+    note "Alarms and timers use this time zone (IANA name, e.g. Europe/Berlin). The speaker itself runs on Pacific time." \
+         "Wecker und Timer nutzen diese Zeitzone (IANA-Name, z. B. Europe/Berlin). Der Lautsprecher selbst läuft auf Pacific Time."
+    ask s_tz "Time zone" "Zeitzone" "$d_tz"
+    if ask_yn "Enable the AirPlay receiver (iPhone, iPad, Mac)?" "AirPlay-Empfänger aktivieren (iPhone, iPad, Mac)?" "$([ "$d_air" = off ] && echo n || echo y)"; then s_air=on; else s_air=off; fi
     CONFIG="$STAGE/config.chosen"
-    printf 'DEVICE_NAME="%s"\nSENDSPIN_SERVER="%s"\nDHCP_HOSTNAME="%s"\nBLUETOOTH_PAIRING="%s"\n' "$s_name" "$s_srv" "$s_host" "$s_bt" > "$CONFIG"
+    printf 'DEVICE_NAME="%s"\nSENDSPIN_SERVER="%s"\nDHCP_HOSTNAME="%s"\nBLUETOOTH_PAIRING="%s"\nTIMEZONE="%s"\nAIRPLAY="%s"\n' "$s_name" "$s_srv" "$s_host" "$s_bt" "$s_tz" "$s_air" > "$CONFIG"
   fi
 fi
 
@@ -202,7 +211,7 @@ fi
 need=(build/dropbear/dropbearmulti build/librespot/librespot build/gmrender/gmediarender
       build/sendspin/sendspin-player build/castrecv/castrecv build/btagent/btagent
       build/bluez/bluetoothd build/bluez/bluealsa build/bluez/bluealsa-aplay build/bluez/hciconfig
-      build/bluez/hcitool build/bluez/lib/libsbc.so.1 build/shim/avahi-user-shim.so)
+      build/bluez/hcitool build/bluez/lib/libsbc.so.1 build/shim/avahi-user-shim.so build/invoked/invoked build/shairport/shairport-sync)
 if [ "$TIDAL" = 1 ]; then need+=(build/tidal/bin/tidal_connect_application build/tidal/cert/IfiAudio_ZenStream.dat); fi
 missing=(); for f in "${need[@]}"; do [ -e "$f" ] || missing+=("$f"); done
 if [ ${#missing[@]} -gt 0 ]; then
@@ -229,10 +238,10 @@ assemble(){
   if [ "$DRY" = 1 ] && [ ! -e build/dropbear/dropbearmulti ]; then return 0; fi
   cp build/dropbear/dropbearmulti "$S/"
   cp build/librespot/librespot build/gmrender/gmediarender build/sendspin/sendspin-player \
-     build/castrecv/castrecv build/btagent/btagent "$S/bin/"
+     build/castrecv/castrecv build/btagent/btagent build/invoked/invoked build/shairport/shairport-sync "$S/bin/"
   cp build/bluez/{bluetoothd,bluealsa,bluealsa-aplay,hciconfig,hcitool} "$S/bluez/bin/"
   cp build/bluez/lib/libsbc.so.1 "$S/bluez/lib/"
-  cp "$d/services/"{librespot,gmrender,sendspin,castrecv,volume-sync,bluetooth-1-bluetoothd,bluetooth-2-agent,bluetooth-3-bluealsa,bluetooth-4-aplay}.sh "$S/services/"
+  cp "$d/services/"{librespot,gmrender,sendspin,castrecv,shairport,invoked,volume-sync,bluetooth-1-bluetoothd,bluetooth-2-agent,bluetooth-3-bluealsa,bluetooth-4-aplay}.sh "$S/services/"
   if [ "$TIDAL" = 1 ]; then
     cp -a build/tidal/bin build/tidal/cert build/tidal/lib build/tidal/sbin "$S/tidal/"
     cp build/shim/avahi-user-shim.so "$S/tidal/lib/"
@@ -421,19 +430,24 @@ CFGSRV=${d_srv:-}; [ -n "$CONFIG" ] && CFGSRV=$(cfgval SENDSPIN_SERVER "$(cat "$
 if [ -n "$CFGSRV" ]; then mahint=$(t "Sendspin connects to $CFGSRV." "Sendspin verbindet sich mit $CFGSRV.")
 else mahint=$(t "if it is not found automatically, set SENDSPIN_SERVER on the speaker (see settings)." "falls er nicht automatisch gefunden wird, SENDSPIN_SERVER auf dem Lautsprecher setzen (siehe Einstellungen).")
 fi
+WEBPW=""; [ "$DRY" = 0 ] && WEBPW=$(sshd 'sed -n "s/^WEB_PASSWORD=\"\(.*\)\"/\1/p" /data/invoke/config' 2>/dev/null || true)
 info "What now:
+  - Web interface: http://$IP:8080  (user admin, password ${WEBPW:-see WEB_PASSWORD in /data/invoke/config on the speaker}):
+    status, web radio, alarms, timers, button mapping, Wi-Fi guard, Home Assistant, settings.
   - Bluetooth: press the speaker's Bluetooth button briefly, then pair it on your phone within 2 minutes (no PIN).
     It stays paired and reconnects by itself.
-  - Spotify / UPnP / Cast / Tidal: pick the speaker by its name in the app (same Wi-Fi).
+  - Spotify / UPnP / Cast / AirPlay / Tidal: pick the speaker by its name in the app (same Wi-Fi).
   - Music Assistant: $mahint
   - Log in:  ssh -i ${KEY%.pub} root@$IP
   - Settings: /data/invoke/config on the speaker; logs: /data/invoke/log/
   - Emergency brake: ssh root@$IP 'touch /data/invoke/disable-hook' and reboot = original behaviour.
   - Remove again: ./uninstall.sh" \
 "Wie weiter:
+  - Weboberfläche: http://$IP:8080  (Benutzer admin, Passwort ${WEBPW:-siehe WEB_PASSWORD in /data/invoke/config auf dem Lautsprecher}):
+    Status, Webradio, Wecker, Timer, Tastenbelegung, WLAN-Wächter, Home Assistant, Einstellungen.
   - Bluetooth: den Bluetooth-Knopf am Lautsprecher kurz drücken und ihn innerhalb von 2 Minuten am Handy koppeln
     (ohne PIN). Er bleibt gekoppelt und verbindet sich selbst wieder.
-  - Spotify / UPnP / Cast / Tidal: den Lautsprecher in der App über seinen Namen wählen (gleiches WLAN).
+  - Spotify / UPnP / Cast / AirPlay / Tidal: den Lautsprecher in der App über seinen Namen wählen (gleiches WLAN).
   - Music Assistant: $mahint
   - Anmelden: ssh -i ${KEY%.pub} root@$IP
   - Einstellungen: /data/invoke/config auf dem Lautsprecher; Logs: /data/invoke/log/

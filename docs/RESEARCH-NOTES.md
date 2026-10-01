@@ -264,3 +264,12 @@ Alle als Dienste unter `/data/invoke/services/*.sh` (Quelle `device/invoke/servi
   problemlos. Power-Management ist aus.
 - Last mit allen drei Diensten: Load ~0,3, ~60 MB RAM belegt, SoC 78 °C (Harman-Abschaltung
   bei 95 °C, `device_auto_recovery.sh`). Harman-`cortana` braucht die meiste CPU.
+
+## Leuchtring-Visualizer (untersucht, nicht umgesetzt)
+
+- Ring: 13 LEDs, Muster-Dateien `/usr/share/lights/*.bin` mit je 39 Byte pro Bild (13 × 3 Byte, vermutlich G,R,B), ~37-42 ms pro Bild.
+  `com.harman.ledAnimate [Name] {repeat}` spielt ein Muster; `ledSet ["front"] {color, mode}` nur die Front-LED.
+- Tonabgriff: ALSA-`multi` (dmix + `hw:Loopback,0,7`) liefert die Daten (Loopback-Aufnahme zeigt den Testton), aber GStreamer
+  (`alsasink` auf `invoke_music`, also gmrender) scheitert dann in `snd_pcm_hw_params_get_min` (leeres Intervall), auch mit festen
+  Parametern („Invalid argument“). Das `meter`-Plugin ist für GStreamer transparent, bekommt aber in den Ketten plug/softvol/dmix
+  keine Nutzdaten (s16-Puffer bleibt Null, hinten wie vorn). FIFO-Tee oder dmix-Speicher wären riskant für den Hauptton.

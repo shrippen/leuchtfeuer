@@ -53,6 +53,8 @@ music drop out. The services therefore use their **own** control `Invoke Music`,
 | `sendspin.sh` | sendspin-go 1.8.2 | outgoing 8927 | `Alsa.NoMMap = 1` patch (mmap on dmix/softvol spun a core); `SENDSPIN_SERVER` |
 | `castrecv.sh` | `src/castrecv` (Go) | 8009/tcp (TLS), 8008, 8443 | Cast receiver emulation, plays with `gst-launch-1.0` |
 | `tidal-1/2/3-*.sh` | iFi `tidal_connect_application` + bundled libs, avahi 0.6.32 (LD_PRELOAD shim for the missing `avahi` user), own `dbus-daemon` config | 2019/tcp | optional |
+| `shairport.sh` | shairport-sync 3.3.9 (AirPlay 1, Apple ALAC decoder), tinysvcmdns | 5000/tcp, 6001-6011/udp | `AIRPLAY="off"` disables |
+| `invoked.sh` | `src/invoked` | 8080/tcp | see below |
 | `volume-sync.sh` | shell | – | see above |
 | `bluetooth-1..4-*.sh` | bluetoothd, `btagent`, bluealsa, bluealsa-aplay | – | see below |
 
@@ -95,6 +97,36 @@ implements the CASTV2 protocol (TLS on 8009, protobuf framing by hand, namespace
 announces `_googlecast._tcp` (model *Chromecast Audio*) via mDNS and plays `LOAD`ed URLs with GStreamer
 (pause/resume by SIGSTOP/SIGCONT; volume sets the knob's control). Senders that verify the device certificate
 (YouTube, Chrome, Google Home) refuse it; Music Assistant, Home Assistant, VLC, pychromecast accept it.
+
+## invoked (web interface and extras)
+
+`src/invoked` (Go, one static binary, service `invoked.sh`) provides everything that is not an audio receiver:
+
+| Part | How |
+|---|---|
+| Volume, mute | through the vendor `audio-ui` over its WAMP router (`com.harman.volumeGet`, `volumeAdjust`, `musicMuteSet`, `musicMuteToggle`; events `volumeChanged`, `musicMuteChanged`), so the ALSA controls and LEDs stay consistent |
+| Buttons | subscribes to `com.harman.test.inputEvent [name, value]` (mic, volumeup/down, bluetooth); maps them to actions (settings) and forwards them to Home Assistant |
+| Web radio, alarm and timer tones | `gst-launch-1.0` (streams) or generated beeps piped to `aplay`, always on ALSA `invoke_music` |
+| Alarms, timers | scheduler in the configured IANA time zone; fade-in through `volumeAdjust`; light ring animations `L_111_c_alarm`, `L_112_c_timer` via `com.harman.ledAnimate` |
+| Wi-Fi guard | `wpa_cli` (`status`, `signal_poll`, `scan_results`, `roam`) + `ping` to the default gateway; per-access-point penalty list |
+| Home Assistant | MQTT 3.1.1 (paho), discovery topics under `homeassistant/`, state under `invoke/<mac>/…`, availability via last will |
+| Web interface | embedded static files + JSON API (Basic auth, user `admin`, `WEB_PASSWORD`); design from Kante (`web/kante/`, vendored with `tools/sync-kante.sh`, never edited by hand) |
+
+The core works against small interfaces (volume, player, LED) and an injectable clock, so the logic runs without a speaker.
+
+**Demo mode and release check.** `tools/build-invoked.sh` builds the release binary and aborts if the demo marker
+(`INVOKE-DEMO-BUILD`) is inside. The demo (`-tags demo`, `demo/start.sh`) is a separate build for screenshots with the shared
+"Studio Weber" data; it has no command line switch or data in the normal build.
+
+### Light ring
+
+The ring (13 RGB LEDs, 39 bytes per frame, about 25 frames per second) is driven by `mcu-interface` from pattern files
+`/usr/share/lights/*.bin`; `ledAnimate(name, {repeat})` plays one, `ledSet("front", …)` drives only the front status LED.
+An **audio visualizer was investigated and not built**: it needs a tap of the played audio. The Loopback card can receive a
+copy through an ALSA `multi` tee (data arrives), but then GStreamer clients (gmrender/UPnP) fail to open `invoke_music`
+(empty hw-params intervals, also with fixed parameters). The ALSA `meter` plugin with a scope is transparent but receives no
+payload in the speaker's plug/softvol/dmix chains (its buffer stays zero). Other routes (FIFO tee, reading dmix shared memory)
+would block or depend on internals and could stall the main audio path, which was not acceptable.
 
 ## Build system
 

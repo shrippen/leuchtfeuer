@@ -8,9 +8,17 @@ normalen Netzwerk-Lautsprecher. Nach der Installation erscheint er als **„HK I
 | **Spotify Connect** | [librespot](https://github.com/librespot-org/librespot) | braucht ein Spotify-Premium-Konto |
 | **UPnP / DLNA-Renderer** | [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect) | z. B. mit Symfonium, BubbleUPnP, foobar2000 |
 | **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | „Legacy“-Dialekt (unverschlüsselt), siehe unten |
+| **AirPlay** (AirPlay 1) | [shairport-sync](https://github.com/mikebrady/shairport-sync) 3.3.9 | iPhone, iPad, Mac; AirPlay 2 und Multiroom werden nicht unterstützt |
 | **Google Cast** (Audio) | eigene Empfänger-Nachbildung (`src/castrecv`) | nur für Sender ohne Geräteprüfung durch Google: Music Assistant, Home Assistant, VLC, pychromecast. **Nicht** YouTube / Spotify-Cast / Chrome-Tab |
 | **Tidal Connect** (optional) | proprietäres iFi-Programm | **nicht für dieses Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, siehe [Rechtliches](#rechtliches-und-risiken) |
 | **Bluetooth-A2DP-Empfänger** | BlueZ 5.50 + bluez-alsa + eigener Agent (`src/btagent`) | unsichtbar, bis du den **Bluetooth-Knopf** am Lautsprecher drückst (2 Minuten Pairing-Fenster, Rückmeldung am Leuchtring); koppelt ohne Abfrage, merkt sich Kopplungen, Handy-Lautstärke und Drehrad bleiben synchron |
+
+**Weboberfläche** (Port 8080, Design [Kante](https://github.com/shrippen/shrippen.github.io), Englisch/Deutsch):
+Status, **Webradio**, **Wecker** (Anstieg, Schlummern, Radio oder Signalton) und **Timer**, **Tastenbelegung**, der **WLAN-Wächter**
+(misst die echte Verbindungsqualität zum Router und wechselt bei anhaltend schlechter Qualität zu einem besseren Access Point
+desselben Netzes), **Home Assistant** (MQTT-Erkennung: Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timer,
+Wecker-Tasten, Temperatur, WLAN, Tasten-Ereignisse) und Einstellungen. Wecker und Timer nutzen deine Zeitzone und die
+Animationen des Leuchtrings.
 
 Alles läuft über die eigene DSP-/Verstärkerkette des Lautsprechers. Das **Drehrad** regelt alle Quellen und bleibt
 über Bluetooth in beide Richtungen mit der Handy-Lautstärke synchron.

@@ -19,7 +19,7 @@ bad(){ printf '  %sMISSING%s %s\n' "$C_R" "$C_N" "$(t "$1" "${2:-}")"; fail=1; }
 S true 2>/dev/null || { bad "SSH access (key) does not work" "SSH-Zugang (Schlüssel) geht nicht"; exit 1; }
 ok "SSH with key" "SSH mit Schlüssel"
 ps=$(S 'ps' 2>/dev/null)
-for p in librespot gmediarender sendspin-player castrecv volume-sync bluetoothd btagent bluealsa bluealsa-aplay; do
+for p in librespot gmediarender sendspin-player castrecv shairport-sync invoked volume-sync bluetoothd btagent bluealsa bluealsa-aplay; do
   if echo "$ps" | grep -q "[/ ]$p"; then ok "process $p" "Prozess $p"; else bad "process $p is not running" "Prozess $p läuft nicht"; fi
 done
 if echo "$ps" | grep -q "tidal_connect"; then ok "process tidal_connect_application" "Prozess tidal_connect_application"
@@ -30,7 +30,7 @@ if echo "$hci" | grep -q "ISCAN"; then ok "Bluetooth visible (ready to pair)" "B
 if S 'iptables -S INVOKE 2>/dev/null | grep -q -- "--dport 22"'; then ok "firewall chain INVOKE" "Firewall-Kette INVOKE"; else bad "firewall chain INVOKE is missing" "Firewall-Kette INVOKE fehlt"; fi
 if S 'amixer -c 0 sget "Invoke Music" >/dev/null 2>&1'; then ok 'volume control "Invoke Music"' 'Lautstärkeregler "Invoke Music"'; else bad 'volume control "Invoke Music" is missing' 'Regler "Invoke Music" fehlt'; fi
 if S 'ps | grep -q "[a]dbd"'; then bad "adbd is running (port 5555 = root shell without login)" "adbd läuft (Port 5555 = Root-Shell ohne Anmeldung)"; else ok "adbd is off" "adbd aus"; fi
-for port in 57500 49494 8009; do
+for port in 57500 49494 8009 8080 5000; do
   if (timeout 4 bash -c "echo > /dev/tcp/$IP/$port") 2>/dev/null; then ok "port $port/tcp reachable" "Port $port/tcp erreichbar"
   else bad "port $port/tcp not reachable" "Port $port/tcp nicht erreichbar"; fi
 done

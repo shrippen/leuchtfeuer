@@ -131,10 +131,26 @@ Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
 | Spotify | „HK Invoke“ erscheint in der Geräteliste der Spotify-App (gleiches WLAN; Premium) |
 | UPnP/DLNA | „HK Invoke“ in der UPnP-App als Renderer wählen; https://-Streams gehen (aktueller CA-Bestand) |
 | Music Assistant | Der Player erscheint über Sendspin (`SENDSPIN_SERVER` setzen) und, wenn der Cast-Anbieter ihn findet, als Chromecast; sonst im Google-Cast-Anbieter unter „known hosts“ per IP eintragen, wenn mDNS nicht zwischen WLAN und LAN durchkommt |
+| AirPlay | „HK Invoke“ erscheint im AirPlay-Menü von iPhone, iPad und Mac (AirPlay 1, nur Audio) |
+| Weboberfläche | `http://<ip-des-lautsprechers>:8080`, Benutzer `admin`, Passwort in `/data/invoke/config` (`WEB_PASSWORD`, `install.sh` zeigt es an; in den Einstellungen änderbar) |
 | Tidal | „HK Invoke“ erscheint in der Tidal-Connect-Liste der Tidal-App |
 
 Das Drehrad regelt alle Quellen. Logs liegen unter `/data/invoke/log/` auf dem Lautsprecher
 (`ssh root@<ip> 'tail -f /data/invoke/log/*.log'`).
+
+### Weboberfläche, Wecker, Home Assistant
+
+- **Wecker/Timer:** zuerst die Zeitzone einstellen (Reiter Wecker & Timer). Ein Wecker kann über N Sekunden auf eine Ziellautstärke
+  ansteigen, Signaltöne oder einen Webradio-Sender spielen, schlummern und sich nach einer Grenze selbst stoppen. Timer
+  nutzen die Timer-Animation des Leuchtrings. Die Mikrofon-Taste ist standardmäßig auf *smart* gelegt (Wecker schlummern /
+  Timer beenden / Stumm); der Reiter Tasten protokolliert Name und Wert jeder gemeldeten Taste, damit du sie belegen kannst.
+- **WLAN-Wächter:** Reiter Netzwerk. Er pingt alle 20 s den Router; nach zwei schlechten Messungen in Folge (Standard: 20 % Verlust
+  oder 150 ms) sucht er andere Access Points deines Netzes, wechselt zum besten, der nicht als schlecht markiert ist, und prüft
+  erneut. „Access Points suchen“ listet sie auf und erlaubt den Wechsel von Hand; *Probelauf* protokolliert nur.
+- **Home Assistant:** Reiter Home Assistant: MQTT-Broker eintragen. Der Lautsprecher meldet sich per MQTT-Erkennung selbst an
+  (Gerät mit Lautstärke, Stumm, Webradio, Kopplung, Timern, Wecker-Tasten, Sensoren, Tasten-Ereignissen).
+- **Leuchtring:** zeigt die Zustände des Lautsprechers (Drehrad, Wecker, Timer, Kopplung). Er kann der Musik nicht folgen
+  (siehe [ARCHITECTURE.md](ARCHITECTURE.md), *Light ring*).
 
 ### Erkennung zwischen WLAN ↔ LAN
 

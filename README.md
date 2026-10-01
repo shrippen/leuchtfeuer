@@ -8,9 +8,16 @@ speaker. After the install the speaker shows up as **"HK Invoke"** in:
 | **Spotify Connect** | [librespot](https://github.com/librespot-org/librespot) | needs a Spotify Premium account |
 | **UPnP / DLNA renderer** | [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect) | works with e.g. Symfonium, BubbleUPnP, foobar2000 |
 | **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | "legacy" (unencrypted) protocol dialect, see below |
+| **AirPlay** (AirPlay 1) | [shairport-sync](https://github.com/mikebrady/shairport-sync) 3.3.9 | iPhone, iPad, Mac; AirPlay 2 and multi-room are not supported |
 | **Google Cast** (audio) | own receiver emulation (`src/castrecv`) | only for senders that do not verify the device with Google: Music Assistant, Home Assistant, VLC, pychromecast. **Not** YouTube / Spotify-Cast / Chrome tab |
 | **Tidal Connect** (optional) | proprietary iFi binary | **not licensed for this device**, can be revoked – opt-in, see [Legal](#legal-and-risks) |
 | **Bluetooth A2DP sink** | BlueZ 5.50 + bluez-alsa + own agent (`src/btagent`) | invisible until you press the speaker's **Bluetooth button** (2-minute pairing window, ring feedback); pairs without a prompt, remembers pairings, phone volume and the speaker's volume knob stay in sync |
+
+**Web interface** (port 8080, [Kante](https://github.com/shrippen/shrippen.github.io) design, English/German):
+status, **web radio**, **alarms** (fade-in, snooze, radio or beeps) and **timers**, **button mapping**, the **Wi-Fi guard**
+(measures the real link quality to your router and switches to a better access point of the same network when it stays
+poor), **Home Assistant** (MQTT discovery: volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, temperature,
+Wi-Fi, button events) and settings. Alarms and timers use your time zone and the light ring's own animations.
 
 Everything plays through the speaker's own DSP/amplifier chain; the **volume knob** controls all sources
 and stays in sync with the phone volume over Bluetooth in both directions.

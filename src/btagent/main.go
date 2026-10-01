@@ -85,6 +85,7 @@ func tick() {
 	registerAgent()
 	path := dbus.ObjectPath("/org/bluez/" + *adapter)
 	pw.check()
+	pw.writeState()
 	open := pw.isOpen()
 	want := map[string]any{
 		"Powered": true, "Alias": *name, "Discoverable": open,

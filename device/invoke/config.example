@@ -15,3 +15,12 @@ DHCP_HOSTNAME="invoke"
 # (2 Minuten lang) sichtbar und koppelbereit; schon gekoppelte Geräte verbinden sich immer von selbst.
 # "always" = dauerhaft sichtbar und koppelbereit (jeder in Reichweite kann koppeln).
 BLUETOOTH_PAIRING="button"
+
+# Zeitzone für Wecker und Timer (das Gerät selbst läuft auf Pacific Time). IANA-Name, z. B. Europe/Berlin.
+TIMEZONE="Europe/Berlin"
+
+# AirPlay-Empfänger (iPhone, iPad, Mac): "on" oder "off"
+AIRPLAY="on"
+
+# Weboberfläche (Port 8080, Benutzer admin): Das Passwort erzeugt invoked beim ersten Start selbst
+# (WEB_PASSWORD), Änderung in der Oberfläche. Port optional: WEB_PORT="8080"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Baut BlueZ 5.50 (bluetoothd), bluez-alsa (A2DP-Empfänger, bluealsa-aplay) für den
+# Baut BlueZ 5.50 (bluetoothd), bluez-alsa mit AAC (fdk-aac statisch; A2DP-Empfänger, bluealsa-aplay) für den
 # Invoke: glibc 2.23 armhf (Xenial-Cross), libsbc (Xenial-Paket)/libbluetooth statisch, GLib/D-Bus/ALSA dynamisch
 # aus dem Gerät. Pfade zur Laufzeit liegen unter /data/invoke/bluez (Zustand der Kopplungen auf /data).
 #   tools/build-bluez.sh   -> build/bluez/{bluetoothd,bluealsa,bluealsa-aplay,...}
@@ -15,6 +15,9 @@ docker run --rm -v "$out:/out" invoke-xenial-armhf-bt bash -euc '
   H=arm-linux-gnueabihf; P=/opt/bt; R=/data/invoke/bluez
   export PKG_CONFIG_LIBDIR=/usr/lib/$H/pkgconfig:/usr/share/pkgconfig:$P/lib/pkgconfig
   cd /tmp
+  # AAC-Codec (fdk-aac), statisch: iPhones und viele Android-Geräte senden damit besser als mit SBC
+  git clone -q --depth 1 --branch v2.0.3 https://github.com/mstorsjo/fdk-aac.git && (cd fdk-aac && autoreconf -fi >/dev/null 2>&1 \
+     && ./configure -q --host=$H --prefix=$P --enable-static --disable-shared >/dev/null && make -s -j$(nproc) >/dev/null && make -s install >/dev/null)
   # BlueZ
   wget -q https://www.kernel.org/pub/linux/bluetooth/bluez-5.50.tar.xz && tar xf bluez-5.50.tar.xz
   cd bluez-5.50
@@ -37,9 +40,9 @@ PC
   git clone -q --branch v3.1.0 https://github.com/arkq/bluez-alsa.git && cd bluez-alsa
   git rev-parse HEAD > /out/bluez-alsa.commit
   autoreconf --install >/dev/null 2>&1
-  ./configure -q --host=$H --prefix=$R --enable-aplay --disable-hcitop --disable-rfcomm --disable-manpages \
+  ./configure -q --host=$H --prefix=$R --enable-aac --enable-aplay --disable-hcitop --disable-rfcomm --disable-manpages \
      --disable-payloadcheck --disable-debug --disable-ofono --disable-upower \
-     PKG_CONFIG_PATH=$P/lib/pkgconfig SBC_CFLAGS=" " SBC_LIBS="-Wl,-Bstatic -lsbc -Wl,-Bdynamic" >/dev/null
+     PKG_CONFIG_PATH=$P/lib/pkgconfig SBC_CFLAGS=" " SBC_LIBS="-Wl,-Bstatic -lsbc -Wl,-Bdynamic" FDKAAC_CFLAGS="-I$P/include/fdk-aac" FDKAAC_LIBS="$P/lib/libfdk-aac.a -lm" >/dev/null
   make -s -j$(nproc) >/dev/null
   mkdir -p /tmp/ba && make -s install DESTDIR=/tmp/ba >/dev/null
   # Ergebnis einsammeln

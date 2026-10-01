@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -58,6 +60,41 @@ func pairedSet() map[string]bool {
 	return set
 }
 
+// writeState schreibt den Zustand nach /run/invoke-bt-state.json (liest invoked für Weboberfläche und Home Assistant).
+func (p *pairingWindow) writeState() {
+	p.mu.Lock()
+	open := p.always || p.open
+	until := p.until.Unix()
+	if !p.open {
+		until = 0
+	}
+	p.mu.Unlock()
+	b, _ := json.Marshal(map[string]any{"open": open, "until": until})
+	tmp := "/run/invoke-bt-state.json.new"
+	if os.WriteFile(tmp, b, 0o644) == nil {
+		os.Rename(tmp, "/run/invoke-bt-state.json")
+	}
+}
+
+// Set öffnet oder schließt das Fenster auf Befehl ("open" | "close" | "toggle").
+func (p *pairingWindow) Set(action string, window time.Duration) {
+	p.mu.Lock()
+	open := p.open
+	p.mu.Unlock()
+	switch action {
+	case "open":
+		if !open {
+			p.toggle(window)
+		}
+	case "close":
+		if open {
+			p.toggle(window)
+		}
+	default:
+		p.toggle(window)
+	}
+}
+
 // toggle wird vom Knopf aufgerufen.
 func (p *pairingWindow) toggle(window time.Duration) {
 	p.mu.Lock()
@@ -68,8 +105,9 @@ func (p *pairingWindow) toggle(window time.Duration) {
 	if p.open {
 		p.open = false
 		p.mu.Unlock()
-		log.Printf("Pairing-Fenster per Knopf geschlossen")
+		log.Printf("Pairing-Fenster geschlossen")
 		led(ledClosed)
+		p.writeState()
 		return
 	}
 	p.mu.Unlock()
@@ -77,8 +115,9 @@ func (p *pairingWindow) toggle(window time.Duration) {
 	p.mu.Lock()
 	p.open, p.until, p.known, p.settled = true, time.Now().Add(window), known, time.Time{}
 	p.mu.Unlock()
-	log.Printf("Pairing-Fenster geöffnet für %s (Bluetooth-Knopf)", window)
+	log.Printf("Pairing-Fenster geöffnet für %s", window)
 	led(ledOpen)
+	p.writeState()
 }
 
 // check läuft im tick(): schließt das Fenster nach Ablauf oder kurz nach einer neuen Kopplung.
@@ -98,6 +137,7 @@ func (p *pairingWindow) check() {
 		p.mu.Unlock()
 		log.Printf("Pairing-Fenster abgelaufen")
 		led(ledClosed)
+		p.writeState()
 		return
 	}
 	if settled.IsZero() {
@@ -116,6 +156,7 @@ func (p *pairingWindow) check() {
 		p.open = false
 		p.mu.Unlock()
 		log.Printf("Pairing-Fenster nach Kopplung geschlossen")
+		p.writeState()
 	}
 }
 
