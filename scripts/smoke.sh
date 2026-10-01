@@ -82,7 +82,8 @@ m=$(S 'head -c 4 /dev/shm/leuchtfeuer-eq 2>/dev/null')
 S 'test -f /dev/shm/leuchtfeuer-viz' && pass "visualizer tap active" "Visualizer-Abgriff aktiv" || soft "no visualizer tap yet (play something first)" "noch kein Visualizer-Abgriff (erst etwas abspielen)"
 # CPU-Last der Kette: 10 s Wiedergabe über leuchtfeuer_music, Last vorher/nachher
 l0=$(S 'cut -d" " -f1 /proc/loadavg')
-cpu=$(S "$A (aplay -q -D leuchtfeuer_music -d 10 -f S16_LE -r 44100 -c 2 /dev/urandom >/dev/null 2>&1 &) ; sleep 5; top -b -n 1 2>/dev/null | grep -m1 '[a]play' || ps | grep -m1 '[a]play'")
+# Stille statt Rauschen: Wandlung, Klang und Visualizer rechnen gleich viel, und es ist nichts zu hören
+cpu=$(S "$A (aplay -q -D leuchtfeuer_music -d 10 -f S16_LE -r 44100 -c 2 /dev/zero >/dev/null 2>&1 &) ; sleep 5; top -b -n 1 2>/dev/null | grep -m1 '[a]play' || ps | grep -m1 '[a]play'")
 rep "- $(t 'aplay on leuchtfeuer_music (resampling, EQ, viz):' 'aplay über leuchtfeuer_music (Wandlung, Klang, Visualizer):') \`${cpu:-?}\` (load ${l0})"
 info "  aplay: ${cpu:-?}"
 
