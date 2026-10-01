@@ -86,6 +86,9 @@ type voiceSat struct {
 	errText  string
 	ducked   bool
 	micOn    bool
+	lvlRMS   float64 // Pegel des letzten Blocks (dBFS), für die Anzeige in der Oberfläche
+	lvlPeak  float64
+	lvlAt    time.Time
 	kick     chan struct{}
 	out      *exec.Cmd
 	outIn    io.WriteCloser
@@ -495,6 +498,10 @@ func (v *voiceSat) capture(w *wyConn) {
 			time.Sleep(3 * time.Second)
 			return
 		}
+		rms, peak := levelS16(buf)
+		v.mu.Lock()
+		v.lvlRMS, v.lvlPeak, v.lvlAt = rms, peak, time.Now()
+		v.mu.Unlock()
 		cur, want := v.micWanted()
 		if !want || cur != w {
 			return
@@ -515,6 +522,16 @@ func (v *voiceSat) capture(w *wyConn) {
 			return
 		}
 	}
+}
+
+// level: Pegel der laufenden Aufnahme (ok = frisch, höchstens 1 s alt).
+func (v *voiceSat) level() (rms, peak float64, ok bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if !v.micOn || time.Since(v.lvlAt) > time.Second {
+		return 0, 0, false
+	}
+	return v.lvlRMS, v.lvlPeak, true
 }
 
 // voiceScene: Leuchtring während einer Unterhaltung (Cortana-Blau 27,80,180).

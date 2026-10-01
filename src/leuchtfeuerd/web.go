@@ -426,6 +426,14 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			v.Proto = "udp"
 		}
 		return a.st.Update(func(s *Settings) { s.Syslog = v })
+	case "setup":
+		var v struct {
+			Done bool `json:"done"`
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		return a.st.Update(func(s *Settings) { s.SetupDone = v.Done })
 	case "timezone":
 		var v struct {
 			Timezone string `json:"timezone"`
@@ -729,6 +737,39 @@ func (w *webServer) routes() http.Handler {
 		return audioInputs("/proc/asound"), nil
 	})
 	getJ("/api/ha/options", func(r *http.Request) (any, error) { return a.haOptions() })
+	getJ("/api/discover", func(r *http.Request) (any, error) { return discover(r.URL.Query().Get("kind")) })
+	getJ("/api/audio/level", func(r *http.Request) (any, error) { return a.micLevel(r.URL.Query().Get("dev")) })
+	mux.HandleFunc("/api/ha/test", func(rw http.ResponseWriter, r *http.Request) {
+		var v struct{ URL, Token string }
+		if r.Method != http.MethodPost || decode(r, &v) != nil {
+			http.Error(rw, `{"error":"POST {url, token}"}`, http.StatusBadRequest)
+			return
+		}
+		writeJSON(rw, a.haTest(v.URL, v.Token))
+	})
+	mux.HandleFunc("/api/briefing/check-calendar", func(rw http.ResponseWriter, r *http.Request) {
+		var v struct {
+			URL  string `json:"url"`
+			Days int    `json:"days"`
+		}
+		if r.Method != http.MethodPost || decode(r, &v) != nil {
+			http.Error(rw, `{"error":"POST {url, days}"}`, http.StatusBadRequest)
+			return
+		}
+		res, err := a.checkCalendar(v.URL, v.Days)
+		if err != nil {
+			rw.WriteHeader(http.StatusBadGateway)
+			writeJSON(rw, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(rw, res)
+	})
+	post("/api/eq/preview", func(r *http.Request) error {
+		if a.meas == nil {
+			return fmt.Errorf("Hörprobe nicht verfügbar")
+		}
+		return a.meas.Preview()
+	})
 	// Sprachassistent
 	post("/api/voice/listen", func(r *http.Request) error {
 		if a.voice == nil {

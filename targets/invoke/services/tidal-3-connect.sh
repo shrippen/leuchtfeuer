@@ -4,6 +4,7 @@
 # process: tidal_connect_a
 # ports: tcp 2019
 # default: on
+# uses: DEVICE_NAME
 # Tidal Connect (iFi tidal_connect_application 1.1.3, iFi-Zertifikat; siehe tools/build-tidal-bundle.sh).
 # Websocket 2019/tcp (ports.local). Ausgabe: portaudio -> ALSA default -> "leuchtfeuer_tidal" (LEUCHTFEUER_SRC, Quellen-Regler).
 . /data/leuchtfeuer/config 2>/dev/null

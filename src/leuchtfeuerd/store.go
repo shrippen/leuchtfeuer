@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"sync"
@@ -67,24 +68,25 @@ type WifiSettings struct {
 }
 
 type Settings struct {
-	Timezone string                       `json:"timezone"`
-	Radio    []Preset                     `json:"radio"`
-	Alarms   []Alarm                      `json:"alarms"`
-	Timers   []Timer                      `json:"timers"`
-	Buttons  map[string]map[string]string `json:"buttons"` // Taste -> Druckart -> Aktion
-	MQTT     MQTTSettings                 `json:"mqtt"`
-	Wifi     WifiSettings                 `json:"wifi"`
-	Viz      VizSettings                  `json:"viz"`      // Leuchtring als Visualizer (viz.go)
-	Sources  SourceSettings               `json:"sources"`  // Quellen-Regel und Lautstärkegrenzen (sources.go)
-	Eq       EqSettings                   `json:"eq"`       // Klang (eq.go)
-	Holidays string                       `json:"holidays"` // Feiertage für Wecker: "" = aus, "DE" oder "DE-<Land>" (holidays.go)
-	Update   UpdateSettings               `json:"update"`   // Updates aus der Oberfläche (update.go)
-	Syslog   SyslogSettings               `json:"syslog"`   // Protokolle an einen Syslog-Server (logs.go)
-	Briefing BriefingSettings             `json:"briefing"` // Morgen-Briefing (briefing.go)
-	HA       HASettings                   `json:"homeAssistant"`
-	Voice    VoiceSettings                `json:"voice"`  // Sprachassistent (voice.go)
-	Peers    []Peer                       `json:"peers"`  // andere Leuchtfeuer (peers.go)
-	Output   OutputSettings               `json:"output"` // Ausgabe der Tonkette (output.go); gerätebezogen, wird nicht zwischen Geräten kopiert
+	SetupDone bool                         `json:"setupDone"` // Einrichtungsassistent der Oberfläche durchlaufen
+	Timezone  string                       `json:"timezone"`
+	Radio     []Preset                     `json:"radio"`
+	Alarms    []Alarm                      `json:"alarms"`
+	Timers    []Timer                      `json:"timers"`
+	Buttons   map[string]map[string]string `json:"buttons"` // Taste -> Druckart -> Aktion
+	MQTT      MQTTSettings                 `json:"mqtt"`
+	Wifi      WifiSettings                 `json:"wifi"`
+	Viz       VizSettings                  `json:"viz"`      // Leuchtring als Visualizer (viz.go)
+	Sources   SourceSettings               `json:"sources"`  // Quellen-Regel und Lautstärkegrenzen (sources.go)
+	Eq        EqSettings                   `json:"eq"`       // Klang (eq.go)
+	Holidays  string                       `json:"holidays"` // Feiertage für Wecker: "" = aus, "DE" oder "DE-<Land>" (holidays.go)
+	Update    UpdateSettings               `json:"update"`   // Updates aus der Oberfläche (update.go)
+	Syslog    SyslogSettings               `json:"syslog"`   // Protokolle an einen Syslog-Server (logs.go)
+	Briefing  BriefingSettings             `json:"briefing"` // Morgen-Briefing (briefing.go)
+	HA        HASettings                   `json:"homeAssistant"`
+	Voice     VoiceSettings                `json:"voice"`  // Sprachassistent (voice.go)
+	Peers     []Peer                       `json:"peers"`  // andere Leuchtfeuer (peers.go)
+	Output    OutputSettings               `json:"output"` // Ausgabe der Tonkette (output.go); gerätebezogen, wird nicht zwischen Geräten kopiert
 }
 
 func defaultSettings() Settings {
@@ -119,6 +121,9 @@ func loadStore(path string) *store {
 	if b, err := os.ReadFile(path); err == nil {
 		var s Settings
 		if json.Unmarshal(b, &s) == nil {
+			if !bytes.Contains(b, []byte(`"setupDone"`)) {
+				s.SetupDone = true // vorhandene Installation: schon eingerichtet, kein Assistent
+			}
 			st.S = mergeDefaults(s)
 		}
 	}

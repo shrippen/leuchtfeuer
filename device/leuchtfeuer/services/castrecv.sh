@@ -5,6 +5,7 @@
 # ports: tcp 8009, tcp 8008, tcp 8443
 # requires: castrecv
 # default: on
+# uses: DEVICE_NAME
 # Cast-Empfänger (Chromecast Audio, nachgebildet; src/castrecv). Sichtbar unter dem Gerätenamen für
 # Sender ohne Geräteprüfung durch Google (Music Assistant, Home Assistant, VLC). Ports 8009 (TLS),
 # 8008/8443 (eureka_info) in $LEUCHTFEUER_DIR/ports.local freigegeben. Ausgabe wie die anderen

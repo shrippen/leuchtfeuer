@@ -223,6 +223,7 @@ func runDemo(listen string) {
 			{Type: "ha", On: true, Text: pick("Travel time to the studio: {{ states('sensor.travel_time') }} minutes.", "Fahrzeit ins Studio: {{ states('sensor.fahrzeit') }} Minuten.")},
 			{Type: "podcast", On: true, Name: podcastPresets[0].Name, URL: podcastPresets[0].URL},
 		}}
+		s.SetupDone = true // der Assistent ist über #/setup erreichbar
 		s.HA = HASettings{URL: "http://homeassistant.local:8123", Token: "x", TTSEngine: "tts.piper"}
 		s.Voice = VoiceSettings{Enabled: true, Port: 10700, Mic: "leuchtfeuer_mic", Mode: "wake", Area: pick("Studio", "Studio"), DuckDB: 20}
 		s.Eq = EqSettings{Version: 1, Bass: 2, Loudness: true, RoomOn: true, Room: []PEQBand{{Hz: 52, DB: -6.4, Q: 4.6}, {Hz: 118, DB: -3.8, Q: 3.2}}}

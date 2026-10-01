@@ -5,6 +5,7 @@
 # ports:
 # requires: btagent bluealsa-aplay
 # default: off
+# uses: DEVICE_NAME
 # BlueZ-Agent (src/btagent) für bluetoothd und bluealsa des Systems (Pakete bluez, bluez-alsa-utils; deren Dienste
 # laufen über systemd): Kopplung ohne Rückfrage, Geräte vertrauen, Handy-Lautstärke abgleichen. Einschalten:
 # Weboberfläche (Einstellungen > Dienste) oder SERVICE_BLUETOOTH="on".

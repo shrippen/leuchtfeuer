@@ -26,6 +26,7 @@ type serviceDef struct {
 	Ports   string `json:"ports"`
 	Default string `json:"default"`
 	Needs   string `json:"requires,omitempty"` // Programme, ohne die der Hook den Dienst nicht startet
+	Uses    string `json:"uses,omitempty"`     // Einstellungen aus config, die der Dienst nur beim Start liest (Oberfläche: Neustart nötig)
 }
 
 type serviceInfo struct {
@@ -64,6 +65,8 @@ func parseServiceHeader(name string, r *bufio.Scanner) serviceDef {
 			d.Default = v
 		case "requires":
 			d.Needs = v
+		case "uses":
+			d.Uses = v
 		}
 	}
 	return d

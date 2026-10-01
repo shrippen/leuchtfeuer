@@ -5,6 +5,7 @@
 # ports:
 # requires: sendspin-player
 # default: on
+# uses: DEVICE_NAME SENDSPIN_SERVER
 # Sendspin-Player (sendspin-go) für Music Assistant. Der Player verbindet sich selbst zum
 # Server; mit SENDSPIN_SERVER in $LEUCHTFEUER_DIR/config fest "host:8927" (mDNS-Suche klappt über manche
 # Router zwischen WLAN und LAN nicht), sonst mDNS. Ausgabe über das ALSA-Standardgerät, das asound-music.conf mit

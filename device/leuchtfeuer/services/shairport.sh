@@ -5,6 +5,7 @@
 # ports: tcp 5000, udp 6001:6011
 # requires: shairport-sync
 # default: on
+# uses: DEVICE_NAME
 # AirPlay-Empfänger (shairport-sync 3.3.9, AirPlay 1): iPhone, iPad und Mac spielen auf Leuchtfeuer. Ausgabe über ALSA
 # "leuchtfeuer_airplay" (Quellen-Regler, dann wie alle Musikdienste), mDNS über das eingebaute tinysvcmdns.
 # Abschalten: Weboberfläche (Einstellungen > Dienste) oder SERVICE_AIRPLAY="off" (alt: AIRPLAY="off"); dann startet der

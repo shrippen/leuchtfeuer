@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata" // alle Zeitzonen, die die Oberfläche anbietet, auch ohne /usr/share/zoneinfo
 )
 
 var version = "dev"
