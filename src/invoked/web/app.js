@@ -29,6 +29,9 @@ let route = 'overview';
 let draft = {};      // ungespeicherte Änderungen je Ansicht
 let dragging = false;
 let lastSig = '';
+let dirty = false;   // ungespeicherte Eingaben in der aktuellen Ansicht: dann nichts von außen überschreiben
+let playSig = '';
+let cfgSig = '';
 
 async function api(path, method = 'GET', body) {
   const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -136,7 +139,7 @@ function bindOverview() {
   const vol = $('#vol');
   if (vol) {
     vol.oninput = () => { dragging = true; $('#vol-out').textContent = vol.value; };
-    vol.onchange = () => { dragging = false; act(() => api('/api/volume', 'POST', { volume: +vol.value })); };
+    vol.onchange = () => { dragging = false; vol.blur(); act(() => api('/api/volume', 'POST', { volume: +vol.value })); };
   }
   bindSw($('#c-play'));
   const m = $('#mute'); if (m) m.onchange = () => act(() => api('/api/mute', 'POST', { muted: swVal('mute') }));
@@ -185,6 +188,8 @@ function bindRadio() {
 }
 
 const DAYS = [[1, 'Mo', 'Mo'], [2, 'Tu', 'Di'], [3, 'We', 'Mi'], [4, 'Th', 'Do'], [5, 'Fr', 'Fr'], [6, 'Sa', 'Sa'], [0, 'Su', 'So']];
+const timersHTML = () => S.timers.map(t => `<div class="item"><div><div class="t">${esc(t.name)}</div><div class="s">${fmtDur(t.remaining)}</div></div><button class="btn btn-outline btn-sm" data-tcancel="${t.id}">${ico('trash')}</button></div>`).join('');
+const mqttHTML = () => S.mqtt ? T('Connected to the MQTT broker.', 'Mit dem MQTT-Broker verbunden.') : T('Not connected.', 'Nicht verbunden.');
 function viewAlarms() {
   const A = draft.alarms || (draft.alarms = JSON.parse(JSON.stringify(CFG.settings.alarms)));
   const radios = CFG.settings.radio;
@@ -209,12 +214,12 @@ function viewAlarms() {
       <div class="row"><div class="field" style="flex:1;min-width:8rem"><label for="t-name">${T('Name (optional)', 'Name (optional)')}</label><input class="input" id="t-name"></div>
         <div class="field" style="width:7rem"><label for="t-min">${T('Minutes', 'Minuten')}</label><input class="input" id="t-min" type="number" min="1" max="1440" value="20"></div>
         <button class="btn btn-accent btn-sm" id="t-start" style="align-self:end">${ico('play')}${T('Start', 'Start')}</button></div>
-      <div class="list" id="t-list">${S.timers.map(t => `<div class="item"><div><div class="t">${esc(t.name)}</div><div class="s">${fmtDur(t.remaining)}</div></div><button class="btn btn-outline btn-sm" data-tcancel="${t.id}">${ico('trash')}</button></div>`).join('')}</div></div>
+      <div class="list" id="t-list">${timersHTML()}</div></div>
     <div class="card"><h3>${T('Time zone', 'Zeitzone')}</h3>
       <p>${T('Alarms use this time zone (the speaker itself runs on Pacific time).', 'Wecker nutzen diese Zeitzone (der Lautsprecher selbst läuft auf Pacific Time).')}</p>
       <div class="row"><input class="input" id="tz" list="tzs" value="${esc(CFG.settings.timezone)}" style="max-width:16rem"><datalist id="tzs">${['Europe/Berlin', 'Europe/Vienna', 'Europe/Zurich', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'UTC'].map(z => `<option value="${z}">`).join('')}</datalist>
         <button class="btn btn-outline btn-sm" id="tz-save">${ico('save')}${T('Save', 'Speichern')}</button></div>
-      <p class="mono small">${T('Speaker time', 'Zeit am Lautsprecher')}: ${fmtTime(S.now)}</p></div>
+      <p class="mono small">${T('Speaker time', 'Zeit am Lautsprecher')}: <span id="spk-time">${fmtTime(S.now)}</span></p></div>
   </div>
   <h3 class="mono muted small" style="margin:1.6rem 0 .6rem">${T('ALARMS', 'WECKER')}</h3>
   <div class="grid">${A.map(alarmCard).join('')}</div>
@@ -325,7 +330,7 @@ function bindNetwork() {
 function viewHA() {
   const m = CFG.settings.mqtt;
   return `<div class="card" data-tier="yellow" style="max-width:40rem"><h3>Home Assistant (MQTT)</h3>
-    <p>${S.mqtt ? T('Connected to the MQTT broker.', 'Mit dem MQTT-Broker verbunden.') : T('Not connected.', 'Nicht verbunden.')}
+    <p><span id="mq-st">${mqttHTML()}</span>
     ${T('Enter the broker that Home Assistant uses (Mosquitto add-on). The speaker then shows up automatically as a device with volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, sensors (temperature, Wi-Fi, uptime) and button events.', 'Trage den Broker ein, den Home Assistant nutzt (Mosquitto-Add-on). Der Lautsprecher erscheint dann automatisch als Gerät mit Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timern, Wecker-Tasten, Sensoren (Temperatur, WLAN, Laufzeit) und Tasten-Ereignissen.')}</p>
     ${sw('m-en', m.enabled, 'Enabled', 'Aktiv')}
     <div class="alarm">${fld('m-host', 'Broker host', 'Broker-Adresse', m.host)}${fld('m-port', 'Port', 'Port', m.port, 'type="number"')}
@@ -401,11 +406,27 @@ function tick() {
   document.title = S.name;
   if (route === 'overview') {
     const focus = document.activeElement;
-    if (dragging || (focus && focus.id === 'vol')) return;
+    if (dragging) return;
+    if (focus && focus.id === 'vol') { // Regler behält nach dem Loslassen den Fokus: nur Wert und Anzeige nachführen, nichts neu zeichnen
+      if (+focus.value !== S.volume) { focus.value = S.volume; $('#vol-out').textContent = S.volume; }
+      return;
+    }
     const sig = JSON.stringify({ ...S, now: 0, buttons: 0, sys: { ...S.sys, uptimeSecs: Math.floor(S.sys.uptimeSecs / 60) } }) + (S.timers.map(t => t.remaining).join());
     if (sig === lastSig) return;
     lastSig = sig;
     $('#view').innerHTML = viewOverview(); fillOverview();
+  } else if (route === 'alarms') {
+    const l = $('#t-list'), sig = JSON.stringify(S.timers);
+    if (l && l.dataset.sig !== sig) {
+      l.dataset.sig = sig; l.innerHTML = timersHTML();
+      $$('[data-tcancel]', l).forEach(b => b.onclick = () => act(() => api('/api/timers/cancel', 'POST', { id: b.dataset.tcancel })));
+    }
+    const t = $('#spk-time'); if (t) t.textContent = fmtTime(S.now);
+  } else if (route === 'ha') {
+    const m = $('#mq-st'); if (m) m.innerHTML = mqttHTML();
+  } else if (route === 'radio') {
+    const sig = JSON.stringify(S.player);
+    if (sig !== playSig) { playSig = sig; if (!dirty && !inFormFocus()) { draft = {}; render(); } }
   } else if (route === 'buttons') {
     const e = $('#ev-list'); if (e) e.innerHTML = evListHTML();
   } else if (route === 'network') {
@@ -413,15 +434,29 @@ function tick() {
     const l = $('#w-log'); if (l) l.textContent = (S.wifi.log || []).join('\n') || tt('Nothing to report.', 'Nichts zu melden.');
   }
 }
-async function loadCfg() { CFG = await api('/api/settings'); }
-async function refresh() { S = await api('/api/status'); tick(); }
+const cfgSigOf = c => JSON.stringify({ ...c, settings: { ...c.settings, timers: 0 } });
+const inFormFocus = () => { const e = document.activeElement; return !!e && $('#view').contains(e) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.tagName); };
+async function loadCfg() { CFG = await api('/api/settings'); cfgSig = cfgSigOf(CFG); dirty = false; }
+// Einstellungen, die sich von außen ändern (zweiter Browser, Home Assistant, Datei), live nachführen,
+// solange der Nutzer in der Ansicht nichts eingegeben hat
+async function pollCfg() {
+  const c = await api('/api/settings'), sig = cfgSigOf(c);
+  if (sig === cfgSig) return;
+  if (route !== 'overview' && (dirty || inFormFocus())) return; // später erneut versuchen
+  cfgSig = sig; CFG = c;
+  if (route !== 'overview') { draft = {}; render(); }
+}
+$('#view').addEventListener('input', e => { if (e.target.id !== 'vol') dirty = true; });
+$('#view').addEventListener('change', e => { if (e.target.id !== 'vol') dirty = true; });
+$('#view').addEventListener('click', e => { if (e.target.closest('.switch, .seg button, .a-day, [data-del], [data-adel], [data-bdel], #r-add, #a-add, #b-add') && route !== 'overview') dirty = true; });
+async function refresh() { S = await api('/api/status'); tick(); pollCfg().catch(() => {}); }
 async function start() {
   try { await loadCfg(); await refresh(); } catch (e) { toast(e.message, 'error'); return; }
   onHash(); setInterval(() => refresh().catch(() => { $('#conn').textContent = '…'; }), 2000);
 }
 function onHash() {
   const r = (location.hash.replace(/^#\/?/, '') || 'overview');
-  route = VIEWS[r] ? r : 'overview'; draft = {}; lastSig = ''; render();
+  route = VIEWS[r] ? r : 'overview'; draft = {}; lastSig = ''; dirty = false; playSig = JSON.stringify(S.player); render();
 }
 $$('#tabs button').forEach(b => b.addEventListener('click', () => { const h = '#/' + (b.dataset.r === 'overview' ? '' : b.dataset.r); if (location.hash !== h) location.hash = h; }));
 window.addEventListener('hashchange', onHash);
