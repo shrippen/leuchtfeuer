@@ -16,6 +16,12 @@ chmod 755 "$S"/dropbearmulti "$S"/bluez/bin/*
 if [ "$TIDAL" = 1 ]; then
   mkdir -p "$S/tidal"
   cp -a build/tidal/bin build/tidal/cert build/tidal/lib build/tidal/sbin "$S/tidal/"
+  # Symlinks (libavformat.so.57 -> libavformat.so.57.83.100) durch die Datei selbst ersetzen: Installer und Updates
+  # übertragen nur reguläre Dateien, und das Programm braucht nur den SONAME-Namen. Die Ziele entfallen danach.
+  links=$(find "$S/tidal" -type l)
+  targets=$(for l in $links; do readlink -f "$l"; done | sort -u)
+  for l in $links; do cp --remove-destination "$(readlink -f "$l")" "$l"; done
+  for f in $targets; do rm -f "$f"; done
   cp build/shim/avahi-user-shim.so "$S/tidal/lib/"
   cp "$t/tidal/avahi-daemon.conf" "$t/tidal/dbus-system.conf" "$S/tidal/"
   find "$S/tidal" -name '*.so*' -exec chmod 755 {} +

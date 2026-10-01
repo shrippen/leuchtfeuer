@@ -39,8 +39,8 @@ if [ -d "$OLD" ] && [ ! -L "$OLD" ]; then
     # beide vorhanden (z. B. Installer hat schon kopiert): was im neuen fehlt, aus dem alten übernehmen
     # (Konfiguration, Schlüssel, Kopplungen, Spotify-Anmeldung), dann das alte beiseite legen. Verschieben statt
     # kopieren: /data ist auf dem Invoke nur 123 MB groß, eine zweite Kopie der Programme passt nicht.
-    (cd "$OLD" && find . -type f) | while read -r f; do
-      [ -e "$NEW/$f" ] && continue
+    (cd "$OLD" && find . -type f -o -type l) | while read -r f; do
+      { [ -e "$NEW/$f" ] || [ -L "$NEW/$f" ]; } && continue
       mkdir -p "$(dirname "$NEW/$f")" && mv "$OLD/$f" "$NEW/$f"
     done
     rm -rf "$OLD.alt"; mv "$OLD" "$OLD.alt" && ln -s "$NEW" "$OLD" && log "$OLD in $NEW übernommen (Rest in $OLD.alt)"

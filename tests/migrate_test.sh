@@ -35,8 +35,10 @@ check "zweiter Lauf ändert nichts" '[ "$(ls -R $T/data | md5sum)" = "$before" ]
 
 # beide Verzeichnisse vorhanden (Installer hat schon kopiert): Fehlendes übernehmen, altes beiseite
 rm $T/data/invoke; mkdir -p $T/data/invoke; echo alt > $T/data/invoke/config; echo k > $T/data/invoke/authorized_keys
+mkdir -p $T/data/invoke/tidal/lib; echo so > $T/data/invoke/tidal/lib/libx.so.1.2; ln -s libx.so.1.2 $T/data/invoke/tidal/lib/libx.so.1
 sh "$ROOT/device/leuchtfeuer/migrate.sh"
 check "Fehlendes übernommen, Vorhandenes bleibt" '[ "$(cat $T/data/leuchtfeuer/authorized_keys)" = k ] && [ "$(cat $T/data/leuchtfeuer/config)" = "DEVICE_NAME=\"Küche\"" ] && [ -d $T/data/invoke.alt ] && [ -L $T/data/invoke ]'
+check "Symlinks übernommen" '[ -L $T/data/leuchtfeuer/tidal/lib/libx.so.1 ] && [ "$(cat $T/data/leuchtfeuer/tidal/lib/libx.so.1)" = so ]'
 
 # frische Installation: nichts zu tun
 rm -rf $T/data $T/run; mkdir -p $T/data/leuchtfeuer $T/run
