@@ -165,7 +165,7 @@ part of the copyable settings sections.
 ## Settings
 
 `GET /api/settings` returns `{settings, device, actions, holidayRegions, sourceNames, services, groups, podcasts,
-copySections, version}`. Secrets come back empty: the MQTT password, the Home Assistant token and the keys of other
+copySections, buttonNames, version}`. `settings.setupDone` is false only on a fresh installation (the web interface then opens its setup assistant); `services[].uses` lists the config keys a service reads only at start (`DEVICE_NAME`, `SENDSPIN_SERVER`). Secrets come back empty: the MQTT password, the Home Assistant token and the keys of other
 speakers.
 
 `PUT /api/settings/<section>` replaces one section. Sending a secret empty keeps the stored one.
@@ -180,12 +180,13 @@ speakers.
 | `viz` | light ring `{mode, color, rgb, brightness, rotate, timerRing}` (only meaningful with capability `ring`) |
 | `briefing` | `{lang "de"\|"en", place, lat, lon, items [{type, on, name, url, days, text, region}], then ""\|"radio:<n>", tts ""\|"ha"\|"url", ttsUrl}`. Item types: `greeting weather warnings pollen calendar podcast ha text` |
 | `homeAssistant` | `{url, token, ttsEngine}`. Used by the briefing for speech (`/api/tts_get_url`) and templates (`/api/template`, admin token). |
-| `voice` | `{enabled, port 10700, mic "leuchtfeuer_mic" (oder "plughw:X,Y"), mode "wake"\|"button", area, duckDB, muted}` |
+| `voice` | `{enabled, port 10700, mic "leuchtfeuer_mic" (or "plughw:X,Y"), mode "wake"\|"button", area, duckDB, muted}` |
 | `mqtt` | `{enabled, host, port, user, pass, discovery, tls, insecure}` |
 | `wifi` | Wi-Fi guard `{enabled, intervalSec, lossPct, rttMs, prefer5GHz, penaltyMins, dryRun}` |
 | `syslog` | `{enabled, host, port 514, proto "udp"\|"tcp"}` (RFC 5424, facility local0) |
 | `holidays` | `{region: ""\|"DE"\|"DE-BY"…}` |
-| `timezone` | `{timezone: "Europe/Berlin"}` |
+| `timezone` | `{timezone: "Europe/Berlin"}` (any IANA zone; the time zone database is built in) |
+| `setup` | `{done: true}`: the setup assistant is finished or skipped |
 | `update` | `{url}` (release page, https) |
 | `device` | `{name, dhcpHostname, sendspinServer, bluetoothPairing, webPassword?}`. Session only. |
 
@@ -193,6 +194,14 @@ Further helpers for the settings:
 
 - `GET /api/briefing/geocode?q=Hamburg&lang=de`: `[{name, admin, country, lat, lon}]` (Open-Meteo)
 - `GET /api/briefing/pollen-regions`: `[{id, name}]` (DWD)
+- `POST /api/briefing/check-calendar {url, days}`: fetches a calendar and reports `{total, day, next[]}` (events in the file, on that day, the first titles)
+- `GET /api/audio/inputs`: capture devices `[{id, name, card, device, recommended}]`; first `leuchtfeuer_mic` (the target's microphone in the audio chain), then the cards raw (no loopback)
+- `GET /api/audio/level?dev=leuchtfeuer_mic`: microphone level `{rms, peak}` in dBFS (while the voice assistant captures, its own level)
+- `GET /api/ha/options`: from Home Assistant (address and admin token under `homeAssistant`): `{tts[], areas[], sensors[{id, name, unit}]}`
+- `POST /api/ha/test {url, token}` (empty = stored): `{ok, version, admin, tts, message}`
+- `GET /api/discover?kind=sendspin|mqtt|ha`: searches the Wi-Fi for 3 s (mDNS) and returns `[{name, host, port, url?}]`
+- `POST /api/eq/preview`: plays a quiet 6 s sample (bass, chord, treble) through the sound and room correction
+- `GET /api/radio/search?country=DE` without `q`: the most popular stations of that country
 - `POST /api/services/group {group, enabled}`: switch a service group (Spotify, AirPlay …) on or off
 - `POST /api/services/restart {name}`: restart a service
 

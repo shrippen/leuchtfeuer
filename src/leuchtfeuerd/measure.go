@@ -86,6 +86,12 @@ func (p *pinkNoise) next() float64 {
 
 // PlayNoise spielt secs Sekunden rosa Rauschen (48 kHz, Stereo, ein- und ausgeblendet).
 func (p *player) PlayNoise(kind, name string, secs int) {
+	pn := &pinkNoise{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
+	p.PlayGen(kind, name, secs, func(int) float64 { return pn.next() })
+}
+
+// PlayGen spielt secs Sekunden aus gen (Abtastwert Nr. i bei 48 kHz, -1..1), Stereo, ein- und ausgeblendet.
+func (p *player) PlayGen(kind, name string, secs int, gen func(i int) float64) {
 	p.mu.Lock()
 	p.stopLocked()
 	cmd := exec.Command("aplay", "-q", "-D", p.sink(kind), "-f", "S16_LE", "-r", "48000", "-c", "2", "-t", "raw")
@@ -114,7 +120,6 @@ func (p *player) PlayNoise(kind, name string, secs int) {
 		}()
 		const rate, block = 48000, 4800
 		total, fade := secs*rate, rate/2
-		pn := &pinkNoise{r: rand.New(rand.NewSource(time.Now().UnixNano()))}
 		buf := make([]byte, block*4)
 		for i := 0; i < total; i += block {
 			select {
@@ -129,7 +134,7 @@ func (p *player) PlayNoise(kind, name string, secs int) {
 				} else if k > total-fade {
 					env = math.Max(0, float64(total-k)/float64(fade))
 				}
-				s := int16(math.Max(-1, math.Min(1, pn.next()*env)) * 32767)
+				s := int16(math.Max(-1, math.Min(1, gen(i+j)*env)) * 32767)
 				binary.LittleEndian.PutUint16(buf[j*4:], uint16(s))
 				binary.LittleEndian.PutUint16(buf[j*4+2:], uint16(s))
 			}
@@ -138,4 +143,37 @@ func (p *player) PlayNoise(kind, name string, secs int) {
 			}
 		}
 	}()
+}
+
+// Preview spielt eine leise Hörprobe von 6 s über die Tonkette mit Klang und Raumkorrektur: je 2 s Bass, Mitten,
+// Höhen. So hört man beim Einstellen, was Bass, Höhen oder ein Filter bewirken.
+func (m *measurer) Preview() error {
+	if demoMode {
+		return nil
+	}
+	m.pl.PlayGen("preview", "Hörprobe", 6, previewSample(rand.New(rand.NewSource(1))))
+	return nil
+}
+
+// previewSample: Bassnoten (A1, E2, A2, E2), ein Dur-Akkord (C4 E4 G4), dann Becken-artige Rauschstöße; Spitze ~0,2.
+func previewSample(r *rand.Rand) func(i int) float64 {
+	const rate = 48000.0
+	bass := []float64{55, 82.41, 110, 82.41}
+	return func(i int) float64 {
+		t := float64(i) / rate
+		switch {
+		case t < 2:
+			k := int(t / 0.5)
+			ph := t - float64(k)*0.5
+			env := math.Min(1, ph/0.01) * math.Exp(-ph*3)
+			f := bass[k%len(bass)]
+			return 0.2 * env * (math.Sin(2*math.Pi*f*t) + 0.3*math.Sin(4*math.Pi*f*t))
+		case t < 4:
+			env := math.Min(1, (t-2)/0.05) * math.Min(1, (4-t)/0.1)
+			return 0.07 * env * (math.Sin(2*math.Pi*261.63*t) + math.Sin(2*math.Pi*329.63*t) + math.Sin(2*math.Pi*392*t))
+		default:
+			ph := math.Mod(t-4, 0.25)
+			return 0.15 * math.Exp(-ph*30) * (r.Float64()*2 - 1)
+		}
+	}
 }

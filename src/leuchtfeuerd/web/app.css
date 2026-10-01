@@ -64,3 +64,21 @@ textarea.input.mono{font-family:var(--font-mono);font-size:.78rem}
 .item .t{min-width:4.6rem}
 .item .row .input[type=number]{padding-left:.5rem;padding-right:.3rem}
 .grid>.wide-card{grid-column:1/-1}
+/* ---- Bedienbarkeit: Bausteine aus Kante 1.11 (.editbar als Speichern-Leiste, .bottom-nav, details.help, .ring-pick, .grip);
+   hier nur Anordnung und Sichtbarkeit, keine eigenen Größen oder Varianten ---- */
+/* Die Speichern-Leiste ersetzt die Knöpfe der einzelnen Karten */
+.card-save{display:none!important}
+body:has(#savebar:not([hidden])) .app{padding-bottom:6rem}
+.set-subs{margin-bottom:1.2rem}
+#restart:not(:empty){margin-bottom:1.2rem}
+.presets{margin-top:.4rem}
+/* Lautstärke immer griffbereit: nur auf dem Handy, oben in der Übersicht (.editbar.is-sticky) */
+.vol-strip{display:none}
+.vol-strip input[type=range]{flex:1}
+@media (max-width:640px){
+  .tabs{display:none}
+  .alarm{grid-template-columns:minmax(0,1fr)}
+  .vol-strip{display:flex;margin-bottom:1rem}
+  #c-play .range{display:none}
+  .ring-pick{margin-inline:auto}
+}

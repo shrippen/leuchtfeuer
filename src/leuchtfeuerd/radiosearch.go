@@ -90,10 +90,14 @@ func (rb *radioBrowser) hosts() []string {
 // Search sucht Sender nach Name (und optional Land), sortiert nach Stimmen; nur funktionierende, nur http(s).
 func (rb *radioBrowser) Search(q, country string) ([]radioStation, error) {
 	q = strings.TrimSpace(q)
-	if len([]rune(q)) < 2 {
-		return nil, fmt.Errorf("mindestens 2 Zeichen / at least 2 characters")
+	if len([]rune(q)) < 2 && len(country) != 2 {
+		return nil, fmt.Errorf("mindestens 2 Zeichen oder ein Land / at least 2 characters or a country")
 	}
-	p := url.Values{"name": {q}, "hidebroken": {"true"}, "order": {"votes"}, "reverse": {"true"}, "limit": {"40"}}
+	// ohne Suchbegriff: die beliebtesten Sender des Landes
+	p := url.Values{"hidebroken": {"true"}, "order": {"votes"}, "reverse": {"true"}, "limit": {"40"}}
+	if len([]rune(q)) >= 2 {
+		p.Set("name", q)
+	}
 	if len(country) == 2 {
 		p.Set("countrycode", strings.ToUpper(country))
 	}

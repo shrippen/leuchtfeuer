@@ -5,6 +5,7 @@
 # ports: tcp 49494, udp 1900
 # requires: gmediarender
 # default: on
+# uses: DEVICE_NAME
 # UPnP/DLNA-Renderer (gmrender-resurrect, GStreamer 1.10 des Geräts) -> ALSA "leuchtfeuer_upnp" (Quellen-Regler, asound-music.conf).
 # Ports: 49494/tcp (HTTP/SOAP), 1900/udp (SSDP) – in $LEUCHTFEUER_DIR/ports.local freigegeben.
 D=${LEUCHTFEUER_DIR:-/data/leuchtfeuer}; PATH=$D/bin:$PATH

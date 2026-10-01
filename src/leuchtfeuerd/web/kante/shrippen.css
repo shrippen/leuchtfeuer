@@ -37,6 +37,7 @@
   --cyan:     #5ccfc4;   /* technical layer: focus, links, data, brackets. Lines and text, never large fills */
   --cyan-tint: #1e2b2a;  /* ground of a selected row or a focused field */
   --yellow-hi: #fdc94a;  /* primary hover (one step lighter) */
+  --red-text: #ff7d6b;   /* red as small text: 4.5:1 on every dark ground, bg1 included */
   --yellow-lo: #e5a823;  /* primary pressed */
 
   /* ── Semantic colors (Gruvbox neutral — for quieter contexts) ── */
@@ -58,6 +59,7 @@
   --info:     var(--cyan);    /* info callouts and toasts, third feature tier */
   --warn:     var(--orange);  /* warnings: callout, banner, middle tier of states */
   --danger:   var(--red);     /* errors, destructive actions */
+  --danger-text: var(--red-text); /* error text, critical labels and counts (not fills) */
   --on-state: var(--bg-void); /* text on a filled state colour (danger button, counters) */
   --scrim:    rgba(20,19,18,.62); /* dimmed area behind dialogs and outside a crop */
   --primary:  var(--yellow);  /* primary action, pressed segment, switch on, focus ring */
@@ -110,6 +112,7 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
                Ubuntu, Cantarell, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  --font-control: var(--font-heading); /* buttons; Kante Gold keeps Rajdhani here while titles turn serif */
 }
 
 /*
@@ -151,6 +154,7 @@
   --purple:   #8f3f71;
   --cyan:     #0f6b66;   /* 5.2:1 on the ground */
   --cyan-tint: #d9ebe4;
+  --red-text: #9d0006;
 
   --field:    var(--bg1);
   --scrim:    rgba(40,40,40,.5);
@@ -204,6 +208,7 @@
   --cyan:     #1d6fa5;   /* Kante Light has no cyan: the platform's link and focus colours */
   --cyan-n:   #1d6fa5;
   --cyan-tint: #e3eef6;
+  --red-text: var(--red);
   --yellow-hi: #3daee9;
   --yellow-lo: #2e9bd4;
   --on-state: #ffffff;
@@ -240,10 +245,75 @@
     --cyan:     #3daee9;
     --cyan-n:   #3daee9;
     --cyan-tint: #1e3342;
+    --red-text: var(--red);
     --yellow-hi: #3daee9;
     --yellow-lo: #2e9bd4;
     --on-state: #202326;
   }
+}
+
+/*
+ * Kante Gold — opt-in via <html data-kante="gold">. Only Kintsugi uses it (see AGENT-RULE.md).
+ * The noble variant: the same components and sizes on urushi lacquer, paper text and gold.
+ * Every cut edge is gilded, bars are 2 px, titles and figures are Spectral, motion glides.
+ * Dark only. css/components.css "Kante Gold" adds the shape, type and motion rules.
+ * Patina (verdigris) takes cyan's roles: focus, links, info.
+ */
+:root[data-kante="gold"] {
+  color-scheme: dark;
+
+  /* ── Backgrounds: lacquer ── */
+  --bg-void:  #14110f;   /* urushi: page ground */
+  --bg-hard:  #0f0d0b;   /* sunk areas, fields, tracks */
+  --bg0:      #1c1815;
+  --bg-panel: #1c1815;   /* lacquer: cards and panels */
+  --bg1:      #262019;   /* elevated, hover */
+  --bg2:      #3b3229;   /* borders, dividers */
+
+  /* ── Foregrounds: paper ── */
+  --fg0:      #faf5e9;
+  --fg1:      #efe8d8;
+  --fg2:      #cdc2ae;
+  --fg3:      #a39885;   /* ash: 6.6:1 on the ground */
+
+  /* ── Brand accent: pale gold ── */
+  --accent:   #e8d4a6;
+
+  /* ── Semantic colors: metals and pigments ── */
+  --blue:     #8aa1ab;   /* slate */
+  --blue-hover: #77909a;
+  --aqua:     #97ad7a;   /* jade: success */
+  --green:    #a9b26b;
+  --yellow:   #d4a640;   /* gold: primary, lines, score */
+  --orange:   #d08a55;   /* copper: warning */
+  --red:      #d0705a;   /* cinnabar: error */
+  --purple:   #c497a8;   /* ume: tags */
+  --cyan:     #8fb8aa;   /* patina: focus, links, info */
+  --cyan-n:   #6f9488;
+  --cyan-tint: #1b2321;
+  --yellow-hi: #e0b65a;
+  --yellow-lo: #b88f2f;
+  --red-text: #e48b74;
+
+  --scrim:    rgba(15,13,11,.72);
+  --d1: var(--yellow);
+  --d2: var(--cyan);
+
+  /* ── Gold only ── */
+  --gold-line: color-mix(in srgb, var(--yellow) 32%, transparent); /* hairlines, frames */
+  --gild:     1.6px;     /* the gold line on every cut edge */
+  --bar:      2px;       /* state and tier bars (Kante: 4 px) */
+
+  /* ── Motion: glides, no overshoot ── */
+  --dur-fast: 160ms;
+  --dur:      280ms;
+  --dur-slow: 700ms;
+  --ease-snap: cubic-bezier(.2,.8,.2,1);
+
+  /* ── Typography: serif titles and figures, Rajdhani stays on the controls ── */
+  --font-heading: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-control: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                  Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 /* ── Base ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -310,6 +380,8 @@ html[lang="en"] [lang="de"],html[lang="de"] [lang="en"]{display:none!important}
   display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:3rem;align-items:end;
   position:relative}
 .hero>*{position:relative;z-index:1}
+/* The watermark bleeds right; clip it at the hero so the page never scrolls sideways. */
+.hero:has(>.hero-wm){overflow-x:clip}
 /* Watermark: the monochrome logo, huge and faint behind the hero. Scrolls with the page (not fixed).
    It may bleed below a short hero; the content after the hero (main, footer) paints above it. */
 main,.foot{position:relative;z-index:1}
@@ -342,7 +414,7 @@ main,.foot{position:relative;z-index:1}
 .install-links{display:flex;flex-wrap:wrap;gap:.7rem}
 .btn{--cut:var(--cut-m);--grow:6px;--c1:var(--cut);--c2:0px;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
   min-height:var(--h-m);padding:0 1.35rem;border:0;cursor:pointer;background-color:transparent;color:inherit;white-space:nowrap;
-  font-family:var(--font-heading);font-weight:700;font-size:1rem;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;
+  font-family:var(--font-control);font-weight:700;font-size:1rem;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;
   clip-path:polygon(0 0,calc(100% - var(--c1)) 0,100% var(--c1),100% 100%,var(--c2) 100%,0 calc(100% - var(--c2)))}
 .btn:hover{text-decoration:none}
 .btn svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor}
@@ -847,6 +919,10 @@ textarea.input{min-height:5.5rem;line-height:1.5;resize:vertical}
   .is-editing>.tile{transition:border-color var(--dur) calc(var(--i,0) * 70ms)}
   .is-editing>.feat::before{transition:background var(--dur) calc(var(--i,0) * 70ms)}
   .is-editing>.feat::after,.is-editing>[data-editable]::after,.is-editing>.tile::after{animation:k-fade var(--dur) both;animation-delay:calc(var(--i,0) * 70ms)}
+  /* Kante Gold: shimmer, glide, drifting crackle */
+  :root[data-kante="gold"] :is(.progress-bar.is-indeterminate,.btn.is-busy){animation:k-sheen 2.6s linear infinite}
+  :root[data-kante="gold"] .banner::before,:root[data-kante="gold"] .banner::after{animation:none}
+  :root[data-kante="gold"] body::before{will-change:transform;animation:k-drift 160s linear infinite}
   /* Entrances */
   /* Only elements that shrippen.js marked at load (data-entrance) are hidden until seen: anything
      inserted later (htmx swaps, dialogs) is never left invisible. */
@@ -861,6 +937,8 @@ textarea.input{min-height:5.5rem;line-height:1.5;resize:vertical}
   html.motion :is(.hero-shot,.showcase figure,.shots figure)[data-entrance].is-in::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--cyan);pointer-events:none;animation:k-scanline 700ms cubic-bezier(.3,.7,.2,1) both}
 }
 @keyframes k-march{to{background-position:28.28px 0}}
+@keyframes k-sheen{from{background-position:100% 0}to{background-position:-150% 0}}
+@keyframes k-drift{to{transform:translate3d(480px,480px,0)}}
 @keyframes k-march-l{to{background-position:33.94px 0}}
 @keyframes k-march-s{to{background-position:22.63px 0}}
 @keyframes k-breathe{50%{opacity:.3}}
@@ -906,7 +984,7 @@ textarea.input{min-height:5.5rem;line-height:1.5;resize:vertical}
 /* 9 · Additions from the project integrations (Kante 1.5) ─────────────
    Everything Andon, Kader, Plasmai, Kurrent and FrameWidge kept locally because Kante lacked it. */
 /* Native <dialog>: closed dialogs stay closed, no UA border, backdrop = scrim */
-dialog.dialog{border:0;margin:auto;color:var(--fg1)}
+dialog.dialog{border-left:0;border-right:0;border-bottom:0;margin:auto;color:var(--fg1)}
 dialog.dialog:not([open]){display:none}
 dialog.dialog::backdrop{background:var(--scrim)}
 /* Toggle state of a button (aria-pressed) */
@@ -918,6 +996,10 @@ dialog.dialog::backdrop{background:var(--scrim)}
 .chip{--c:var(--purple);display:inline-flex;align-items:center;gap:.4rem;height:24px;padding-inline:.5rem;border:1px solid var(--c);background:none;color:var(--c);cursor:pointer;
   font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em;white-space:nowrap}
 .chip::before{content:"";width:8px;height:8px;background:var(--c)}
+/* A chip never runs out of its row; .is-wrap lets a long chip (a question, a sentence) break onto more lines */
+.chip{max-width:100%}
+.chip::before{flex:none}
+.chip.is-wrap{height:auto;min-height:24px;padding-block:.25rem;white-space:normal;text-align:left;line-height:1.35}
 .chip[aria-pressed="true"]{background:var(--c);color:var(--on-state)}
 .chip[aria-pressed="true"]::before{background:var(--on-state)}
 .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -943,7 +1025,7 @@ details.dropdown.is-right>.menu{left:auto;right:0}
 /* File input */
 .input[type="file"]{padding:0;display:flex;align-items:center;color:var(--fg2)}
 .input[type="file"]::file-selector-button{margin:0 .8rem 0 0;border:0;height:calc(var(--h-m) - 3px);padding:0 1rem;background:var(--bg1);color:var(--fg1);cursor:pointer;
-  font-family:var(--font-heading);font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+  font-family:var(--font-control);font-weight:700;letter-spacing:.14em;text-transform:uppercase}
 /* A <label> that wraps its control */
 label.field{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
 /* Section label (a heading in mono) */
@@ -1049,7 +1131,7 @@ label.field{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.14em;t
 .kpi{display:flex;flex-direction:column;gap:.2rem;container-type:inline-size;min-width:0}
 .kpi>b{font-family:var(--font-heading);font-weight:700;font-size:clamp(1.6rem,14cqi,2.8rem);line-height:1;overflow-wrap:anywhere;color:var(--fg0);font-variant-numeric:tabular-nums}
 .kpi>span{font-family:var(--font-mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:.8rem}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:.8rem}
 .delta{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em;font-variant-numeric:tabular-nums;color:var(--fg3)}
 .delta::before{content:"";width:8px;height:2px;background:currentColor}
 .delta.up{color:var(--aqua)}.delta.up::before{width:0;height:0;background:none;border:5px solid transparent;border-bottom:8px solid currentColor;border-top:0}
@@ -1162,8 +1244,9 @@ a.link-tile>.hint{grid-column:2/4;font-family:var(--font-mono);font-size:.66rem;
   font-family:var(--font-heading);font-weight:700;font-size:1.08rem;letter-spacing:.03em;text-transform:uppercase;color:var(--fg0)}
 .fold>summary::-webkit-details-marker{display:none}
 .fold>summary::before{content:"";flex:none;align-self:center;width:10px;height:10px;background:var(--fg3);clip-path:polygon(0 0,60% 0,100% 40%,100% 100%,0 100%);transform:rotate(-90deg)}
+.fold:not([open])>summary::before{background:none;box-shadow:inset 0 0 0 2px var(--fg3)}
 .fold[open]>summary::before{background:var(--cyan);transform:none}
-.fold>summary:hover::before{background:var(--fg0)}
+.fold:not([open])>summary:hover::before{box-shadow:inset 0 0 0 2px var(--fg0)}
 .fold[open]>summary:hover::before{background:var(--cyan)}
 .fold>summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 .fold>summary>.count{align-self:center;min-width:0;height:auto;padding:0;background:none;color:var(--fg3);font-weight:400}
@@ -1209,6 +1292,7 @@ a.link-tile>.hint{grid-column:2/4;font-family:var(--font-mono);font-size:.66rem;
 .hint-card .tier{display:inline-flex;align-items:center;gap:.4rem;color:var(--tier)}
 .hint-card .tier::before{content:"";width:10px;height:10px;background:currentColor}
 .hint-card[data-tier="red"] .tier::before{clip-path:polygon(50% 0,100% 100%,0 100%)}
+.hint-card[data-tier="red"] .tier{color:var(--danger-text)}
 .hint-card[data-tier="yellow"] .tier::before{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
 .hint-card[data-tier="green"] .tier::before{clip-path:polygon(0 55%,20% 35%,40% 55%,85% 5%,100% 25%,40% 95%)}
 .hint-card>.title{color:var(--fg0);font-weight:600;font-size:.92rem;line-height:1.35}
@@ -1365,6 +1449,7 @@ a.hint-card>.title:hover,.hint-card>a.title:hover{color:var(--link)}
    tier of what they filter: data-tier="critical" red, "warn" orange */
 a.chip,a.chip:hover{text-decoration:none}
 .chip.is-filter[data-tier="critical"]{--c:var(--danger)}
+.chip.is-filter[data-tier="critical"]:not([aria-pressed="true"]){color:var(--danger-text)}
 .chip.is-filter[data-tier="warn"]{--c:var(--warn)}
 /* Charts drawn with preserveAspectRatio="none" (stretched to the card): lines keep their width.
    The spark end mark as a zero-length path <path class="end" d="M x y h0"> stays square.
@@ -1435,12 +1520,16 @@ input[type="color"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 .launch-state[data-state="warn"]{--k:var(--warn)}.launch-state[data-state="bad"]{--k:var(--danger);color:var(--danger)}.launch-state[data-state="off"]{--k:var(--bg2);color:var(--fg3)}
 .launch-info.is-error{color:var(--danger)}
 /* Hint count: outlined in the tier colour; red is filled, so the shape tells the tier too */
-.launch-hints{--k:var(--info);display:inline-grid;place-items:center;min-width:1.25rem;height:1.1rem;margin:0;padding:0 .3rem;background:none;border:1px solid var(--k);color:var(--k);
+.launch-hints{--k:var(--info);display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-width:1.25rem;height:1.1rem;margin:0;padding:0 .3rem;background:none;border:1px solid var(--k);color:var(--k);
   font-family:var(--font-mono);font-weight:500;font-size:.62rem;font-variant-numeric:tabular-nums;text-decoration:none;cursor:pointer}
 .launch-hints[data-tier="yellow"]{--k:var(--warn)}
 .launch-hints[data-tier="red"]{--k:var(--danger);background:var(--danger);color:var(--on-state)}
 .launch-hints:hover{background:var(--tint-2)}.launch-hints[data-tier="red"]:hover{background:var(--danger)}
 .launch-hints:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+/* Tier by shape as well as colour (as in .hint-card .tier): square info, diamond warning, triangle critical. */
+.launch-hints::before{content:"";flex:none;width:6px;height:6px;background:currentColor}
+.launch-hints[data-tier="yellow"]::before{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.launch-hints[data-tier="red"]::before{clip-path:polygon(50% 0,100% 100%,0 100%)}
 .launch-key{align-self:flex-start;font-size:.62rem}
 /* small: one line, the state as a square only (the word stays for screen readers) */
 :is(.launch[data-size="small"],.launch-grid[data-size="small"] .launch){--icon:1.5rem;gap:.55rem;min-height:var(--h-m);padding:.3rem .6rem .3rem .45rem;border-top-width:2px}
@@ -1528,6 +1617,141 @@ input[type="color"]:focus-visible{outline:2px solid var(--focus);outline-offset:
 :root[data-kante="light"] .tile,:root[data-kante="light"] .flow-node,:root[data-kante="light"] .dialog,:root[data-kante="light"] .toast{box-shadow:inset 0 0 0 1px var(--bg2)}
 :root[data-kante="light"] .toolbar{background:var(--bg-panel);border-color:var(--bg2);border-radius:4px}
 :root[data-kante="light"] .pill{border-radius:1rem}
+
+/* ── Thread: a conversation (Kintsugi's chat, Hansei's talk with the AI) ──
+   .thread > .msg[data-from="ai"|"me"] > header (who, time) + text. The other side sits left
+   with an info bar, the reader's own messages sit right with the primary bar. */
+.thread{display:flex;flex-direction:column;gap:.7rem;min-width:0}
+.msg{max-width:min(40rem,92%);padding:.6rem .85rem .7rem;background:var(--bg-panel);border-left:4px solid var(--bg2);font-size:.92rem;color:var(--fg1);overflow-wrap:anywhere}
+.msg>header{display:flex;gap:.6rem;align-items:baseline;margin-bottom:.25rem;font-family:var(--font-mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
+.msg[data-from="ai"]{border-left-color:var(--info)}
+.msg[data-from="me"]{align-self:flex-end;border-left:0;border-right:4px solid var(--primary);background:var(--tint-1)}
+.msg[data-from="me"]>header{justify-content:flex-end}
+.msg :is(p,ul,ol)+:is(p,ul,ol){margin-top:.5rem}
+.msg :is(ul,ol){padding-left:1.2rem}
+
+/* ── App page titles: the h1 of an app page and the heading of a block on it ── */
+.page-title{font-family:var(--font-heading);font-weight:700;font-size:clamp(1.8rem,4.2vw,2.5rem);line-height:1.02;text-transform:uppercase;letter-spacing:.02em;color:var(--fg0);text-wrap:balance}
+.block-title{font-family:var(--font-heading);font-weight:700;font-size:1.3rem;line-height:1.1;text-transform:uppercase;letter-spacing:.04em;color:var(--fg0)}
+
+/* ── Steps with state: .is-done ticks the number, aria-current="step" marks where you are;
+   .steps.is-row lays a short process out in one line (setup wizards) ── */
+.steps>li.is-done::before{content:"✓";background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.steps>li[aria-current="step"]{color:var(--fg0)}
+.steps>li[aria-current="step"]::before{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.steps.is-row{display:flex;flex-wrap:wrap;gap:.6rem 2rem}
+.steps.is-row>li{margin-bottom:0;line-height:1.8rem;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
+.steps.is-row>li:is(.is-done,[aria-current="step"]){color:var(--fg0)}
+
+/* ── Nav: the current page ── */
+.nav-links a[aria-current="page"]{color:var(--fg0);box-shadow:inset 0 -2px 0 var(--primary)}
+
+/* ── App bar for phones: the main pages of an app as a bar at the bottom (Leuchtfeuer).
+   .bottom-nav > a|button (icon + label), aria-current="page" marks the page; shown below 640px only,
+   the normal tabs stay for wider screens. A last item can open more pages (details.dropdown with a .menu). ── */
+.bottom-nav{display:none}
+@media(max-width:640px){
+  .bottom-nav{--safe-bottom:env(safe-area-inset-bottom,0px);position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--bg-panel);border-top:2px solid var(--bg2);padding-bottom:var(--safe-bottom)}
+  .bottom-nav>:is(a,button,details){flex:1 1 0;min-width:0}
+  .bottom-nav :is(a,button,summary){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;width:100%;min-height:var(--h-l);padding:.35rem .2rem;background:none;border:0;color:var(--fg3);cursor:pointer;text-decoration:none;
+    font-family:var(--font-mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;list-style:none}
+  .bottom-nav summary::-webkit-details-marker{display:none}
+  .bottom-nav svg{width:20px;height:20px;fill:none;stroke:currentColor}
+  .bottom-nav :is(a,button)[aria-current="page"]{color:var(--fg0);box-shadow:inset 0 2px 0 var(--primary)}
+  .bottom-nav :is(a,button,summary):focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+  .bottom-nav details.dropdown>.menu{top:auto;bottom:calc(100% + 4px);left:auto;right:0}
+  :root:has(.bottom-nav) body{padding-bottom:calc(var(--h-l) + 1rem + env(safe-area-inset-bottom,0px))}
+  :root:has(.bottom-nav) .toast-stack{bottom:calc(var(--h-l) + 1rem + var(--safe-bottom))}
+  :root:has(.bottom-nav) .editbar.is-fixed{bottom:calc(var(--h-l) + env(safe-area-inset-bottom,0px))}
+}
+
+/* ── Help: a small "?" beside a label that opens a short explanation (term, unit, where to find a value).
+   details.help > summary (the "?", aria-label) + .help-text. Opens on click or keyboard, closes on a second click. ── */
+details.help{position:relative;display:inline-block;vertical-align:middle;margin-left:.3rem;text-transform:none;letter-spacing:0}
+details.help>summary{display:inline-grid;place-items:center;width:18px;height:18px;border:1px solid var(--cyan);color:var(--cyan);font-family:var(--font-mono);font-size:.68rem;line-height:1;cursor:pointer;list-style:none}
+details.help>summary::-webkit-details-marker{display:none}
+details.help>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+details.help[open]>summary{background:var(--cyan-tint)}
+details.help>.help-text{position:absolute;z-index:25;top:calc(100% + 6px);left:-.5rem;width:max-content;max-width:min(20rem,80vw);background:var(--bg-panel);border-top:3px solid var(--cyan);padding:.6rem .8rem;
+  font-family:var(--font-sans);font-size:.82rem;line-height:1.4;color:var(--fg1);border-inline:1px solid var(--bg2);border-bottom:1px solid var(--bg2)}
+details.help.is-right>.help-text{left:auto;right:-.5rem}
+
+/* ── Toast with an action, e.g. "Undo" after a delete: .toast > .toast-action (a quiet button) ── */
+.toast>.toast-action{margin-left:auto;flex:none;background:none;border:1px solid currentColor;color:var(--fg0);padding:.2rem .6rem;cursor:pointer;
+  font-family:var(--font-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+.toast>.toast-action:hover{background:var(--cyan-tint)}
+.toast>.toast-action:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ── Ring picker: one of N marks on a circle, e.g. the start LED of a light ring or a dial position.
+   .ring-pick (--n marks, default 12; --r radius) > button[role="radio"][aria-checked][style="--i:k"] for k = 0…n-1,
+   mark 0 at the top, clockwise; .ring-pick-n shows the value in the middle. Markers are squares (Kante rule). ── */
+.ring-pick{--n:12;--r:4.1rem;position:relative;width:calc(var(--r) * 2 + 2rem);aspect-ratio:1;margin:.3rem 0}
+.ring-pick>button{position:absolute;left:calc(50% - .65rem);top:calc(50% - .65rem);width:1.3rem;height:1.3rem;padding:0;border:2px solid var(--fg3);background:var(--bg-hard);cursor:pointer;
+  transform:rotate(calc(var(--i) * 360deg / var(--n))) translateY(calc(var(--r) * -1))}
+.ring-pick>button:hover{border-color:var(--fg0)}
+.ring-pick>button[aria-checked="true"]{background:var(--primary);border-color:var(--primary)}
+.ring-pick>button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.ring-pick>.ring-pick-n{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-mono);font-size:1.4rem;color:var(--fg2);pointer-events:none}
+
+/* ── Touch: chips get the small control height, so a finger hits them ── */
+@media (pointer:coarse){.chip{height:var(--h-s)}}
+
+/* ── Keyboard focus on segments and switches (they had none) ── */
+.seg button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.switch:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ── Screen-reader only: a label that is read out but not shown (e.g. a column of number fields with a visible head) ── */
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ── Seam (Kante Gold, from Kintsugi): the gold seam, a drawn line that mends a break.
+   Divider under the nav (.nav > .seam) and under titles (.seam.is-short). Drawn in --yellow. */
+.seam{display:block;height:8px;background:var(--yellow);pointer-events:none;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='8'%3E%3Cpath d='M0 4 L20 3 L38 5 L60 2 L84 5 L104 4 L128 6 L150 3 L172 5 L196 2 L218 5 L240 4' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x 0 50%/240px 8px;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='8'%3E%3Cpath d='M0 4 L20 3 L38 5 L60 2 L84 5 L104 4 L128 6 L150 3 L172 5 L196 2 L218 5 L240 4' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x 0 50%/240px 8px}
+.seam.is-short{width:2.5rem}
+.nav>.seam{position:absolute;left:0;right:0;bottom:-4px;opacity:.85}
+
+/* ── Kante Gold (<html data-kante="gold">) ───────────────────────────
+   The noble variant, only for Kintsugi. Colours, fonts and motion values are in
+   tokens/variables.css; here the details: serif titles with tracked capitals (controls stay
+   Rajdhani via --font-control), 2 px bars, gold hairlines, a gold line on every cut edge,
+   a shimmer instead of hazard stripes, and the crackle ground behind the page. */
+:root[data-kante="gold"] :is(.page-title,.block-title,.nav-brand,.hero h1,.install-card label,.fact b,.showcase h2,.flow-node b,.faq summary,.feat h3,.section h2,.steps>li::before,.banner-title,.foot-name,.dialog h3,.table tfoot td,.kpi>b,.bulk-bar>.n,.sheet>h3,.status>.name,a.link-tile>.name,.fold>summary,.tier-card>h3,.tier-card>b,.date-tile>b,.editbar>.mode,.login>.brand,.login>h1,.contrast>.sample,.launch-icon>.monogram,.launch-title,.clock-zone>strong,.weather>b){font-weight:500;letter-spacing:.06em}
+:root[data-kante="gold"] :is(.kpi>b,.fact b,.bulk-bar>.n,.date-tile>b,.clock-zone>strong,.weather>b,.steps>li::before){letter-spacing:.01em;font-variant-numeric:lining-nums tabular-nums}
+:root[data-kante="gold"] :is(.nav-brand,.login>.brand,.foot-name){letter-spacing:.3em}
+:root[data-kante="gold"] .table th{font-family:var(--font-mono);font-weight:500;font-size:.68rem;letter-spacing:.16em;color:var(--fg2)}
+:root[data-kante="gold"] .btn{font-weight:600}
+:root[data-kante="gold"] .feat-icon{stroke-width:1.5}
+/* Less weight: 2 px bars, gold hairlines */
+:root[data-kante="gold"] :is(.flow-node,.faq details,.feat,.callout,.band,.toast,.dialog,.sheet,.status,.palette,a.link-tile,.launch,.tier-card,.hint-card,.login,.tile){border-top-width:var(--bar)}
+:root[data-kante="gold"] .feat::before{top:calc(-1 * var(--bar));height:var(--bar)}
+:root[data-kante="gold"] .msg{border-left-width:var(--bar)}
+:root[data-kante="gold"] .msg[data-from="me"]{border-right-width:var(--bar)}
+:root[data-kante="gold"] :is(.table-wrap,.codeblock,.modebar,.toolbar,.empty){border-color:var(--gold-line)}
+:root[data-kante="gold"] .modebar>:is(button,a){border-right-color:var(--gold-line)}
+:root[data-kante="gold"] .table td{border-top-color:color-mix(in srgb,var(--yellow) 12%,transparent)}
+:root[data-kante="gold"] .btn-outline{--bw:1px;--bc:var(--gold-line)}
+:root[data-kante="gold"] .btn-outline:hover{--bc:var(--yellow);background-color:var(--bg1)}
+:root[data-kante="gold"] .tabs{border-bottom-width:1px;border-bottom-color:var(--gold-line)}
+:root[data-kante="gold"] .tabs :is(button,a){background:transparent}
+:root[data-kante="gold"] .tabs :is(button,a):is([aria-selected="true"],[aria-current="page"]){background:transparent;color:var(--yellow);box-shadow:inset 0 -2px 0 var(--yellow)}
+:root[data-kante="gold"] .tabs :is(button,a):is([aria-selected="true"],[aria-current="page"]) .count{background:var(--yellow);color:var(--on-primary)}
+/* The sliding indicator (shrippen.js) is the 2 px gold underline, not a fill */
+:root[data-kante="gold"] .tabs-ind{top:auto;height:2px;clip-path:none}
+:root[data-kante="gold"] .tabs.has-ind :is(button,a):is([aria-selected="true"],[aria-current="page"]){box-shadow:none}
+/* The gilded edge: a gold line along the cut of every surface */
+:root[data-kante="gold"] :is(.ch,.feat:not(a),.callout,.codeblock,.table-wrap,.flow-node,.faq details,.dialog,.sheet,.palette,.login){--gc:var(--chamfer)}
+:root[data-kante="gold"] :is(.status,.tier-card,.hint-card,.menu,.bulk-bar){--gc:var(--cut-m)}
+:root[data-kante="gold"] :is(.ch,.feat:not(a),.callout,.codeblock,.table-wrap,.flow-node,.faq details,.dialog,.sheet,.palette,.login,.status,.tier-card,.hint-card,.menu,.bulk-bar){
+  background-image:linear-gradient(to bottom left,transparent calc(50% - var(--gild) / 2),var(--yellow) calc(50% - var(--gild) / 2),var(--yellow) calc(50% + var(--gild) / 2),transparent calc(50% + var(--gild) / 2));
+  background-repeat:no-repeat;background-position:top right;background-size:var(--gc) var(--gc);background-origin:border-box}
+/* Busy: a slow shimmer instead of marching hazard stripes */
+:root[data-kante="gold"] .progress-bar.is-indeterminate{background:linear-gradient(90deg,var(--bg-hard) 0 30%,var(--yellow) 50%,var(--bg-hard) 70%) 0 0/250% 100%}
+:root[data-kante="gold"] .btn.is-busy{background-image:linear-gradient(90deg,var(--primary) 0 30%,var(--yellow-hi) 50%,var(--primary) 70%);background-size:250% 100%}
+:root[data-kante="gold"] .btn-outline.is-busy{background-image:linear-gradient(90deg,transparent 0 30%,var(--tint-2) 50%,transparent 70%);background-size:250% 100%;background-position:0 0}
+:root[data-kante="gold"] .banner::before,:root[data-kante="gold"] .banner::after{height:var(--bar);background:var(--accent)}
+/* Crackle ground: Kintsugi's breaks in gold, very quiet, behind the whole page */
+:root[data-kante="gold"] body::before{content:"";position:fixed;top:-50%;left:-50%;width:200%;height:200%;z-index:-1;pointer-events:none;contain:strict;
+  background:var(--yellow);opacity:.05;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M-20 60 L60 90 L110 40 L180 110 L260 70 L340 150 L420 90 L500 140'/%3E%3Cpath d='M0 260 L70 230 L140 300 L210 240 L300 310 L380 250 L460 320 L500 280'/%3E%3Cpath d='M40 -10 L90 60 L60 140 L120 200 L90 280 L150 350 L120 430 L160 500'/%3E%3Cpath d='M340 -10 L300 70 L360 130 L320 210 L380 270 L340 350 L400 420 L360 500'/%3E%3C/g%3E%3C/svg%3E") repeat 0 0/480px 480px;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M-20 60 L60 90 L110 40 L180 110 L260 70 L340 150 L420 90 L500 140'/%3E%3Cpath d='M0 260 L70 230 L140 300 L210 240 L300 310 L380 250 L460 320 L500 280'/%3E%3Cpath d='M40 -10 L90 60 L60 140 L120 200 L90 280 L150 350 L120 430 L160 500'/%3E%3Cpath d='M340 -10 L300 70 L360 130 L320 210 L380 270 L340 350 L400 420 L360 500'/%3E%3C/g%3E%3C/svg%3E") repeat 0 0/480px 480px}
 
 /* ── Mobile ── */
 @media(max-width:900px){

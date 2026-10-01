@@ -5,6 +5,7 @@
 # ports: tcp 57500
 # requires: librespot aplay
 # default: on
+# uses: DEVICE_NAME
 # Spotify Connect (librespot 0.8, statisch). Ausgabe: aplay des Geräts -> ALSA "leuchtfeuer_spotify" (Quellen-Regler) -> "leuchtfeuer_music"
 # (softvol "Leuchtfeuer Music" -> dmix -> DSP, 48 kHz; siehe asound-music.conf). Zugangsdaten nach der ersten Kopplung im Cache.
 # Lautstärke: "--volume-ctrl fixed" dämpft nicht (Patch beim Build); den Regler der Spotify-App setzt leuchtfeuerd über
