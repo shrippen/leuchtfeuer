@@ -115,6 +115,9 @@ func newTestApp(t *testing.T, start string) *testApp {
 	ta := &testApp{vol: &fakeVol{vol: 30}, pl: &fakePlayer{}, led: &fakeLED{}, now: now}
 	a := &app{cfg: cfg, st: st}
 	a.bus = newLocalBus(a)
+	a.out = newOutputMgr(a)
+	a.out.confFile = func() string { return filepath.Join(t.TempDir(), "output.conf") }
+	a.out.restart = func() {}
 	a.clock = func() time.Time { return ta.now }
 	a.vol, a.pl, a.led = ta.vol, ta.pl, ta.led
 	a.src = newSourceHub(a)

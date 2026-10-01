@@ -43,7 +43,8 @@ type app struct {
 	st      *store
 	h       *hub // Router der Hersteller-Software (nur Invoke, target_invoke.go)
 	hOnce   sync.Once
-	bus     *localBus // eigene Programme (btagent, castrecv), bus.go
+	bus     *localBus  // eigene Programme (btagent, castrecv), bus.go
+	out     *outputMgr // Ausgabe der Tonkette (output.go)
 	vol     audioCtl
 	pl      playerCtl
 	led     ledAPI
@@ -85,6 +86,7 @@ func newApp(cfg *shellConfig, st *store) *app {
 	a := &app{cfg: cfg, st: st, started: time.Now(), version: version}
 	a.clock = time.Now
 	a.bus = newLocalBus(a)
+	a.out = newOutputMgr(a)
 	a.src = newSourceHub(a)
 	a.vol = hw.newVolume(a)
 	a.vol.OnChange(func() {

@@ -181,9 +181,10 @@ type Volume struct {
 	Known  bool `json:"known"`
 }
 
-// Action: Ereignisse mit einer Aktion (bt-pairing, bt-control).
+// Action: Ereignisse mit einer Aktion (bt-pairing, bt-control; bei bt-sink mit der Adresse des Lautsprechers).
 type Action struct {
 	Action string `json:"action"`
+	Addr   string `json:"addr,omitempty"`
 }
 
 // Claim: eine Quelle beginnt zu spielen (Ereignis "claim").

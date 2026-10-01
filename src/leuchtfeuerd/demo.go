@@ -279,6 +279,20 @@ func runDemo(listen string) {
 			LastCheck: now, Log: toStrings(wr["log"])}
 	}
 	a.btFn = func() btState { return btState{} }
+	// Ausgabe: zwei Soundkarten und zwei Bluetooth-Lautsprecher (einer gekoppelt)
+	a.out.cardsFile = filepath.Join(dir, "cards")
+	os.WriteFile(a.out.cardsFile, []byte(" 0 [wm8904         ]: wm8904 - HK Invoke DSP\n                      HK Invoke DSP\n 1 [HDMI           ]: HDMI - HDMI Ausgang\n                      HDMI Ausgang\n"), 0o644)
+	a.out.confFile = func() string { return filepath.Join(dir, "output.conf") }
+	a.out.restart = func() {}
+	go func() {
+		for {
+			a.out.Report(btReport{Devices: []btDevice{
+				{Addr: "00:1A:7D:DA:71:13", Name: "JBL Flip 6", Paired: true, Connected: true},
+				{Addr: "F4:6D:04:12:34:56", Name: "Bose SoundLink", RSSI: -58},
+			}})
+			time.Sleep(5 * time.Second)
+		}
+	}()
 	a.mqttOK = func() bool { return true }
 	for _, e := range sp.ButtonLog {
 		a.buttons = append(a.buttons, buttonEvent{Time: now.Add(-time.Duration(e.Ago) * time.Second), Name: e.Name, Value: e.Value, Do: e.Action})

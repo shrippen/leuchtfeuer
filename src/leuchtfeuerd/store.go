@@ -82,8 +82,9 @@ type Settings struct {
 	Syslog   SyslogSettings               `json:"syslog"`   // Protokolle an einen Syslog-Server (logs.go)
 	Briefing BriefingSettings             `json:"briefing"` // Morgen-Briefing (briefing.go)
 	HA       HASettings                   `json:"homeAssistant"`
-	Voice    VoiceSettings                `json:"voice"` // Sprachassistent (voice.go)
-	Peers    []Peer                       `json:"peers"` // andere Leuchtfeuer (peers.go)
+	Voice    VoiceSettings                `json:"voice"`  // Sprachassistent (voice.go)
+	Peers    []Peer                       `json:"peers"`  // andere Leuchtfeuer (peers.go)
+	Output   OutputSettings               `json:"output"` // Ausgabe der Tonkette (output.go); gerätebezogen, wird nicht zwischen Geräten kopiert
 }
 
 func defaultSettings() Settings {

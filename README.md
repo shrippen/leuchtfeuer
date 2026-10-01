@@ -69,6 +69,11 @@ survives reboots, so nothing in the read-only system image is changed after the 
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Research notes (German): [docs/RESEARCH-NOTES.md](docs/RESEARCH-NOTES.md).
 
+## Output
+
+Settings > Output switches where the sound comes out: the built-in output, another sound card of the hardware (HDMI, USB)
+or a **Bluetooth speaker** (searched, paired and reconnected by Leuchtfeuer). Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#output).
+
 ## Other devices
 
 Leuchtfeuer is device-independent: the Invoke is one **target**; its buttons, light ring and vendor sounds are

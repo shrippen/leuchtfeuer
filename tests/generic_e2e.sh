@@ -45,5 +45,27 @@ check "Bus: Lautstärke setzen" 'bus http://bus/state | grep -q "\"volume\":55"'
 check "eigene Lautstärke gespeichert" 'grep -q "55" "$D/volume.json"'
 check "Firewall standardmäßig aus" '[ ! -e "$R/leuchtfeuer-fw.rules" ]'
 check "Tonkette hinter alsa.conf (ALSA_CONFIG_PATH)" '[ ! -f /usr/share/alsa/alsa.conf ] || tr "\0" "\n" < /proc/$(cat "$R/leuchtfeuer-svc-leuchtfeuerd.pid")/environ | grep -q "^ALSA_CONFIG_PATH=/usr/share/alsa/alsa.conf:$D/asound-music.conf$"'
+# Ausgabe: output.conf liegt da (leer), die API kennt die Wahl; die Tonkette folgt der Datei (echte alsa-lib, ohne Soundkarte:
+# der Standard-Ausgang scheitert, eine Überschreibung mit "type null" in output.conf öffnet sich)
+check "output.conf vom Hook angelegt (leer)" '[ -f "$D/output.conf" ] && ! grep -q "pcm.!" "$D/output.conf"'
+api(){ curl -fs -b "$T/jar" -H 'Content-Type: application/json' "$@"; }
+check "API: Ausgaben (Standard gewählt)" 'api "$web/api/outputs" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d[\"current\"]==\"default\" and d[\"outputs\"][0][\"id\"]==\"default\" else 1)"'
+check "API: unbekannte Soundkarte abgelehnt" '! api -X PUT -d "{\"id\":\"card:42\"}" "$web/api/outputs" >/dev/null'
+check "API: Bluetooth ohne Agent abgelehnt" '! api -d "{\"action\":\"scan\"}" "$web/api/outputs/bluetooth" >/dev/null'
+if [ -f /usr/share/alsa/alsa.conf ] && python3 -c "import ctypes; ctypes.CDLL('libasound.so.2')" 2>/dev/null; then
+  cat > "$T/alsaopen.py" <<'EOF_PY'
+import ctypes, sys
+a = ctypes.CDLL("libasound.so.2"); p = ctypes.c_void_p()
+r = a.snd_pcm_open(ctypes.byref(p), sys.argv[1].encode(), 0, 0)
+if r == 0: a.snd_pcm_close(p)
+sys.exit(0 if r == 0 else 1)
+EOF_PY
+  export ALSA_CONFIG_PATH=/usr/share/alsa/alsa.conf:$D/asound-music.conf
+  check "Tonkette: Standard-Ausgang ohne Soundkarte nicht offen" '! python3 "$T/alsaopen.py" leuchtfeuer_sink 2>/dev/null'
+  echo 'pcm.!leuchtfeuer_sink { type null }' > "$D/output.conf"
+  check "Tonkette: output.conf überschreibt die Ausgabe" 'python3 "$T/alsaopen.py" leuchtfeuer_sink 2>/dev/null'
+  : > "$D/output.conf"
+  unset ALSA_CONFIG_PATH
+fi
 [ "$fail" = 0 ] || { echo "--- hook.log"; cat "$D/hook.log"; echo "--- leuchtfeuerd.log"; tail -n 30 "$D/log/leuchtfeuerd.log"; }
 exit $fail

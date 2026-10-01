@@ -16,6 +16,8 @@ TARGET_ID=invoke
 TARGET_NAME="HK Invoke"
 TARGET_FIREWALL=on
 TARGET_IFACE=wlan0
+# System-Bus des Geräts: das ALSA-Plugin "bluealsa" (Ausgabe an Bluetooth-Lautsprecher) in den Audiodiensten findet bluealsa dort
+TARGET_DBUS=unix:path=/run/dbus/system_bus_socket
 PIDF=$R/leuchtfeuer-dropbear.pid
 
 setup_home(){

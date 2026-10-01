@@ -28,7 +28,8 @@
 #  - Klänge: von leuchtfeuerd ersetzte Klänge der Hersteller-Software (sounds/vendor.map: "<Original>\t<Datei>") per
 #    Bind-Mount einhängen, beim Start vor target_init (das startet auf dem Invoke die Hersteller-Dienste neu).
 # Zielgerät ($D/target.sh, optional): setzt TARGET_ID, TARGET_NAME, TARGET_FIREWALL, TARGET_IFACE, TARGET_ALSA_BASE
-# (Grundkonfiguration der alsa-lib, wenn keine Hersteller-asound.conf ALSA_CONFIG einbindet) und kann definieren:
+# (Grundkonfiguration der alsa-lib, wenn keine Hersteller-asound.conf ALSA_CONFIG einbindet), TARGET_DBUS (System-Bus der Dienste,
+# wenn nicht der Standard) und kann definieren:
 #   target_init      einmal beim Start          target_tick   in jedem Durchlauf
 #   target_fw_rules  zusätzliche Firewall-Regeln target_net    Netz bereit? (DHCP-Name melden u. Ä.; alle 6 h)
 # Notbremse: /data/leuchtfeuer/disable-hook anlegen -> Skript macht nichts.
@@ -266,8 +267,17 @@ watchdog_stop(){
   rm -f $R/leuchtfeuer-watchdog.pid
 }
 
+# Installationsverzeichnis in der Tonkette: assemble.sh baut den Pfad des Ziels ein (Kopfzeile "# leuchtfeuer-dir:"); liegt die
+# Installation woanders (setup.sh --dir), schreibt der Hook ihn um, bevor ein Dienst die Datei liest.
+asound_dir(){
+  f=$D/asound-music.conf
+  baked=$(sed -n '1s/^# leuchtfeuer-dir: *//p' "$f" 2>/dev/null)
+  [ -n "$baked" ] && [ "$baked" != "$D" ] || return 0
+  sed -e "1s|.*|# leuchtfeuer-dir: $D|" -e "2,\$s|$baked/|$D/|g" "$f" > "$f.new" && mv "$f.new" "$f" && log "Tonkette: Pfad $baked -> $D"
+}
+
 # ---- Zielgerät ----
-TARGET_ID=generic TARGET_NAME=Leuchtfeuer TARGET_FIREWALL=off TARGET_IFACE='' TARGET_ALSA_BASE=''
+TARGET_ID=generic TARGET_NAME=Leuchtfeuer TARGET_FIREWALL=off TARGET_IFACE='' TARGET_ALSA_BASE='' TARGET_DBUS=''
 target_init(){ :; }
 target_tick(){ :; }
 target_fw_rules(){ :; }
@@ -282,6 +292,7 @@ card=$(cfg ALSA_CARD)
 export LEUCHTFEUER_DIR=$D LEUCHTFEUER_RUN=$R LEUCHTFEUER_TARGET=$TARGET_ID LEUCHTFEUER_NAME="$TARGET_NAME" \
   WIFI_IFACE="${iface:-wlan0}" ALSA_CONFIG=$D/asound-music.conf PATH="$D/bin:$PATH"
 [ -n "$card" ] && export ALSA_CARD="$card"
+[ -n "$TARGET_DBUS" ] && export DBUS_SYSTEM_BUS_ADDRESS="$TARGET_DBUS"
 # ohne Hersteller-asound.conf, die ALSA_CONFIG einbindet: die Tonkette hinter die Grundkonfiguration der alsa-lib hängen
 [ -n "$TARGET_ALSA_BASE" ] && [ -f "$TARGET_ALSA_BASE" ] && export ALSA_CONFIG_PATH="$TARGET_ALSA_BASE:$D/asound-music.conf"
 out=$(cfg ALSA_OUTPUT)
@@ -290,11 +301,15 @@ out=$(cfg ALSA_OUTPUT)
 # Nur beim Laden als Bibliothek (Tests: HOOK_LIB=1) hier aufhören
 [ -n "${HOOK_LIB:-}" ] && return 0 2>/dev/null
 
+asound_dir
 sounds_mount
 target_init
+# Wake-up von leuchtfeuerd (SIGUSR1) nach einem Wechsel der Ausgabe: Dienste sofort neu starten statt in bis zu 30 s
+trap ':' USR1
 tick=0
 while :; do
   [ -e $D/disable-hook ] && { watchdog_stop; log "disable-hook gesetzt – Ende"; exit 0; }
+  [ -f $D/output.conf ] || : > $D/output.conf   # von asound-music.conf eingebunden (Ausgabe), darf nie fehlen
   target_tick
   firewall
   uptime_s > $R/leuchtfeuer-hook.alive
@@ -306,5 +321,6 @@ while :; do
   if [ $tick -le 0 ]; then target_net && { time_sync; tick=720; }; fi
   [ $((tick % 10)) = 0 ] && rotate_logs
   tick=$((tick - 1))
-  sleep 30
+  sleep 30 & sp=$!
+  wait $sp 2>/dev/null; kill $sp 2>/dev/null
 done

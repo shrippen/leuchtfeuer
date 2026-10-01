@@ -77,6 +77,7 @@ TARGET_NAME="Box"              # device name while DEVICE_NAME is empty (LEUCHTF
 TARGET_FIREWALL=off            # default of FIREWALL (chain LEUCHTFEUER)
 TARGET_IFACE=wlan0             # default of WIFI_IFACE ("" = interface of the default route)
 TARGET_ALSA_BASE=/usr/share/alsa/alsa.conf   # set when no vendor asound.conf includes $ALSA_CONFIG
+TARGET_DBUS=                   # DBUS_SYSTEM_BUS_ADDRESS for the services if not the default (Invoke: unix:path=/run/dbus/system_bus_socket)
 target_init(){ :; }            # once at start (bind mounts, restart vendor services)
 target_tick(){ :; }            # every 30 s (keep SSH up, switch things off again)
 target_fw_rules(){ :; }        # extra iptables rules, one per line, e.g. "-i p2p0 -p tcp --dport 443 -j RETURN"
@@ -98,7 +99,11 @@ OUT=leuchtfeuer_out           # PCM the chain plays into; define it in asound-ta
 CARD='{ @func getenv vars [ ALSA_CARD ] default "0" }'   # card of the softvol controls
 ```
 
-The output must accept 48 kHz; softvol needs a real card for its controls.
+The output must accept 48 kHz; softvol needs a real card for its controls. `OUT` is only the **default** of
+`leuchtfeuer_sink`; the user can switch to another sound card or a Bluetooth speaker in the web interface
+(`output.conf`, see ARCHITECTURE.md > Output). A target whose ALSA does not find the `bluealsa` plugin by itself adds a
+`pcm_type.bluealsa { lib "…" }` line to `asound-target.conf` (Invoke does) and, when the services need a non-default
+D-Bus, sets `TARGET_DBUS` in `target.sh`.
 
 ### 4. Services and package: `targets/<id>/services/`, `targets/<id>/assemble.sh`
 

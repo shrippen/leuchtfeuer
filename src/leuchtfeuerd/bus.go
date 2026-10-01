@@ -25,6 +25,9 @@ import (
 //	POST /volume  {volume} | {delta} | {muted}
 //	POST /source  {name, state, title, artist, album}   Zustand einer Quelle ("Läuft gerade")
 //	POST /ring    {animation, repeat}  Animation mit eigenem Namen (bt_open, bt_closed ...); ohne Ring ohne Wirkung
+//	POST /bt      {devices, scanning, busy, error}  Bluetooth-Geräte für die Ausgabe an einen Lautsprecher (btagent);
+//	              Antwort {ok, want}: Adresse des Lautsprechers, mit dem verbunden sein soll ("" = keiner)
+//	Ereignis bt-sink {action: scan|stop|connect|disconnect|forget, addr}: Befehle der Oberfläche an btagent
 
 type busEvent struct {
 	Name string
@@ -106,6 +109,19 @@ func (b *localBus) handler() http.Handler {
 		}
 		b.a.src.Update(v.Name, v.State, map[string]string{"title": v.Title, "artist": v.Artist, "album": v.Album})
 		return nil
+	})
+	// btagent meldet Bluetooth-Geräte (Ausgabe an einen Lautsprecher) und erfährt, mit welchem es verbunden sein soll
+	mux.HandleFunc("/bt", func(rw http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(rw, "POST nötig", http.StatusMethodNotAllowed)
+			return
+		}
+		var v btReport
+		if err := decode(r, &v); err != nil {
+			fail(rw, 400, err)
+			return
+		}
+		writeJSON(rw, map[string]any{"ok": true, "want": b.a.out.Report(v)})
 	})
 	post("/ring", func(r *http.Request) error {
 		var v struct {
