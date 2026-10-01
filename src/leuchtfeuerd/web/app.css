@@ -64,3 +64,36 @@ textarea.input.mono{font-family:var(--font-mono);font-size:.78rem}
 .item .t{min-width:4.6rem}
 .item .row .input[type=number]{padding-left:.5rem;padding-right:.3rem}
 .grid>.wide-card{grid-column:1/-1}
+/* ---- Bedienbarkeit (Kante 1.11: .editbar als Speichern-Leiste, .bottom-nav, details.help) ---- */
+/* Die Speichern-Leiste ersetzt die Knöpfe der einzelnen Karten */
+.card-save{display:none!important}
+body:has(#savebar:not([hidden])) .app{padding-bottom:6rem}
+#savebar .mode{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase}
+/* Unterbereiche der Einstellungen */
+.set-subs{margin-bottom:1.2rem}
+#restart:not(:empty){margin-bottom:1.2rem}
+/* Griff zum Sortieren */
+.grip{display:inline-flex;vertical-align:-.2rem;margin-right:.35rem;color:var(--fg3);cursor:grab;touch-action:none}
+.grip svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:3}
+.is-picked{opacity:.5}
+/* Schnellwahl unter Zahlenfeldern */
+.presets{margin-top:.4rem}
+/* Start-LED: zwölf Punkte im Kreis wie der Ring des Lautsprechers */
+.led-pick{position:relative;width:10rem;height:10rem;margin:.3rem 0}
+.led-pick button{position:absolute;left:calc(50% - .65rem);top:calc(50% - .65rem);width:1.3rem;height:1.3rem;padding:0;border:2px solid var(--fg3);background:var(--bg-hard);cursor:pointer;transform:rotate(calc(var(--i) * 30deg)) translateY(-4.1rem)}
+.led-pick button[aria-checked="true"]{background:var(--primary);border-color:var(--primary)}
+.led-pick button:hover{border-color:var(--fg0)}
+.led-pick button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.led-pick-n{position:absolute;inset:0;display:grid;place-items:center;font-size:1.4rem;color:var(--fg2);pointer-events:none}
+/* Lautstärke immer griffbereit: nur auf dem Handy, oben in der Übersicht */
+.vol-strip{display:none}
+/* Handy */
+@media (max-width:640px){
+  .tabs{display:none}
+  .alarm{grid-template-columns:minmax(0,1fr)}
+  .chips .chip{height:32px}
+  .vol-strip{display:flex;align-items:center;gap:.6rem;position:sticky;top:0;z-index:6;background:var(--bg-panel);border-bottom:2px solid var(--bg2);padding:.5rem .2rem;margin:0 0 1rem}
+  .vol-strip input[type=range]{flex:1}
+  #c-play .range{display:none}
+  .led-pick{margin-inline:auto}
+}
