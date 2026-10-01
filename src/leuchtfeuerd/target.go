@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"runtime"
 	"strings"
 )
 
@@ -16,7 +18,7 @@ import (
 //     Animationen mit eigenen Namen (alarm, timer, success, bt_open, bt_closed) abspielen.
 //
 // Die Oberfläche, MQTT und die API zeigen nur, was das Gerät kann (Status: device.capabilities).
-// Auswahl: TARGET in der Shell-Konfiguration. Ein neues Gerät: target_<name>.go mit einem Eintrag in targets
+// Auswahl: LEUCHTFEUER_TARGET (setzt der Hook aus targets/<ziel>/target.sh), sonst TARGET in der Shell-Konfiguration. Ein neues Gerät: target_<name>.go mit einem Eintrag in targets
 // (Anleitung: docs/TARGETS.md).
 
 type target struct {
@@ -24,6 +26,7 @@ type target struct {
 	Manufacturer string
 	Model        string
 	DefaultName  string   // Gerätename, solange DEVICE_NAME fehlt
+	DefaultHost  string   // Name im Netz, solange DHCP_HOSTNAME fehlt ("" = Rechnername)
 	MixerCard    string   // ALSA-Karte der eigenen Softvol-Regler
 	MirrorCtl    string   // Regler der Hersteller-Software, der nach "Leuchtfeuer Music" kopiert wird ("" = keiner)
 	TempPath     string   // Temperatur (Datei mit Zahl)
@@ -32,6 +35,7 @@ type target struct {
 	SoundDirs    []string // Klänge der Hersteller-Software (sounds.go); leer = keine
 	Link         string   // Verbindung zur Hersteller-Software für die Statusanzeige ("" = keine)
 	ButtonNames  []string // Namen der Tasten (Home Assistant: Ereignis-Typen)
+	Package      string   // Endung des Release-Pakets (Updates): leuchtfeuer-<Version>-<Package>.tar.gz
 
 	newVolume func(a *app) audioCtl // Lautstärke (Pflicht)
 	start     func(a *app)          // Treiber starten (Ereignisse, Tasten); nil = nichts
@@ -55,6 +59,14 @@ func registerTarget(t target) {
 	if t.ID == defaultTarget {
 		hw = t
 	}
+}
+
+// packageArch: Architektur im Paketnamen (generic: generic-amd64, generic-arm64, generic-armv7).
+func packageArch() string {
+	if runtime.GOARCH == "arm" {
+		return "armv7"
+	}
+	return runtime.GOARCH
 }
 
 // hw: das Zielgerät dieses Laufs.
@@ -113,3 +125,17 @@ type noLED struct{}
 
 func (noLED) Animate(string, bool) {}
 func (noLED) Off()                 {}
+
+// hostName: Name im Netz (DHCP, Zertifikat, Syslog). DHCP_HOSTNAME, sonst Vorgabe des Ziels, sonst der Rechnername.
+func hostName(c *shellConfig) string {
+	if n := c.Get("DHCP_HOSTNAME", ""); n != "" {
+		return n
+	}
+	if hw.DefaultHost != "" {
+		return hw.DefaultHost
+	}
+	if n, err := os.Hostname(); err == nil && n != "" {
+		return n
+	}
+	return "leuchtfeuer"
+}

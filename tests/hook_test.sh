@@ -1,6 +1,7 @@
 #!/bin/sh
-# Prüft die Logik von device/leuchtfeuer/hook.sh auf dem Rechner: Dienstschalter, Firewall-Regeln, wachsende Pause bei
-# abstürzenden Diensten, Kürzen der Protokolle. iptables, date und setsid sind nachgebildet.
+# Prüft die Logik von device/leuchtfeuer/hook.sh auf dem Rechner: Dienstschalter, fehlende Programme, Firewall-Regeln,
+# wachsende Pause bei abstürzenden Diensten, Kürzen der Protokolle, Zielgeräte (targets/invoke, targets/generic).
+# iptables, date und setsid sind nachgebildet.
 #   sh tests/hook_test.sh
 set -u
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -30,7 +31,9 @@ check(){ if eval "$2"; then echo "ok    $1"; else echo "FEHLER $1"; fail=1; fi; 
 
 printf '#!/bin/sh\n# title: A\n# group: airplay\n# process: a\n# ports: tcp 5000, udp 6001:6011\n# default: on\nexit 1\n' > $T/d/services/shairport.sh
 printf '#!/bin/sh\n# title: S\n# group: snapcast\n# process: s\n# ports: tcp 1780\n# default: off\nexit 0\n' > $T/d/services/snapclient.sh
+printf '#!/bin/sh\n# title: L\n# group: spotify\n# process: l\n# ports: tcp 57500\n# requires: gibtsnicht-lf aplay\n# default: on\nexit 0\n' > $T/d/services/librespot.sh
 chmod 755 $T/d/services/*.sh
+cp "$ROOT/targets/invoke/target.sh" $T/d/target.sh
 printf 'tcp 9999\n# Kommentar\nunsinn 1\n' > $T/d/ports.local
 printf '# von leuchtfeuerd\ntcp 10700 sprachassistent\n' > $T/d/ports.leuchtfeuerd
 : > $T/d/config
@@ -45,6 +48,9 @@ check "ports.local wirkt, Unsinn nicht" 'echo "$r" | grep -q 9999 && ! echo "$r"
 check "ports.leuchtfeuerd (Sprachassistent) wirkt" 'echo "$r" | grep -q -- "-p tcp --dport 10700 -j RETURN"'
 check "Weboberfläche Port 80" 'echo "$r" | grep -q -- "--dport 80 -j RETURN"'
 check "DROP am Ende" '[ "$(echo "$r" | tail -n 1)" = "-j DROP" ]'
+check "Invoke: Einrichtungs-Ports am Setup-AP" 'echo "$r" | grep -q -- "-i p2p0 -p udp --dport 48301 -j RETURN"'
+check "Dienst ohne Programm: Port bleibt zu" '! echo "$r" | grep -q 57500'
+check "Umgebung der Dienste" '[ -z "${ALSA_CONFIG_PATH:-}" ] && [ "$LEUCHTFEUER_TARGET" = invoke ] && [ "$LEUCHTFEUER_NAME" = "HK Invoke" ] && [ "$WIFI_IFACE" = wlan0 ] && [ "$ALSA_CONFIG" = $T/d/asound-music.conf ]'
 echo 'AIRPLAY="off"' > $T/d/config
 check "alter Schalter AIRPLAY=off schließt den Port" '! fw_rules | grep -q 5000'
 echo 'AIRPLAY="off"
@@ -75,6 +81,7 @@ read -r fails next started restarts < $T/r/leuchtfeuer-svc-shairport.state
 check "Fehlschläge gezählt ($fails)" '[ "$fails" -ge 3 ]'
 check "Pause wächst (nächster Start $next, jetzt $(cat $T/now))" '[ "$next" -gt "$(cat $T/now)" ]'
 check "ausgeschalteter Dienst nicht gestartet" '[ "$(cat $T/r/leuchtfeuer-svc-snapclient.mode 2>/dev/null)" = off ]'
+check "Dienst ohne Programm nicht gestartet (missing)" '[ "$(cat $T/r/leuchtfeuer-svc-librespot.mode 2>/dev/null)" = missing ] && [ ! -e $T/r/leuchtfeuer-svc-librespot.pid ] && grep -q "librespot: Programm fehlt" $T/d/hook.log'
 touch $T/r/leuchtfeuer-svc-shairport.expected
 echo "0 0 $(cat $T/now) 0" > $T/r/leuchtfeuer-svc-shairport.state
 echo $(( $(cat $T/now) + 5 )) > $T/now
@@ -129,5 +136,21 @@ watchdog_ctl
 check "nach 3 unruhigen Starts bleibt er aus" '[ ! -e $T/r/leuchtfeuer-watchdog.pid ] && [ -e $T/r/leuchtfeuer-watchdog.blocked ]'
 echo 'WATCHDOG="off"' > $T/d/config
 watchdog_ctl
+
+# Zielgerät generic: keine Invoke-Regeln, Firewall standardmäßig aus (eine alte Kette wird entfernt), FIREWALL=on schaltet ein
+cp "$ROOT/targets/generic/target.sh" $T/d/target.sh
+: > $T/d/config
+. "$ROOT/device/leuchtfeuer/hook.sh"
+check "generic: Umgebung" '[ "$LEUCHTFEUER_TARGET" = generic ] && [ "$LEUCHTFEUER_NAME" = Leuchtfeuer ] && { [ ! -f /usr/share/alsa/alsa.conf ] || [ "$ALSA_CONFIG_PATH" = /usr/share/alsa/alsa.conf:$T/d/asound-music.conf ]; }'
+check "generic: keine Setup-AP-Regeln" '! fw_rules | grep -q p2p0'
+: > $T/ipt.log
+firewall
+check "generic: Firewall aus, alte Kette entfernt" 'grep -q "^-X LEUCHTFEUER" $T/ipt.log && ! grep -q -- "-A LEUCHTFEUER_NEW" $T/ipt.log && [ ! -e $T/r/leuchtfeuer-fw.rules ]'
+: > $T/ipt.log
+firewall
+check "generic: aus bleibt aus (kein iptables-Aufruf)" '[ ! -s $T/ipt.log ]'
+echo 'FIREWALL="on"' > $T/d/config
+firewall
+check "generic: FIREWALL=on baut die Kette" 'grep -q "^-E LEUCHTFEUER_NEW LEUCHTFEUER" $T/ipt.log'
 
 exit $fail

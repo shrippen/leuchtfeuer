@@ -25,6 +25,7 @@ type serviceDef struct {
 	Process string `json:"process"`
 	Ports   string `json:"ports"`
 	Default string `json:"default"`
+	Needs   string `json:"requires,omitempty"` // Programme, ohne die der Hook den Dienst nicht startet
 }
 
 type serviceInfo struct {
@@ -35,6 +36,7 @@ type serviceInfo struct {
 	Restarts int  `json:"restarts"` // Neustarts seit dem Gerätestart
 	Waiting  int  `json:"waitSecs"` // Pause bis zum nächsten Startversuch
 	Failing  bool `json:"failing"`  // fällt wiederholt aus
+	Missing  bool `json:"missing"`  // Programm fehlt auf diesem Gerät ("# requires:")
 }
 
 func parseServiceHeader(name string, r *bufio.Scanner) serviceDef {
@@ -60,6 +62,8 @@ func parseServiceHeader(name string, r *bufio.Scanner) serviceDef {
 			d.Ports = v
 		case "default":
 			d.Default = v
+		case "requires":
+			d.Needs = v
 		}
 	}
 	return d
@@ -129,6 +133,9 @@ func serviceStatus(cfg *shellConfig, now int64) []serviceInfo {
 	var out []serviceInfo
 	for _, d := range serviceDefs() {
 		si := serviceInfo{serviceDef: d, Enabled: groupEnabled(cfg, d), Running: pidAlive(readPid(d.Name))}
+		if b, err := os.ReadFile(filepath.Join(runDir, "leuchtfeuer-svc-"+d.Name+".mode")); err == nil && strings.TrimSpace(string(b)) == "missing" {
+			si.Missing = true
+		}
 		if b, err := os.ReadFile(filepath.Join(runDir, "leuchtfeuer-svc-"+d.Name+".state")); err == nil {
 			f := strings.Fields(string(b))
 			n := func(i int) int64 {

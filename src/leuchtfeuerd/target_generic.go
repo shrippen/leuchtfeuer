@@ -15,7 +15,8 @@ import (
 
 func init() {
 	registerTarget(target{
-		ID: "generic", Manufacturer: "Leuchtfeuer", Model: "Linux", DefaultName: "Leuchtfeuer",
+		Package: "generic-" + packageArch(),
+		ID:      "generic", Manufacturer: "Leuchtfeuer", Model: "Linux", DefaultName: "Leuchtfeuer",
 		MixerCard: "0", TempPath: "/sys/class/thermal/thermal_zone0/temp", TempDiv: 1000, WifiIface: "wlan0",
 		newVolume: func(a *app) audioCtl { return newSoftVolume(a, filepath.Join(dataDir, "volume.json")) },
 		start:     func(a *app) { a.vol.(*softVolume).apply() },

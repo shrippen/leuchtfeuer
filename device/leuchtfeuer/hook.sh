@@ -1,41 +1,39 @@
 #!/bin/sh
-# Dauerhafte Einstellungen des Invoke (läuft als root, gestartet von boot.sh, prüft alle 30 s):
-#  - eigenes dropbear (ed25519, nur Schlüssel, eigener Host-Schlüssel) statt des
-#    Original-sshd (dropbear 2016.72, Host-Schlüssel auf allen Geräten gleich)
-#  - authorized_keys aus /data/leuchtfeuer nach /home/root/.ssh (tmpfs über dem ro-SquashFS)
-#  - Firewall (Kette LEUCHTFEUER vor INPUT): SSH, mDNS, DHCP-Antworten, ICMP, bestehende Verbindungen, die Weboberfläche
-#    und die Ports der EINGESCHALTETEN Dienste (Kopfzeile "# ports:" der Dienstskripte); am Setup-AP (p2p0)
-#    zusätzlich die Einrichtungs-Ports; eigene Ports aus /data/leuchtfeuer/ports.local ("tcp 1234" / "udp 5678") und die von
-#    leuchtfeuerd geschriebenen aus /data/leuchtfeuer/ports.leuchtfeuerd (Sprachassistent).
+# Hook von Leuchtfeuer: läuft als root, prüft alle 30 s. Gemeinsam für alle Zielgeräte; was nur ein Gerät braucht,
+# steht in $D/target.sh (Quelle: targets/<ziel>/target.sh, siehe docs/TARGETS.md). Gestartet auf dem Invoke von
+# boot.sh (dnsmasq-Haken), auf "generic" von systemd (targets/generic/leuchtfeuer.service).
+#  - Firewall (Kette LEUCHTFEUER vor INPUT; FIREWALL="on|off" in config, Vorgabe je Ziel): SSH, mDNS, DHCP-Antworten,
+#    ICMP, bestehende Verbindungen, die Weboberfläche, die Ports der EINGESCHALTETEN Dienste (Kopfzeile "# ports:" der
+#    Dienstskripte), Regeln des Ziels (target_fw_rules), eigene Ports aus $D/ports.local ("tcp 1234" / "udp 5678") und
+#    die von leuchtfeuerd geschriebenen aus $D/ports.leuchtfeuerd (Sprachassistent).
 #    Ändert sich etwas (Dienst an/aus, ports.local), wird die Kette neu aufgebaut, offene Ports schließen sich wieder.
-#  - IPv6 aus (Kernel ohne ip6tables)
-#  - adbd (Port 5555, root ohne Anmeldung) aus, sobald /data/leuchtfeuer/disable-adb existiert
-#  - DHCP-Name aus DHCP_HOSTNAME (z. B. "invoke" -> invoke.lan im Router): das Libre-dhcpcd meldet "LibreSync-<nr>",
-#    das der Router nicht einträgt. Deshalb nach dem Start und alle 6 h eine zusätzliche DHCP-Anfrage mit busybox
-#    udhcpc (-s /bin/true: ändert nichts an der Schnittstelle, fragt nur dieselbe Adresse mit dem Namen an).
-#  - Uhrzeit: nach dem Start und alle 6 h einmal per NTP stellen (busybox ntpd -q, Server NTP_SERVER), falls auf dem
-#    Gerät kein ntpd läuft. Wecker hängen an der richtigen Uhr.
-#  - Harman-Dienste kürzen: /data/leuchtfeuer/podium.conf per Bind-Mount über /etc/podium/podium.conf, dann init-Dienst
-#    "podium" (system-manager) einmal neu starten (ohne Cortana, Harman-Spotify, OTA, Absturzbericht-Upload)
-#  - Dienste: jedes ausführbare /data/leuchtfeuer/services/<name>.sh (endet mit exec) wird gestartet, wenn seine Gruppe
-#    eingeschaltet ist (Kopfzeile "# group:", Schalter SERVICE_<GRUPPE>="on|off" in config, Vorgabe "# default:").
+#  - Uhrzeit: sobald das Netz da ist (target_net) und dann alle 6 h einmal per NTP stellen (busybox ntpd -q, Server
+#    NTP_SERVER), falls kein Zeitdienst läuft. Wecker hängen an der richtigen Uhr.
+#  - Dienste: jedes ausführbare $D/services/<name>.sh (endet mit exec) wird gestartet, wenn seine Gruppe
+#    eingeschaltet ist (Kopfzeile "# group:", Schalter SERVICE_<GRUPPE>="on|off" in config, Vorgabe "# default:")
+#    und die Programme aus "# requires:" vorhanden sind (sonst Zustand "missing"; $D/bin liegt vorn im PATH).
+#    Die Dienste erben LEUCHTFEUER_DIR, LEUCHTFEUER_RUN, LEUCHTFEUER_NAME (Gerätename, solange DEVICE_NAME fehlt),
+#    WIFI_IFACE, ALSA_CONFIG ($D/asound-music.conf), ALSA_CARD und LEUCHTFEUER_OUT (ALSA_OUTPUT in config, nur generic).
 #    Stirbt ein Dienst kurz nach dem Start immer wieder, wartet der Hook zunehmend länger (30 s ... 30 min) und
-#    meldet ihn als fehlerhaft; Zustand in /run/leuchtfeuer-svc-<name>.state ("Fehlschläge nächsterStart gestartet Neustarts").
-#    Ein absichtliches Beenden (leuchtfeuerd: Neustart-Knopf) kündigt /run/leuchtfeuer-svc-<name>.expected an und zählt nicht.
-#  - Protokolle: /data/leuchtfeuer/log/<name>.log und hook.log werden ab 1 MiB gekürzt (die letzten 256 KiB -> .1); das geht auch
+#    meldet ihn als fehlerhaft; Zustand in $R/leuchtfeuer-svc-<name>.state ("Fehlschläge nächsterStart gestartet Neustarts").
+#    Ein absichtliches Beenden (leuchtfeuerd: Neustart-Knopf) kündigt $R/leuchtfeuer-svc-<name>.expected an und zählt nicht.
+#  - Protokolle: $D/log/<name>.log und hook.log werden ab 1 MiB gekürzt (die letzten 256 KiB -> .1); das geht auch
 #    bei laufenden Diensten, die Datei bleibt dieselbe.
-#  - Update-Rückfall: Nach einem Update (/data/leuchtfeuer/update-pending) beobachtet der Hook 10 Minuten lang die Dienste;
+#  - Update-Rückfall: Nach einem Update ($D/update-pending) beobachtet der Hook 10 Minuten lang die Dienste;
 #    fällt einer wiederholt aus, stellt apply-update.sh den vorigen Stand wieder her.
 #  - Hardware-Watchdog (WATCHDOG="on" in config, falls /dev/watchdog da ist): "leuchtfeuerd -watchdog" setzt die Frist auf
 #    60 s und füttert ihn nur, solange dieser Hook läuft (Lebenszeichen $R/leuchtfeuer-hook.alive je Durchlauf). Hängt das
 #    System oder der Hook, startet das Gerät neu. Schutz vor einer Neustart-Schleife: Nach 3 Starts mit scharfem
-#    Watchdog ohne 30 Minuten stabile Laufzeit bleibt er aus (zurücksetzen: /data/leuchtfeuer/watchdog-unstable löschen).
+#    Watchdog ohne 30 Minuten stabile Laufzeit bleibt er aus (zurücksetzen: $D/watchdog-unstable löschen).
 #  - Klänge: von leuchtfeuerd ersetzte Klänge der Hersteller-Software (sounds/vendor.map: "<Original>\t<Datei>") per
-#    Bind-Mount einhängen, beim Start vor dem Neustart der Hersteller-Dienste (die öffnen die Dateien dann neu).
+#    Bind-Mount einhängen, beim Start vor target_init (das startet auf dem Invoke die Hersteller-Dienste neu).
+# Zielgerät ($D/target.sh, optional): setzt TARGET_ID, TARGET_NAME, TARGET_FIREWALL, TARGET_IFACE, TARGET_ALSA_BASE
+# (Grundkonfiguration der alsa-lib, wenn keine Hersteller-asound.conf ALSA_CONFIG einbindet) und kann definieren:
+#   target_init      einmal beim Start          target_tick   in jedem Durchlauf
+#   target_fw_rules  zusätzliche Firewall-Regeln target_net    Netz bereit? (DHCP-Name melden u. Ä.; alle 6 h)
 # Notbremse: /data/leuchtfeuer/disable-hook anlegen -> Skript macht nichts.
 D=${LEUCHTFEUER_DIR:-/data/leuchtfeuer}
 R=${LEUCHTFEUER_RUN:-/run}   # Laufzeit-Dateien (Tests setzen beides um)
-PIDF=$R/leuchtfeuer-dropbear.pid
 echo $$ > $R/leuchtfeuer-hook.pid
 log(){ echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> $D/hook.log; }
 [ -e $D/disable-hook ] && { log "disable-hook gesetzt – nichts zu tun"; exit 0; }
@@ -43,26 +41,6 @@ log "hook gestartet (pid $$)"
 
 # Wert aus der Konfiguration (sh-Datei) lesen, ohne sie im Hook-Prozess zu laden
 cfg(){ (. $D/config 2>/dev/null; eval "printf '%s' \"\${$1:-}\""); }
-
-setup_home(){
-  grep -q ' /home/root tmpfs ' /proc/mounts || mount -t tmpfs -o mode=700,size=1m tmpfs /home/root
-  mkdir -p /home/root/.ssh && chmod 700 /home/root/.ssh
-  cmp -s $D/authorized_keys /home/root/.ssh/authorized_keys || {
-    cp $D/authorized_keys /home/root/.ssh/authorized_keys; chmod 600 /home/root/.ssh/authorized_keys
-    log "authorized_keys aktualisiert"; }
-}
-
-ours_up(){ p=$(cat $PIDF 2>/dev/null); [ -n "$p" ] && kill -0 "$p" 2>/dev/null; }
-
-ssh_up(){
-  ours_up && return 0
-  stop sshd; sleep 1
-  $D/dropbearmulti dropbear -p 22 -r $D/host_ed25519 -r $D/host_ecdsa -P $PIDF 2>>$D/hook.log
-  sleep 2
-  if ours_up; then log "eigenes dropbear läuft (pid $(cat $PIDF))"; return 0; fi
-  log "FEHLER: eigenes dropbear startet nicht – Original-sshd und adbd wieder an"
-  start sshd; start adbd; return 1
-}
 
 # ---- Dienste: Kopfzeilen und Schalter ----
 # head_val <Skript> <Feld>: Wert der Kopfzeile "# <Feld>: ..."
@@ -79,6 +57,14 @@ svc_on(){
   [ "$v" != off ]
 }
 
+# svc_ready <Skript>: alle Programme aus "# requires:" vorhanden ($D/bin zuerst, dann PATH)?
+svc_ready(){
+  for p in $(head_val "$1" requires | tr ',' ' '); do
+    command -v "$p" >/dev/null 2>&1 || return 1
+  done
+  return 0
+}
+
 # ---- Firewall ----
 # fw_rules: gewünschte Regeln (eine je Zeile, Argumente für iptables -A LEUCHTFEUER)
 fw_rules(){
@@ -88,12 +74,11 @@ fw_rules(){
   echo "-p udp --dport 5353 -j RETURN"
   echo "-p udp --sport 67 --dport 68 -j RETURN"
   echo "-p icmp -j RETURN"
-  for p in 443 12345 53; do echo "-i p2p0 -p tcp --dport $p -j RETURN"; done
-  for p in 67 53 48301; do echo "-i p2p0 -p udp --dport $p -j RETURN"; done
+  target_fw_rules
   echo "-p tcp --dport $(cfg WEB_PORT | grep -E '^[0-9]+$' || echo 80) -j RETURN"
   [ "$(cfg WEB_TLS)" = on ] && echo "-p tcp --dport $(cfg WEB_TLS_PORT | grep -E '^[0-9]+$' || echo 443) -j RETURN"
   for s in $D/services/*.sh; do
-    [ -x "$s" ] && svc_on "$s" || continue
+    [ -x "$s" ] && svc_on "$s" && svc_ready "$s" || continue
     head_val "$s" ports | tr ',' '\n' | while read -r proto port _; do
       case $proto in tcp|udp) echo "-p $proto --dport $port -j RETURN" ;; esac
     done
@@ -106,7 +91,20 @@ fw_rules(){
   echo "-j DROP"
 }
 
+fw_on(){
+  v=$(cfg FIREWALL); [ -n "$v" ] || v=$TARGET_FIREWALL
+  [ "$v" = on ] && command -v iptables >/dev/null 2>&1
+}
+
 firewall(){
+  if ! fw_on; then
+    # ausgeschaltet: eine früher gesetzte Kette wieder entfernen
+    [ -f $R/leuchtfeuer-fw.rules ] || return 0
+    while iptables -D INPUT -j LEUCHTFEUER 2>/dev/null; do :; done
+    iptables -F LEUCHTFEUER 2>/dev/null; iptables -X LEUCHTFEUER 2>/dev/null
+    rm -f $R/leuchtfeuer-fw.rules; log "Firewall aus"
+    return 0
+  fi
   want=$(fw_rules | awk '!seen[$0]++')
   if iptables -C INPUT -j LEUCHTFEUER 2>/dev/null && [ "$want" = "$(cat $R/leuchtfeuer-fw.rules 2>/dev/null)" ]; then return 0; fi
   # neue Kette vollständig aufbauen, dann umhängen: es gibt keinen Moment ohne DROP am Ende
@@ -123,33 +121,9 @@ firewall(){
   log "Firewall gesetzt ($(echo "$want" | grep -c dport) Ports)"
 }
 
-ipv6_off(){
-  for f in /proc/sys/net/ipv6/conf/*/disable_ipv6; do
-    [ "$(cat $f)" = 1 ] || echo 1 > $f
-  done
-}
-
-adb_off(){
-  [ -e $D/disable-adb ] || return 0
-  # getprop braucht ANDROID_PROPERTY_WORKSPACE (fehlt hier), stop geht über den init-Socket
-  pidof adbd >/dev/null 2>&1 && { stop adbd; sleep 1; log "adbd gestoppt"; }
-}
-
-dhcp_name(){
-  n=$(cfg DHCP_HOSTNAME)
-  [ -n "$n" ] || n=$(cat $D/hostname 2>/dev/null)
-  [ -n "$n" ] || return 0
-  ip=$(ip -4 addr show wlan0 2>/dev/null | awk '/inet /{sub(/\/.*/,"",$2); print $2; exit}')
-  [ -n "$ip" ] || return 1
-  if busybox udhcpc -i wlan0 -f -q -n -t 4 -T 3 -r "$ip" -x hostname:"$n" -F "$n" -s /bin/true >/dev/null 2>&1; then
-    log "DHCP-Name $n für $ip gemeldet"; return 0
-  fi
-  log "DHCP-Name $n: keine Antwort"; return 1
-}
-
-# Uhr per NTP stellen (einmalig, im Hintergrund, höchstens 30 s); nicht, wenn das Gerät selbst einen ntpd hat
+# Uhr per NTP stellen (einmalig, im Hintergrund, höchstens 30 s); nicht, wenn das Gerät selbst einen Zeitdienst hat
 time_sync(){
-  pidof ntpd >/dev/null 2>&1 && return 0
+  pidof ntpd chronyd systemd-timesyncd >/dev/null 2>&1 && return 0
   busybox ntpd --help >/dev/null 2>&1 || { [ -e $R/leuchtfeuer-ntp.none ] || { log "kein busybox ntpd: Uhr wird nicht gestellt"; touch $R/leuchtfeuer-ntp.none; }; return 0; }
   s=$(cfg NTP_SERVER); s=${s:-pool.ntp.org}
   (
@@ -186,6 +160,11 @@ services(){
     if ! svc_on "$s"; then
       if [ $running = 1 ]; then kill "$p" 2>/dev/null; log "Dienst $n ausgeschaltet"; fi
       rm -f $pf; echo "0 0 0 $restarts" > $sf; echo off > $R/leuchtfeuer-svc-$n.mode
+      continue
+    fi
+    if ! svc_ready "$s"; then
+      [ "$(cat $R/leuchtfeuer-svc-$n.mode 2>/dev/null)" = missing ] || log "Dienst $n: Programm fehlt ($(head_val "$s" requires))"
+      echo missing > $R/leuchtfeuer-svc-$n.mode
       continue
     fi
     rm -f $R/leuchtfeuer-svc-$n.mode
@@ -279,23 +258,6 @@ sounds_mount(){
   done < "$m"
 }
 
-podium_trim(){
-  [ -s $D/podium.conf ] || return 0
-  grep -q ' /etc/podium/podium.conf ' /proc/mounts && return 0
-  mount --bind $D/podium.conf /etc/podium/podium.conf || { log "FEHLER: Bind-Mount podium.conf"; return 1; }
-  stop podium; sleep 3; start podium
-  log "Harman-Dienste mit gekürzter podium.conf neu gestartet"
-}
-
-# Aktueller CA-Bestand (der eingebaute ist von 2018 und kennt Let's Encrypt nicht): Musikdienste
-# wie gmrender laden sonst https-Adressen (Navidrome u. a.) nicht. Quelle: tools/update-ca-bundle.sh
-ca_bundle(){
-  [ -s $D/ca-certificates.crt ] || return 0
-  grep -q ' /etc/ssl/certs/ca-certificates.crt ' /proc/mounts && return 0
-  mount --bind $D/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt || { log "FEHLER: Bind-Mount CA-Bestand"; return 1; }
-  log "CA-Bestand aus $D eingebunden"
-}
-
 # Watchdog ordentlich schließen (Notbremse): SIGTERM -> "V" -> kein Neustart
 watchdog_stop(){
   p=$(cat $R/leuchtfeuer-watchdog.pid 2>/dev/null)
@@ -303,26 +265,44 @@ watchdog_stop(){
   rm -f $R/leuchtfeuer-watchdog.pid
 }
 
+# ---- Zielgerät ----
+TARGET_ID=generic TARGET_NAME=Leuchtfeuer TARGET_FIREWALL=off TARGET_IFACE='' TARGET_ALSA_BASE=''
+target_init(){ :; }
+target_tick(){ :; }
+target_fw_rules(){ :; }
+target_net(){ :; }
+# shellcheck disable=SC1091
+[ -f $D/target.sh ] && . $D/target.sh
+
+# Umgebung der Dienste (und von leuchtfeuerd)
+iface=$(cfg WIFI_IFACE); [ -n "$iface" ] || iface=$TARGET_IFACE
+[ -n "$iface" ] || iface=$(ip route 2>/dev/null | awk '/^default/{for(i=1;i<NF;i++) if($i=="dev"){print $(i+1); exit}}')
+card=$(cfg ALSA_CARD)
+export LEUCHTFEUER_DIR=$D LEUCHTFEUER_RUN=$R LEUCHTFEUER_TARGET=$TARGET_ID LEUCHTFEUER_NAME="$TARGET_NAME" \
+  WIFI_IFACE="${iface:-wlan0}" ALSA_CONFIG=$D/asound-music.conf PATH="$D/bin:$PATH"
+[ -n "$card" ] && export ALSA_CARD="$card"
+# ohne Hersteller-asound.conf, die ALSA_CONFIG einbindet: die Tonkette hinter die Grundkonfiguration der alsa-lib hängen
+[ -n "$TARGET_ALSA_BASE" ] && [ -f "$TARGET_ALSA_BASE" ] && export ALSA_CONFIG_PATH="$TARGET_ALSA_BASE:$D/asound-music.conf"
+out=$(cfg ALSA_OUTPUT)
+[ -n "$out" ] && export LEUCHTFEUER_OUT="$out"
+
 # Nur beim Laden als Bibliothek (Tests: HOOK_LIB=1) hier aufhören
 [ -n "${HOOK_LIB:-}" ] && return 0 2>/dev/null
 
 sounds_mount
-podium_trim
-ca_bundle
+target_init
 tick=0
 while :; do
   [ -e $D/disable-hook ] && { watchdog_stop; log "disable-hook gesetzt – Ende"; exit 0; }
-  setup_home
-  ssh_up && adb_off
+  target_tick
   firewall
-  ipv6_off
   uptime_s > $R/leuchtfeuer-hook.alive
   sounds_mount
   services
   update_watch
   watchdog_ctl
   # beim ersten Durchlauf mit Adresse, danach alle 6 h (720 x 30 s); Protokolle alle 5 Minuten
-  if [ $tick -le 0 ]; then dhcp_name && { time_sync; tick=720; }; fi
+  if [ $tick -le 0 ]; then target_net && { time_sync; tick=720; }; fi
   [ $((tick % 10)) = 0 ] && rotate_logs
   tick=$((tick - 1))
   sleep 30

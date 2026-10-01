@@ -149,7 +149,7 @@ func (w *webServer) device() deviceSettings {
 	c := w.app.cfg
 	return deviceSettings{
 		Name: c.Get("DEVICE_NAME", hw.DefaultName), SendspinServer: c.Get("SENDSPIN_SERVER", ""),
-		DHCPHostname: c.Get("DHCP_HOSTNAME", "invoke"), BluetoothPairing: c.Get("BLUETOOTH_PAIRING", "button"),
+		DHCPHostname: hostName(c), BluetoothPairing: c.Get("BLUETOOTH_PAIRING", "button"),
 		AirPlay: c.Get("AIRPLAY", "on"),
 	}
 }
@@ -926,10 +926,10 @@ func (w *webServer) routes() http.Handler {
 		return fmt.Errorf("play, pause, stop, next oder previous")
 	})
 	mux.HandleFunc("/api/backup", func(rw http.ResponseWriter, r *http.Request) {
-		sendTarGz(rw, fileName("leuchtfeuer-sicherung", a.cfg.Get("DEVICE_NAME", "invoke")), writeBackup)
+		sendTarGz(rw, fileName("leuchtfeuer-sicherung", a.cfg.Get("DEVICE_NAME", hw.DefaultName)), writeBackup)
 	})
 	mux.HandleFunc("/api/diag", func(rw http.ResponseWriter, r *http.Request) {
-		sendTarGz(rw, fileName("leuchtfeuer-diagnose", a.cfg.Get("DEVICE_NAME", "invoke")), w.writeDiag)
+		sendTarGz(rw, fileName("leuchtfeuer-diagnose", a.cfg.Get("DEVICE_NAME", hw.DefaultName)), w.writeDiag)
 	})
 	post("/api/restore", func(r *http.Request) error {
 		n, err := restoreBackup(http.MaxBytesReader(nil, r.Body, 60<<20))
@@ -1025,7 +1025,7 @@ func (w *webServer) Run(addr string) {
 	cfg := w.app.cfg
 	if cfg.Get("WEB_TLS", "") == "on" {
 		port := cfg.Get("WEB_TLS_PORT", "443")
-		host := cfg.Get("DHCP_HOSTNAME", "invoke")
+		host := hostName(cfg)
 		cert, err := ensureCert(dataDir, host)
 		if err == nil {
 			w.login.secure = true

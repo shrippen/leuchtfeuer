@@ -173,7 +173,7 @@ function fillOverview() {
         : T('Not visible. Press the Bluetooth button on the speaker or open the window here; paired phones reconnect by themselves.',
           'Nicht sichtbar. Bluetooth-Knopf am Lautsprecher drücken oder hier das Fenster öffnen; gekoppelte Handys verbinden sich selbst.')}</p>
     ${s.btMode === 'always' ? '' : `<button class="btn btn-outline btn-sm" id="bt-toggle">${ico('bt')}${bt.open ? T('Close pairing', 'Kopplung schließen') : T('Open pairing (2 min)', 'Kopplung öffnen (2 Min.)')}</button>`}`;
-  $('#c-svc').innerHTML = (s.sys.services || []).filter(v => v.enabled).map(v => `<div class="status" data-state="${v.failing ? 'bad' : v.running ? 'ok' : 'off'}"><span class="name">${esc(v.title)}</span><span class="row">${v.failing ? T(`keeps failing, retry in ${v.waitSecs} s`, `fällt aus, neuer Versuch in ${v.waitSecs} s`) : v.running ? T('running', 'läuft') : T('not running', 'läuft nicht')}</span></div>`).join('') +
+  $('#c-svc').innerHTML = (s.sys.services || []).filter(v => v.enabled).map(v => `<div class="status" data-state="${v.failing ? 'bad' : v.running ? 'ok' : 'off'}"><span class="name">${esc(v.title)}</span><span class="row">${v.missing ? T('not installed', 'nicht installiert') : v.failing ? T(`keeps failing, retry in ${v.waitSecs} s`, `fällt aus, neuer Versuch in ${v.waitSecs} s`) : v.running ? T('running', 'läuft') : T('not running', 'läuft nicht')}</span></div>`).join('') +
     `<div class="status" data-state="${s.wamp ? 'ok' : 'bad'}"><span class="name">audio-ui (WAMP)</span><span class="row">${s.wamp ? T('connected', 'verbunden') : T('not connected', 'nicht verbunden')}</span></div>`;
   bindOverview();
 }
@@ -819,7 +819,7 @@ function svcListHTML() {
   return [...CFG.services.map(d => d.name), 'hook'].map(n => {
     const v = st[n] || {};
     const label = n === 'hook' ? T('Supervisor (hook)', 'Überwacher (Hook)') : esc(v.title || n);
-    const state = n === 'hook' ? '' : !v.enabled ? T('off', 'aus') : v.failing ? T(`keeps failing (${v.fails}×), retry in ${v.waitSecs} s`, `fällt aus (${v.fails}×), neuer Versuch in ${v.waitSecs} s`) : v.running ? T('running', 'läuft') + (v.restarts ? ` · ${v.restarts}× ${tt('restarted', 'neu gestartet')}` : '') : T('not running', 'läuft nicht');
+    const state = n === 'hook' ? '' : !v.enabled ? T('off', 'aus') : v.missing ? T(`not installed (needs ${v.requires})`, `nicht installiert (braucht ${v.requires})`) : v.failing ? T(`keeps failing (${v.fails}×), retry in ${v.waitSecs} s`, `fällt aus (${v.fails}×), neuer Versuch in ${v.waitSecs} s`) : v.running ? T('running', 'läuft') + (v.restarts ? ` · ${v.restarts}× ${tt('restarted', 'neu gestartet')}` : '') : T('not running', 'läuft nicht');
     return `<div class="item"><div><div class="t">${label}</div><div class="s">${n}${state ? ' · ' : ''}${state}</div></div><div class="row"><button class="btn btn-outline btn-sm" data-log="${n}">${T('Log', 'Protokoll')}</button>${n === 'hook' || !v.running ? '' : `<button class="btn btn-outline btn-sm" data-rs="${n}" aria-label="${tt('Restart', 'Neu starten')}">${ico('restart')}</button>`}</div></div>`;
   }).join('');
 }

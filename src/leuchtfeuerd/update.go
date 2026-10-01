@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// Updates aus der Oberfläche: Die Release-Seite (Gitea) bietet je Version ein Paket leuchtfeuer-<Version>-invoke.tar.gz
+// Updates aus der Oberfläche: Die Release-Seite (Gitea) bietet je Version ein Paket leuchtfeuer-<Version>-<Paket>.tar.gz (Paket je Zielgerät: invoke, generic-arm64 ...)
 // (Aufbau wie /data/leuchtfeuer) und eine Signatur .sig an. leuchtfeuerd lädt beides, prüft die Ed25519-Signatur gegen den
 // Schlüssel UPDATE_PUBKEY aus der Shell-Konfiguration (ohne Schlüssel kein Update aus der Oberfläche), packt nach
 // /data/leuchtfeuer/.stage-web aus (nur Programme, Dienste und Systemdateien, nie Einstellungen oder Schlüssel) und übergibt an
@@ -191,9 +191,9 @@ func (a *app) checkUpdate() (updateInfo, error) {
 	info.Latest, info.Name, info.Notes = rel.Tag, rel.Name, rel.Body
 	for _, as := range rel.Assets {
 		switch {
-		case strings.HasSuffix(as.Name, "-invoke.tar.gz"):
+		case strings.HasSuffix(as.Name, "-"+hw.Package+".tar.gz"):
 			info.asset = as.URL
-		case strings.HasSuffix(as.Name, "-invoke.tar.gz.sig"):
+		case strings.HasSuffix(as.Name, "-"+hw.Package+".tar.gz.sig"):
 			info.sig = as.URL
 		}
 	}

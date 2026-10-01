@@ -286,7 +286,7 @@ func (h *logHub) syslog(l logLine) {
 		proto = "udp"
 	}
 	key := fmt.Sprintf("%s:%s:%d", proto, set.Host, port)
-	msg := syslogMessage(h.a.cfg.Get("DHCP_HOSTNAME", "invoke"), l)
+	msg := syslogMessage(hostName(h.a.cfg), l)
 	h.slMu.Lock()
 	defer h.slMu.Unlock()
 	if h.slConn != nil && h.slKey != key {

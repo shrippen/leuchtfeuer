@@ -38,7 +38,8 @@ const (
 
 func init() {
 	registerTarget(target{
-		ID: "invoke", Manufacturer: "Harman Kardon", Model: "Invoke", DefaultName: "HK Invoke",
+		Package: "invoke",
+		ID:      "invoke", Manufacturer: "Harman Kardon", Model: "Invoke", DefaultName: "HK Invoke",
 		MixerCard: "0", MirrorCtl: "system", TempPath: "/sys/class/hwmon/hwmon0/device/tsen_temp", TempDiv: 1, WifiIface: "wlan0",
 		SoundDirs:   []string{"/usr/share", "/usr/local/share", "/etc", "/opt"},
 		Link:        "audio-ui (WAMP)",

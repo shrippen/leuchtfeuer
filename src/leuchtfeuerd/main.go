@@ -45,7 +45,7 @@ func main() {
 	log.SetFlags(log.LstdFlags)
 
 	cfg := &shellConfig{path: *cfgPath}
-	selectTarget(cfg.Get("TARGET", defaultTarget))
+	selectTarget(envOr("LEUCHTFEUER_TARGET", cfg.Get("TARGET", defaultTarget)))
 	if c := cfg.Get("ALSA_CARD", ""); c != "" {
 		hw.MixerCard = c
 	}

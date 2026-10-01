@@ -1,0 +1,40 @@
+# Konfiguration von Leuchtfeuer auf einem beliebigen Linux (sh-Syntax), angelegt von setup.sh als <Verzeichnis>/config.
+# Fast alles lässt sich auch in der Weboberfläche ändern (Einstellungen).
+TARGET="generic"
+
+# Name, unter dem sich das Gerät in Spotify, UPnP, Cast, AirPlay, Sendspin und Bluetooth zeigt
+DEVICE_NAME="Leuchtfeuer"
+
+# Weboberfläche: Port (80 ist oft schon belegt) und Passwort (nur als Hash, setup.sh fragt danach)
+WEB_PORT="8080"
+WEB_TLS="off"
+
+# Ton: ALSA-Karte (Nummer oder Name aus "aplay -l") für Ausgabe und Regler. Belegt ein Sound-Server (PipeWire,
+# PulseAudio) die Karte, ALSA_OUTPUT="pipewire" bzw. "pulse" setzen (Regler bleiben auf ALSA_CARD).
+ALSA_CARD="0"
+ALSA_OUTPUT=""
+
+# Netzwerk-Schnittstelle (Gerätekennung für Cast und UPnP); leer = die der Standardroute
+WIFI_IFACE=""
+
+# Zeitzone für Wecker und Timer (IANA-Name)
+TIMEZONE="Europe/Berlin"
+
+# Dienste: fehlende Programme (Paket nicht installiert) zeigt die Oberfläche als "nicht installiert".
+SERVICE_SPOTIFY="on"
+SERVICE_UPNP="on"
+SERVICE_CAST="on"
+SERVICE_AIRPLAY="on"
+SERVICE_SENDSPIN="on"
+SERVICE_BLUETOOTH="off"
+SERVICE_SNAPCAST="off"
+SENDSPIN_SERVER=""
+SNAPCAST_SERVER=""
+BLUETOOTH_PAIRING="button"
+
+# Firewall (Kette LEUCHTFEUER, braucht iptables): meist regelt das System das selbst
+FIREWALL="off"
+
+# Updates aus der Weboberfläche: öffentlicher Release-Schlüssel (docs/release-key.pub)
+UPDATE_PUBKEY=""
+WATCHDOG="off"

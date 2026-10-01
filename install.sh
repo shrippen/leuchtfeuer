@@ -314,14 +314,14 @@ fetch_prebuilt(){
 assemble(){
   local S=$STAGE/data d=device/leuchtfeuer name=""
   if [ "$DRY" = 1 ] && [ -z "$PREBUILT" ] && [ ! -e build/dropbear/dropbearmulti ]; then
-    mkdir -p "$S"; cp "$d/boot.sh" "$d/hook.sh" "$d/apply-update.sh" "$S/"; return 0
+    mkdir -p "$S"; cp targets/invoke/boot.sh targets/invoke/target.sh "$d/hook.sh" "$d/apply-update.sh" "$S/"; return 0
   fi
   if [ -n "$PREBUILT" ]; then fetch_prebuilt "$S"
-  elif [ "$TIDAL" = 1 ]; then scripts/assemble.sh "$S" --tidal
-  else scripts/assemble.sh "$S"; fi
+  elif [ "$TIDAL" = 1 ]; then scripts/assemble.sh "$S" --target invoke --tidal
+  else scripts/assemble.sh "$S" --target invoke; fi
   # gerätebezogen: BlueZ-Konfiguration mit dem Namen aus den Einstellungen
   mkdir -p "$S/bluez/etc/bluetooth" "$S/bluez/var"
-  cp "$d/bluez/main.conf" "$S/bluez/etc/bluetooth/main.conf"
+  cp targets/invoke/bluez/main.conf "$S/bluez/etc/bluetooth/main.conf"
   if [ -n "$CONFIG" ]; then
     name=$(cfgval DEVICE_NAME "$(cat "$CONFIG")")   # speaker name in BlueZ main.conf matches the settings
     [ -n "$name" ] && sed -i "s/^Name = .*/Name = $name/" "$S/bluez/etc/bluetooth/main.conf"

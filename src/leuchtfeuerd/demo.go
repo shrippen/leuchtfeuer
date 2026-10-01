@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -242,8 +243,18 @@ func runDemo(listen string) {
 	a.sysFn = func() sysStatus {
 		return sysStatus{TempC: float64(sp.TempC), UptimeSecs: sp.UpDays*86400 + 5*3600, Load1: 0.31, MemTotalMB: 462, MemFreeMB: 398, DataFreeMB: 68, DataSizeMB: 123}
 	}
-	// Dienste aus den Kopfzeilen im Repo (demo/start.sh startet im Hauptverzeichnis)
-	servicesDir, runDir = "device/leuchtfeuer/services", dir
+	// Dienste aus den Kopfzeilen im Repo wie auf dem Invoke: gemeinsame und gerätespezifische
+	// (demo/start.sh startet im Hauptverzeichnis)
+	servicesDir, runDir = filepath.Join(dir, "services"), dir
+	os.MkdirAll(servicesDir, 0o755)
+	for _, pat := range []string{"device/leuchtfeuer/services/*.sh", "targets/invoke/services/*.sh"} {
+		files, _ := filepath.Glob(pat)
+		for _, f := range files {
+			if b, err := os.ReadFile(f); err == nil {
+				os.WriteFile(filepath.Join(servicesDir, filepath.Base(f)), b, 0o755)
+			}
+		}
+	}
 	a.svcFn = func() []serviceInfo {
 		var out []serviceInfo
 		for _, d := range serviceDefs() {

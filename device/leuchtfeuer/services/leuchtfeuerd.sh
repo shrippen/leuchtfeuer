@@ -3,9 +3,11 @@
 # group: core
 # process: leuchtfeuerd
 # ports:
+# requires: leuchtfeuerd
 # default: on
 # leuchtfeuerd: Weboberfläche (Port WEB_PORT, Standard 80; Passwort nur als Hash WEB_PASSWORD_HASH), WLAN-Wächter, Lautstärke-Abgleich,
 # Webradio, Wecker, Timer, Tastenbelegung, Home-Assistant-Anbindung (MQTT). Webradio über "leuchtfeuer_radio", Wecker-/Timertöne über "leuchtfeuer_music", Durchsagen über "leuchtfeuer_announce".
-export ALSA_CONFIG=/data/leuchtfeuer/asound-music.conf
-. /data/leuchtfeuer/config 2>/dev/null
-exec /data/leuchtfeuer/bin/leuchtfeuerd -listen ":${WEB_PORT:-80}"
+D=${LEUCHTFEUER_DIR:-/data/leuchtfeuer}; PATH=$D/bin:$PATH
+export ALSA_CONFIG=$D/asound-music.conf
+. $D/config 2>/dev/null
+exec leuchtfeuerd -listen ":${WEB_PORT:-80}"

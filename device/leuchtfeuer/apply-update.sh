@@ -21,6 +21,10 @@ log(){ echo "$(date '+%Y-%m-%d %H:%M:%S') update: $*" >> $D/hook.log; echo "$*";
 inplace(){ case $1 in ./podium.conf|./ca-certificates.crt) return 0 ;; esac; return 1; }
 
 restart_all(){
+  # generic: Hook und Dienste laufen in der systemd-Unit (dieses Skript auch) - systemd startet alles neu
+  if [ ! -f $D/boot.sh ] && command -v systemctl >/dev/null 2>&1 && systemctl is-active -q leuchtfeuer.service 2>/dev/null; then
+    log "Neustart über systemd"; systemctl restart --no-block leuchtfeuer.service; return 0
+  fi
   # Hook beenden, laufende Dienste beenden (sie werden vom neuen Hook gestartet), Hook neu starten
   pid=$(cat $R/leuchtfeuer-hook.pid 2>/dev/null); [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
   sleep 1
@@ -58,7 +62,7 @@ apply(){
   if [ -f .remove ]; then sed 's|^/*|./|' .remove | while read -r f; do rm -f "$D/$f"; done; fi
   cd $D; rm -rf "$S"
   chmod 600 $D/authorized_keys 2>/dev/null || true
-  chmod 755 $D/boot.sh $D/hook.sh $D/migrate.sh $D/apply-update.sh $D/bin/* $D/services/*.sh 2>/dev/null || true
+  chmod 755 $D/*.sh $D/bin/* $D/services/*.sh 2>/dev/null || true
   [ "${WATCH:-1}" = 1 ] && date +%s > $D/update-pending
   rm -f $D/update-rolledback
   log "angewendet ($(cat $D/VERSION 2>/dev/null || echo '?'))"
