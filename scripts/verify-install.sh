@@ -28,6 +28,8 @@ hci=$(S 'LD_LIBRARY_PATH=/data/invoke/bluez/lib /data/invoke/bluez/bin/hciconfig
 if echo "$hci" | grep -q "UP RUNNING"; then ok "Bluetooth adapter hci0 is up" "Bluetooth-Adapter hci0 oben"; else bad "Bluetooth adapter hci0 is not up" "Bluetooth-Adapter hci0 nicht oben"; fi
 if echo "$hci" | grep -q "ISCAN"; then ok "Bluetooth visible (ready to pair)" "Bluetooth sichtbar (koppelbereit)"; else bad "Bluetooth not visible" "Bluetooth nicht sichtbar"; fi
 if S 'iptables -S INVOKE 2>/dev/null | grep -q -- "--dport 22"'; then ok "firewall chain INVOKE" "Firewall-Kette INVOKE"; else bad "firewall chain INVOKE is missing" "Firewall-Kette INVOKE fehlt"; fi
+if S 'test -f /data/invoke/lib/ladspa/invoke-viz-tap.so'; then ok "visualizer tap plugin" "Visualizer-Abgriff (Plugin)"; else bad "visualizer tap plugin is missing (asound-music.conf needs it: no sound without it)" "Visualizer-Plugin fehlt (asound-music.conf braucht es: sonst kein Ton)"; fi
+if echo "$ps" | grep -q "[a]udio-ui"; then ok "vendor audio-ui" "Hersteller-Dienst audio-ui"; else bad "audio-ui is not running (no volume knob, no web interface volume)" "audio-ui läuft nicht (kein Drehrad, keine Lautstärke in der Weboberfläche)"; fi
 if S 'amixer -c 0 sget "Invoke Music" >/dev/null 2>&1'; then ok 'volume control "Invoke Music"' 'Lautstärkeregler "Invoke Music"'; else bad 'volume control "Invoke Music" is missing' 'Regler "Invoke Music" fehlt'; fi
 if S 'ps | grep -q "[a]dbd"'; then bad "adbd is running (port 5555 = root shell without login)" "adbd läuft (Port 5555 = Root-Shell ohne Anmeldung)"; else ok "adbd is off" "adbd aus"; fi
 for port in 57500 49494 8009 80 5000; do

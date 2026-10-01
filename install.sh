@@ -455,7 +455,7 @@ Das dauert etwa 3 Minuten; die Dienste starten etwa 90 Sekunden nach dem Hochfah
     for _ in $(seq 1 60); do sshd true 2>/dev/null && break; sleep 5; done
     sleep 70
   else
-    info "No restart. The services are running, but a restart is recommended soon." "Kein Neustart. Die Dienste laufen, ein Neustart wird aber bald empfohlen."
+    info "No restart. The services are running, but a restart is recommended soon (the audio chain with the visualizer tap is only used by services started afterwards)." "Kein Neustart. Die Dienste laufen, ein Neustart wird aber bald empfohlen (die Tonkette mit dem Visualizer-Abgriff nutzen erst später gestartete Dienste)."
   fi
   say "Step 13: checking" "Schritt 13: Prüfung"
   ./scripts/verify-install.sh --ip "$IP" --key "$KEY" || true
@@ -471,7 +471,8 @@ if [ $WEBPASS_SHOW = 1 ]; then WEBPW=$(t "password $WEBPASS (shown only now; cha
 else WEBPW=$(t "the password you set, or the existing one (reset: scripts/set-web-password.sh)" "das von dir gesetzte oder vorhandene Passwort (zurücksetzen: scripts/set-web-password.sh)"); fi
 info "What now:
   - Web interface: http://$IP/  (login page, $WEBPW):
-    status, web radio, alarms, timers, button mapping, Wi-Fi guard, Home Assistant, settings.
+    status, web radio, alarms, timers, button mapping, Wi-Fi guard, Home Assistant, light ring visualizer, settings.
+  - Light ring visualizer: off by default; switch it on in Settings > Light ring (needs the restart of the speaker).
   - Bluetooth: press the speaker's Bluetooth button briefly, then pair it on your phone within 2 minutes (no PIN).
     It stays paired and reconnects by itself.
   - Spotify / UPnP / Cast / AirPlay / Tidal: pick the speaker by its name in the app (same Wi-Fi).
@@ -482,7 +483,8 @@ info "What now:
   - Remove again: ./uninstall.sh" \
 "Wie weiter:
   - Weboberfläche: http://$IP/  (Anmeldeseite, $WEBPW):
-    Status, Webradio, Wecker, Timer, Tastenbelegung, WLAN-Wächter, Home Assistant, Einstellungen.
+    Status, Webradio, Wecker, Timer, Tastenbelegung, WLAN-Wächter, Home Assistant, Leuchtring-Visualizer, Einstellungen.
+  - Leuchtring-Visualizer: anfangs aus; einschalten unter Einstellungen > Leuchtring (braucht den Neustart des Lautsprechers).
   - Bluetooth: den Bluetooth-Knopf am Lautsprecher kurz drücken und ihn innerhalb von 2 Minuten am Handy koppeln
     (ohne PIN). Er bleibt gekoppelt und verbindet sich selbst wieder.
   - Spotify / UPnP / Cast / AirPlay / Tidal: den Lautsprecher in der App über seinen Namen wählen (gleiches WLAN).

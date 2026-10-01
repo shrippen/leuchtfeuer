@@ -102,7 +102,8 @@ The installer is **interactive**: it explains each step and asks for what it nee
 4. finds out whether this is a first installation (over adb) or an update (over SSH),
 5. asks for the settings: speaker name, address of your Music Assistant for Sendspin, DHCP host name,
 6. asks whether to install **Tidal Connect** (default: no, because it is not licensed for this speaker),
-7. builds the programs if they are missing (`./build.sh`: Docker + Go, 20-60 minutes the first time, results in `build/`),
+7. builds the programs if they are missing (`./build.sh`: Docker + Go, 20-60 minutes the first time, results in `build/`;
+   includes the LADSPA tap plugin for the light ring visualizer),
 8. shows a summary and asks before it changes anything,
 9. on a **fresh StockRoot device**: connects over adb (port 5555), checks root, firmware and free space, installs the own
    dropbear with a per-device host key and your key, adds the autostart hook to `/data/dnsmasq.conf` (original saved as
@@ -156,7 +157,9 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 ## 6. Maintenance
 
 - **Update:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>`.
-- **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>`.
+- **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>` (also checks the visualizer plugin and the vendor `audio-ui`).
+- **Do not kill `mcu-interface`** (vendor ring/amplifier controller): the vendor supervisor then restarts its stack in recovery
+  mode, `audio-ui` drops off the router and the amplifier stays muted. A reboot of the speaker fixes it.
 - **Emergency brake:** `ssh root@<ip> 'touch /data/invoke/disable-hook'`, reboot → original behaviour.
 - **Uninstall:** `./uninstall.sh --ip <ip> --key <pub> [--purge]` (removes the autostart hook, restores
   `dnsmasq.conf`, reboots; `--purge` also deletes `/data/invoke`).
@@ -173,4 +176,5 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 | Service missing | `ssh root@<ip> 'ps; tail /data/invoke/log/<service>.log'`; the hook restarts dead services every 30 s |
 | Bluetooth not visible | `scripts/verify-install.sh`; `/data/invoke/log/bluetooth-*.log`; `hciconfig hci0` must say `UP RUNNING PSCAN ISCAN` |
 | Music Assistant says "legacy mode" for Sendspin | Expected: sendspin-go 1.8.x speaks the unencrypted dialect; accepted while "Allow legacy clients" is on |
+| No sound, "audio-ui not reachable" | `scripts/verify-install.sh` (visualizer plugin, `audio-ui`); a reboot of the speaker usually fixes it. If `/data/invoke/lib/ladspa/invoke-viz-tap.so` is missing, run `install.sh` again (the audio chain needs it) |
 | Tidal login fails | iFi certificate may have been revoked; not fixable here |

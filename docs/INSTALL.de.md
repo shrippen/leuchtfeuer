@@ -106,7 +106,8 @@ Der Installer ist **interaktiv**: Er erklärt jeden Schritt und fragt, was er br
 4. stellt fest, ob es eine Erstinstallation (über adb) oder ein Update (über SSH) ist,
 5. fragt die Einstellungen ab: Name des Lautsprechers, Adresse deines Music Assistant für Sendspin, DHCP-Hostname,
 6. fragt, ob **Tidal Connect** installiert werden soll (Standard: nein, weil für diesen Lautsprecher nicht lizenziert),
-7. baut die Programme, falls sie fehlen (`./build.sh`: Docker + Go, beim ersten Mal 20-60 Minuten, Ergebnis in `build/`),
+7. baut die Programme, falls sie fehlen (`./build.sh`: Docker + Go, beim ersten Mal 20-60 Minuten, Ergebnis in `build/`;
+   dazu das LADSPA-Abgriff-Plugin für den Leuchtring-Visualizer),
 8. zeigt eine Zusammenfassung und fragt, bevor etwas geändert wird,
 9. bei einem **frischen StockRoot-Gerät**: verbindet sich per adb (Port 5555), prüft Root, Firmware und freien Platz,
    richtet das eigene dropbear mit gerätespezifischem Host-Schlüssel und deinem Schlüssel ein, hängt den Autostart-Haken
@@ -161,7 +162,10 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 ## 6. Wartung
 
 - **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>`.
-- **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>`.
+- **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>` (prüft auch das Visualizer-Plugin und den Hersteller-Dienst `audio-ui`).
+- **`mcu-interface` nicht beenden** (Hersteller-Dienst für Ring und Verstärker): Der Hersteller-Überwacher startet dann seinen
+  Stapel im Wiederherstellungsmodus neu, `audio-ui` verliert die Verbindung zum Router und der Verstärker bleibt stumm.
+  Ein Neustart des Lautsprechers behebt das.
 - **Notbremse:** `ssh root@<ip> 'touch /data/invoke/disable-hook'`, neu starten → Originalverhalten.
 - **Deinstallieren:** `./uninstall.sh --ip <ip> --key <pub> [--purge]` (entfernt den Autostart-Haken, stellt
   `dnsmasq.conf` wieder her, startet neu; `--purge` löscht auch `/data/invoke`).
@@ -178,4 +182,5 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 | Dienst fehlt | `ssh root@<ip> 'ps; tail /data/invoke/log/<dienst>.log'`; der Haken startet tote Dienste alle 30 s neu |
 | Bluetooth nicht sichtbar | `scripts/verify-install.sh`; `/data/invoke/log/bluetooth-*.log`; `hciconfig hci0` muss `UP RUNNING PSCAN ISCAN` zeigen |
 | Music Assistant meldet „Legacy-Modus“ bei Sendspin | Erwartet: sendspin-go 1.8.x spricht den unverschlüsselten Dialekt; wird akzeptiert, solange „Allow legacy clients“ an ist |
+| Kein Ton, „audio-ui nicht erreichbar“ | `scripts/verify-install.sh` (Visualizer-Plugin, `audio-ui`); meist hilft ein Neustart des Lautsprechers. Fehlt `/data/invoke/lib/ladspa/invoke-viz-tap.so`, erneut `install.sh` ausführen (die Tonkette braucht es) |
 | Tidal-Anmeldung scheitert | Das iFi-Zertifikat wurde evtl. gesperrt; hier nicht behebbar |
