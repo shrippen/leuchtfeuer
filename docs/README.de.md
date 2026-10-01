@@ -13,7 +13,7 @@ normalen Netzwerk-Lautsprecher. Nach der Installation erscheint er als **„HK I
 | **Tidal Connect** (optional) | proprietäres iFi-Programm | **nicht für dieses Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, siehe [Rechtliches](#rechtliches-und-risiken) |
 | **Bluetooth-A2DP-Empfänger** | BlueZ 5.50 + bluez-alsa + eigener Agent (`src/btagent`) | unsichtbar, bis du den **Bluetooth-Knopf** am Lautsprecher drückst (2 Minuten Pairing-Fenster, Rückmeldung am Leuchtring); koppelt ohne Abfrage, merkt sich Kopplungen, Handy-Lautstärke und Drehrad bleiben synchron |
 
-**Weboberfläche** (Port 8080, Design [Kante](https://github.com/shrippen/shrippen.github.io), Englisch/Deutsch):
+**Weboberfläche** (Port 80, Design [Kante](https://github.com/shrippen/shrippen.github.io), Englisch/Deutsch):
 Status, **Webradio**, **Wecker** (Anstieg, Schlummern, Radio oder Signalton) und **Timer**, **Tastenbelegung**, der **WLAN-Wächter**
 (misst die echte Verbindungsqualität zum Router und wechselt bei anhaltend schlechter Qualität zu einem besseren Access Point
 desselben Netzes), **Home Assistant** (MQTT-Erkennung: Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timer,

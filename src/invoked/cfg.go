@@ -97,4 +97,33 @@ func (c *shellConfig) Set(kv map[string]string) error {
 	return os.Rename(tmp, c.path)
 }
 
+// Delete entfernt Schlüssel samt Zeile.
+func (c *shellConfig) Delete(keys ...string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var out []string
+	changed := false
+	for _, l := range c.lines() {
+		if k, _, ok := parseLine(l); ok {
+			drop := false
+			for _, d := range keys {
+				drop = drop || k == d
+			}
+			if drop {
+				changed = true
+				continue
+			}
+		}
+		out = append(out, l)
+	}
+	if !changed {
+		return nil
+	}
+	tmp := c.path + ".new"
+	if err := os.WriteFile(tmp, []byte(strings.Join(out, "\n")+"\n"), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, c.path)
+}
+
 func (c *shellConfig) String() string { return fmt.Sprintf("config(%s)", c.path) }

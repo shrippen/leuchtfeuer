@@ -74,3 +74,20 @@ root anmelden. (Falls du noch keinen hast, kann ich einen erzeugen.)"
     esac
   done
 }
+
+# valid_web_password PW: at least 6 characters. The password is sent over SSH on stdin and stored on the speaker only
+# as a salted PBKDF2 hash (WEB_PASSWORD_HASH), never in clear text.
+valid_web_password(){ [ "${#1}" -ge 6 ]; }
+
+# ask_web_password VAR: asks twice without echo -> sets VAR (empty = no change); interactive only
+ask_web_password(){
+  local __v=$1 a b
+  while :; do
+    read -r -s -p "$(t 'New password (at least 6 characters; empty = no change): ' 'Neues Passwort (mindestens 6 Zeichen; leer = nicht ändern): ')" a || a=""; echo
+    [ -n "$a" ] || { printf -v "$__v" '%s' ""; return 0; }
+    valid_web_password "$a" || { warn "too short (at least 6 characters)" "zu kurz (mindestens 6 Zeichen)"; continue; }
+    read -r -s -p "$(t 'Repeat: ' 'Wiederholen: ')" b || b=""; echo
+    [ "$a" = "$b" ] && { printf -v "$__v" '%s' "$a"; return 0; }
+    warn "the two entries differ" "die beiden Eingaben unterscheiden sich"
+  done
+}

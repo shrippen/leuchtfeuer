@@ -17,6 +17,10 @@
 #   --key FILE           public SSH key (.pub) that may log in as root; the private key must be in your
 #                        ssh-agent or next to it
 #   --config FILE        settings file (template: device/invoke/config.example); replaces the one on the speaker
+#   --web-password PW    password of the web interface (user admin); better: INVOKE_WEB_PASSWORD=PW in the environment
+#                        (not visible in the process list). Stored on the speaker only as a salted hash. Without it a
+#                        random one is generated on first install and the existing one is kept on updates.
+#                        Change it later with scripts/set-web-password.sh.
 #   --tidal / --no-tidal install / skip Tidal Connect (proprietary iFi program, see README)
 #   --no-reboot          do not reboot at the end
 #   --dry-run            only show what would be done
@@ -28,18 +32,19 @@ cd "$(dirname "$0")"
 # shellcheck source=scripts/lib.sh
 . scripts/lib.sh
 
-IP=""; KEY=""; CONFIG=""; TIDAL=""; REBOOT=""; DRY=0
+IP=""; KEY=""; CONFIG=""; TIDAL=""; REBOOT=""; DRY=0; WEBPASS=${INVOKE_WEB_PASSWORD:-}
 while [ $# -gt 0 ]; do
   case $1 in
     --ip) IP=$2; shift 2 ;;
     --key) KEY=$2; shift 2 ;;
     --config) CONFIG=$2; shift 2 ;;
+    --web-password) WEBPASS=$2; shift 2 ;;
     --tidal) TIDAL=1; shift ;;
     --no-tidal) TIDAL=0; shift ;;
     --no-reboot) REBOOT=0; shift ;;
     --dry-run) DRY=1; shift ;;
     --non-interactive|--yes|-y) INTERACTIVE=0; shift ;;
-    -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -179,6 +184,31 @@ jeder in Reichweite kann koppeln."
     if ask_yn "Enable the AirPlay receiver (iPhone, iPad, Mac)?" "AirPlay-Empfänger aktivieren (iPhone, iPad, Mac)?" "$([ "$d_air" = off ] && echo n || echo y)"; then s_air=on; else s_air=off; fi
     CONFIG="$STAGE/config.chosen"
     printf 'DEVICE_NAME="%s"\nSENDSPIN_SERVER="%s"\nDHCP_HOSTNAME="%s"\nBLUETOOTH_PAIRING="%s"\nTIMEZONE="%s"\nAIRPLAY="%s"\n' "$s_name" "$s_srv" "$s_host" "$s_bt" "$s_tz" "$s_air" > "$CONFIG"
+  fi
+fi
+
+# ---- web interface password (stored on the speaker only as a salted hash; set after the files are deployed)
+if [ -n "$WEBPASS" ] && ! valid_web_password "$WEBPASS"; then
+  die "the web password needs at least 6 characters" "das Web-Passwort braucht mindestens 6 Zeichen"
+fi
+if [ -z "$WEBPASS" ] && [ "$INTERACTIVE" = 1 ]; then
+  note "The web interface (http://$IP/) is protected by a login page. The speaker stores only a salted hash of the
+password. If you set none, a random one is generated on the first install and shown at the end; on an update the
+existing one is kept. You can change it later in the web interface (Settings) or with scripts/set-web-password.sh." \
+       "Die Weboberfläche (http://$IP/) ist durch eine Anmeldeseite geschützt. Der Lautsprecher speichert nur einen gesalzenen
+Hash des Passworts. Ohne Eingabe wird bei der Erstinstallation ein zufälliges erzeugt und am Ende angezeigt; bei einem
+Update bleibt das vorhandene. Du kannst es später in der Weboberfläche (Einstellungen) oder mit
+scripts/set-web-password.sh ändern."
+  ask_web_password WEBPASS
+fi
+WEBPASS_SHOW=0
+if [ -z "$WEBPASS" ] && [ "$MODE" = first ]; then WEBPASS=$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n'); WEBPASS_SHOW=1; fi
+# a replaced settings file would lose the existing hash: carry it over
+if [ "$MODE" = update ] && [ -n "$CONFIG" ]; then
+  oldhash=$(cfgval WEB_PASSWORD_HASH "$(sshd 'cat /data/invoke/config' 2>/dev/null || true)")
+  if [ -n "$oldhash" ] && ! grep -q '^WEB_PASSWORD_HASH=' "$CONFIG"; then
+    [ "$CONFIG" = "$STAGE/config.chosen" ] || { cp "$CONFIG" "$STAGE/config.chosen"; CONFIG="$STAGE/config.chosen"; }
+    printf 'WEB_PASSWORD_HASH="%s"\n' "$oldhash" >> "$CONFIG"
   fi
 fi
 
@@ -401,6 +431,12 @@ if grep -q " /etc/podium/podium.conf " /proc/mounts && [ "$(cat /run/invoke-podi
 fi
 sh /data/invoke/boot.sh init
 REMOTE
+  # new password: invoked hashes it on the speaker (stdin, never the command line) and is restarted by the hook
+  if [ -n "$WEBPASS" ]; then
+    printf '%s\n' "$WEBPASS" | sshd '/data/invoke/bin/invoked -set-password && { p=$(cat /run/invoke-svc-invoked.pid 2>/dev/null); [ -n "$p" ] && kill "$p"; true; }' \
+      && ok "web password set (stored as a salted hash)" "Web-Passwort gesetzt (nur als gesalzener Hash gespeichert)" \
+      || warn "could not set the web password: use scripts/set-web-password.sh" "Web-Passwort konnte nicht gesetzt werden: scripts/set-web-password.sh nutzen"
+  fi
   sshd 'touch /data/invoke/disable-adb'
 fi
 
@@ -430,9 +466,10 @@ CFGSRV=${d_srv:-}; [ -n "$CONFIG" ] && CFGSRV=$(cfgval SENDSPIN_SERVER "$(cat "$
 if [ -n "$CFGSRV" ]; then mahint=$(t "Sendspin connects to $CFGSRV." "Sendspin verbindet sich mit $CFGSRV.")
 else mahint=$(t "if it is not found automatically, set SENDSPIN_SERVER on the speaker (see settings)." "falls er nicht automatisch gefunden wird, SENDSPIN_SERVER auf dem Lautsprecher setzen (siehe Einstellungen).")
 fi
-WEBPW=""; [ "$DRY" = 0 ] && WEBPW=$(sshd 'sed -n "s/^WEB_PASSWORD=\"\(.*\)\"/\1/p" /data/invoke/config' 2>/dev/null || true)
+if [ $WEBPASS_SHOW = 1 ]; then WEBPW=$(t "password $WEBPASS (shown only now; change it in Settings)" "Passwort $WEBPASS (wird nur jetzt angezeigt; in den Einstellungen änderbar)")
+else WEBPW=$(t "the password you set, or the existing one (reset: scripts/set-web-password.sh)" "das von dir gesetzte oder vorhandene Passwort (zurücksetzen: scripts/set-web-password.sh)"); fi
 info "What now:
-  - Web interface: http://$IP:8080  (user admin, password ${WEBPW:-see WEB_PASSWORD in /data/invoke/config on the speaker}):
+  - Web interface: http://$IP/  (login page, $WEBPW):
     status, web radio, alarms, timers, button mapping, Wi-Fi guard, Home Assistant, settings.
   - Bluetooth: press the speaker's Bluetooth button briefly, then pair it on your phone within 2 minutes (no PIN).
     It stays paired and reconnects by itself.
@@ -443,7 +480,7 @@ info "What now:
   - Emergency brake: ssh root@$IP 'touch /data/invoke/disable-hook' and reboot = original behaviour.
   - Remove again: ./uninstall.sh" \
 "Wie weiter:
-  - Weboberfläche: http://$IP:8080  (Benutzer admin, Passwort ${WEBPW:-siehe WEB_PASSWORD in /data/invoke/config auf dem Lautsprecher}):
+  - Weboberfläche: http://$IP/  (Anmeldeseite, $WEBPW):
     Status, Webradio, Wecker, Timer, Tastenbelegung, WLAN-Wächter, Home Assistant, Einstellungen.
   - Bluetooth: den Bluetooth-Knopf am Lautsprecher kurz drücken und ihn innerhalb von 2 Minuten am Handy koppeln
     (ohne PIN). Er bleibt gekoppelt und verbindet sich selbst wieder.

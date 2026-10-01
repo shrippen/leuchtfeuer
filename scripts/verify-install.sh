@@ -30,7 +30,7 @@ if echo "$hci" | grep -q "ISCAN"; then ok "Bluetooth visible (ready to pair)" "B
 if S 'iptables -S INVOKE 2>/dev/null | grep -q -- "--dport 22"'; then ok "firewall chain INVOKE" "Firewall-Kette INVOKE"; else bad "firewall chain INVOKE is missing" "Firewall-Kette INVOKE fehlt"; fi
 if S 'amixer -c 0 sget "Invoke Music" >/dev/null 2>&1'; then ok 'volume control "Invoke Music"' 'Lautstärkeregler "Invoke Music"'; else bad 'volume control "Invoke Music" is missing' 'Regler "Invoke Music" fehlt'; fi
 if S 'ps | grep -q "[a]dbd"'; then bad "adbd is running (port 5555 = root shell without login)" "adbd läuft (Port 5555 = Root-Shell ohne Anmeldung)"; else ok "adbd is off" "adbd aus"; fi
-for port in 57500 49494 8009 8080 5000; do
+for port in 57500 49494 8009 80 5000; do
   if (timeout 4 bash -c "echo > /dev/tcp/$IP/$port") 2>/dev/null; then ok "port $port/tcp reachable" "Port $port/tcp erreichbar"
   else bad "port $port/tcp not reachable" "Port $port/tcp nicht erreichbar"; fi
 done

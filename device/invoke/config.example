@@ -22,5 +22,6 @@ TIMEZONE="Europe/Berlin"
 # AirPlay-Empfänger (iPhone, iPad, Mac): "on" oder "off"
 AIRPLAY="on"
 
-# Weboberfläche (Port 8080, Benutzer admin): Das Passwort erzeugt invoked beim ersten Start selbst
-# (WEB_PASSWORD), Änderung in der Oberfläche. Port optional: WEB_PORT="8080"
+# Weboberfläche (Port 80, Anmeldeseite): Das Passwort steht hier nie im Klartext, sondern als gesalzener Hash
+# (WEB_PASSWORD_HASH). Setzen mit install.sh oder scripts/set-web-password.sh, oder in der Oberfläche (Einstellungen).
+# Port optional: WEB_PORT="80"

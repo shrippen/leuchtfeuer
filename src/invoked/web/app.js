@@ -33,6 +33,7 @@ let lastSig = '';
 async function api(path, method = 'GET', body) {
   const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== '/api/login') { location.reload(); throw new Error('login'); }
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
@@ -352,9 +353,9 @@ function viewSettings() {
     <p>${T('The ring shows the speaker states (volume knob, alarm, timer, Bluetooth pairing). It cannot follow the music, see the notes in the documentation.', 'Der Ring zeigt die Zustände des Lautsprechers (Drehrad, Wecker, Timer, Bluetooth-Kopplung). Er kann der Musik nicht folgen, siehe Hinweise in der Dokumentation.')}</p>
     <div class="row"><button class="btn btn-outline btn-sm" id="l-test">${ico('test')}${T('Test ring', 'Ring testen')}</button></div></div>
   <div class="card"><h3>${T('Web password', 'Web-Passwort')}</h3>
-    <p>${T('User admin. At least 6 characters.', 'Benutzer admin. Mindestens 6 Zeichen.')}</p>
+    <p>${T('At least 6 characters. Stored only as a salted hash.', 'Mindestens 6 Zeichen. Wird nur als gesalzener Hash gespeichert.')}</p>
     <div class="field"><label for="pw">${T('New password', 'Neues Passwort')}</label><input class="input" id="pw" type="password" autocomplete="new-password"></div>
-    <div class="row"><button class="btn btn-accent btn-sm" id="pw-save">${ico('save')}${T('Change', 'Ändern')}</button></div></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="pw-save">${ico('save')}${T('Change', 'Ändern')}</button><button class="btn btn-outline btn-sm" id="logout">${T('Sign out', 'Abmelden')}</button></div></div>
   <div class="card"><h3>${T('Services', 'Dienste')}</h3>
     <p>${T('Restarting stops a service; the supervisor starts it again within 30 seconds.', 'Neustart beendet einen Dienst; der Überwacher startet ihn binnen 30 Sekunden neu.')}</p>
     <div class="list">${CFG.services.map(n => `<div class="item"><div class="t mono">${esc(n)}</div><div class="row"><button class="btn btn-outline btn-sm" data-log="${n}">${T('Log', 'Protokoll')}</button><button class="btn btn-outline btn-sm" data-rs="${n}">${ico('restart')}</button></div></div>`).join('')}</div></div></div>
@@ -365,6 +366,7 @@ function bindSettings() {
   $('#s-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, name: $('#s-name').value, bluetoothPairing: segVal('s-bt'), airplay: swVal('s-air') ? 'on' : 'off' }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#l-test').onclick = () => act(() => api('/api/led/test', 'POST', {}));
   $('#pw-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, webPassword: $('#pw').value }); $('#pw').value = ''; }, tt('Password changed - sign in again', 'Passwort geändert - bitte neu anmelden'));
+  $('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); };
   $$('[data-rs]').forEach(b => b.onclick = () => act(() => api('/api/services/restart', 'POST', { name: b.dataset.rs }), tt('Stopped, will restart within 30 s', 'Gestoppt, startet binnen 30 s neu')));
   $$('[data-log]').forEach(b => b.onclick = async () => {
     try { const r = await api('/api/logs?name=' + b.dataset.log); $('#logbox').textContent = r.log || '–'; $('#logbox').scrollTop = 1e9; } catch (e) { toast(e.message, 'error'); }

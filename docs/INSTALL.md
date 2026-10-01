@@ -127,7 +127,7 @@ After the reboot the services come up within about 90 s.
 | UPnP/DLNA | pick "HK Invoke" as renderer in your UPnP app; https:// streams work (current CA bundle) |
 | Music Assistant | the player appears via Sendspin (set `SENDSPIN_SERVER`) and, if the Cast provider finds it, as a Chromecast; add it by IP in the Google Cast provider's known hosts if mDNS does not cross your Wi-Fi/LAN |
 | AirPlay | "HK Invoke" appears in the AirPlay menu of iPhone, iPad and Mac (AirPlay 1, audio only) |
-| Web interface | `http://<speaker-ip>:8080`, user `admin`, password in `/data/invoke/config` (`WEB_PASSWORD`, shown by `install.sh`; change it in Settings) |
+| Web interface | `http://<speaker-ip>/` (port 80): login page, password set by `install.sh` (or a random one shown once at the end of a first install). The speaker stores only a salted PBKDF2 hash. Change it in Settings, or later with `scripts/set-web-password.sh` |
 | Tidal | "HK Invoke" appears in the Tidal app's Tidal Connect list |
 
 The volume knob sets all sources. Logs are in `/data/invoke/log/` on the speaker

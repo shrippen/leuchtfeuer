@@ -238,7 +238,7 @@ func runDemo(listen string) {
 		a.buttons = append(a.buttons, buttonEvent{Time: now.Add(-time.Duration(e.Ago) * time.Second), Name: e.Name, Value: e.Value, Do: e.Action})
 	}
 	wrapAuth = func(_ *webServer, h http.Handler) http.Handler { return h }
-	w := &webServer{app: a, pass: "demo"}
+	w := &webServer{app: a, login: newLoginState("")}
 	log.Printf("Demo (%s) auf %s", lang, listen)
 	w.Run(listen)
 }

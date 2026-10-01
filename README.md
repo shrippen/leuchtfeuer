@@ -13,7 +13,7 @@ speaker. After the install the speaker shows up as **"HK Invoke"** in:
 | **Tidal Connect** (optional) | proprietary iFi binary | **not licensed for this device**, can be revoked – opt-in, see [Legal](#legal-and-risks) |
 | **Bluetooth A2DP sink** | BlueZ 5.50 + bluez-alsa + own agent (`src/btagent`) | invisible until you press the speaker's **Bluetooth button** (2-minute pairing window, ring feedback); pairs without a prompt, remembers pairings, phone volume and the speaker's volume knob stay in sync |
 
-**Web interface** (port 8080, [Kante](https://github.com/shrippen/shrippen.github.io) design, English/German):
+**Web interface** (port 80, [Kante](https://github.com/shrippen/shrippen.github.io) design, English/German):
 status, **web radio**, **alarms** (fade-in, snooze, radio or beeps) and **timers**, **button mapping**, the **Wi-Fi guard**
 (measures the real link quality to your router and switches to a better access point of the same network when it stays
 poor), **Home Assistant** (MQTT discovery: volume, mute, web radio, Bluetooth pairing, timers, alarm buttons, temperature,

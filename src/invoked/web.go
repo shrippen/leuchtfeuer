@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -19,31 +18,18 @@ import (
 //go:embed web
 var webFS embed.FS
 
-// wrapAuth schützt die Oberfläche mit Anmeldung (Benutzer admin).
+// wrapAuth schützt die Oberfläche mit Anmeldeseite und Sitzung.
 var wrapAuth = func(w *webServer, h http.Handler) http.Handler { return w.auth(h) }
 
 type webServer struct {
-	app  *app
-	pass string
+	app   *app
+	login *loginState
 }
 
 func randomPassword() string {
 	b := make([]byte, 8)
 	rand.Read(b)
 	return hex.EncodeToString(b)
-}
-
-func (w *webServer) auth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		u, p, ok := r.BasicAuth()
-		if !ok || subtle.ConstantTimeCompare([]byte(u), []byte("admin")) != 1 ||
-			subtle.ConstantTimeCompare([]byte(p), []byte(w.pass)) != 1 {
-			rw.Header().Set("WWW-Authenticate", `Basic realm="HK Invoke"`)
-			http.Error(rw, "Anmeldung nötig (Benutzer admin, Passwort in /data/invoke/config: WEB_PASSWORD)", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(rw, r)
-	})
 }
 
 func writeJSON(rw http.ResponseWriter, v any) {
@@ -271,11 +257,14 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			kv["AIRPLAY"] = v.AirPlay
 		}
 		if v.WebPassword != "" {
-			if len(v.WebPassword) < 6 {
-				return fmt.Errorf("Passwort: mindestens 6 Zeichen")
+			if err := checkNewPassword(v.WebPassword); err != nil {
+				return err
 			}
-			kv["WEB_PASSWORD"] = v.WebPassword
-			w.pass = v.WebPassword
+			h, err := storePassword(a.cfg, v.WebPassword)
+			if err != nil {
+				return err
+			}
+			w.login.setHash(h)
 		}
 		return a.cfg.Set(kv)
 	}
@@ -477,6 +466,6 @@ func (w *webServer) routes() http.Handler {
 
 func (w *webServer) Run(addr string) {
 	srv := &http.Server{Addr: addr, Handler: w.routes(), ReadHeaderTimeout: 10 * time.Second}
-	log.Printf("Weboberfläche auf %s (Benutzer admin)", addr)
+	log.Printf("Weboberfläche auf %s ", addr)
 	log.Fatal(srv.ListenAndServe())
 }

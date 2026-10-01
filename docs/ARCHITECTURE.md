@@ -54,7 +54,7 @@ music drop out. The services therefore use their **own** control `Invoke Music`,
 | `castrecv.sh` | `src/castrecv` (Go) | 8009/tcp (TLS), 8008, 8443 | Cast receiver emulation, plays with `gst-launch-1.0` |
 | `tidal-1/2/3-*.sh` | iFi `tidal_connect_application` + bundled libs, avahi 0.6.32 (LD_PRELOAD shim for the missing `avahi` user), own `dbus-daemon` config | 2019/tcp | optional |
 | `shairport.sh` | shairport-sync 3.3.9 (AirPlay 1, Apple ALAC decoder), tinysvcmdns | 5000/tcp, 6001-6011/udp | `AIRPLAY="off"` disables |
-| `invoked.sh` | `src/invoked` | 8080/tcp | see below |
+| `invoked.sh` | `src/invoked` | 80/tcp | see below |
 | `volume-sync.sh` | shell | – | see above |
 | `bluetooth-1..4-*.sh` | bluetoothd, `btagent`, bluealsa, bluealsa-aplay | – | see below |
 
@@ -110,7 +110,7 @@ announces `_googlecast._tcp` (model *Chromecast Audio*) via mDNS and plays `LOAD
 | Alarms, timers | scheduler in the configured IANA time zone; fade-in through `volumeAdjust`; light ring animations `L_111_c_alarm`, `L_112_c_timer` via `com.harman.ledAnimate` |
 | Wi-Fi guard | `wpa_cli` (`status`, `signal_poll`, `scan_results`, `roam`) + `ping` to the default gateway; per-access-point penalty list |
 | Home Assistant | MQTT 3.1.1 (paho), discovery topics under `homeassistant/`, state under `invoke/<mac>/…`, availability via last will |
-| Web interface | embedded static files + JSON API (Basic auth, user `admin`, `WEB_PASSWORD`); design from Kante (`web/kante/`, vendored with `tools/sync-kante.sh`, never edited by hand) |
+| Web interface | embedded static files + JSON API behind a login page (session cookie, HttpOnly/SameSite=Strict; password stored as salted PBKDF2-HMAC-SHA256 hash in `WEB_PASSWORD_HASH`, set with `invoked -set-password` reading stdin; 5 wrong tries lock an address for a minute); design from Kante (`web/kante/`, vendored with `tools/sync-kante.sh`, never edited by hand) |
 
 The core works against small interfaces (volume, player, LED) and an injectable clock, so the logic runs without a speaker.
 

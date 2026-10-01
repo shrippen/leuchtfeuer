@@ -32,3 +32,5 @@
 .bar{height:6px;background:var(--bg-hard);border:1px solid var(--bg2)}
 .bar>i{display:block;height:100%;background:var(--primary)}
 @media (max-width:600px){.time-in{font-size:1.6rem}}
+.login{max-width:26rem;margin:0 auto;padding:3rem var(--gutter) 4rem}
+.login-err{color:var(--danger)}
