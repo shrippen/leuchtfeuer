@@ -172,7 +172,7 @@ func (w *webServer) settings() map[string]any {
 	return map[string]any{
 		"settings": set, "device": w.device(), "actions": actionNames, "holidayRegions": holidayRegions,
 		"sourceNames": sourceNames, "version": currentVersion(), "podcasts": podcastPresets, "copySections": copySections,
-		"services": serviceDefs(), "groups": serviceGroups(w.app.cfg),
+		"services": serviceDefs(), "groups": serviceGroups(w.app.cfg), "buttonNames": hw.ButtonNames,
 	}
 }
 
@@ -721,6 +721,14 @@ func (w *webServer) routes() http.Handler {
 		return a.brief.Geocode(r.URL.Query().Get("q"), r.URL.Query().Get("lang"))
 	})
 	getJ("/api/briefing/pollen-regions", func(r *http.Request) (any, error) { return a.brief.PollenRegions() })
+	// Auswahllisten der Oberfläche (options.go)
+	getJ("/api/audio/inputs", func(r *http.Request) (any, error) {
+		if demoMode { // nie die Soundkarten des Rechners zeigen, auf dem die Demo läuft
+			return audioInputs(""), nil
+		}
+		return audioInputs("/proc/asound"), nil
+	})
+	getJ("/api/ha/options", func(r *http.Request) (any, error) { return a.haOptions() })
 	// Sprachassistent
 	post("/api/voice/listen", func(r *http.Request) error {
 		if a.voice == nil {
