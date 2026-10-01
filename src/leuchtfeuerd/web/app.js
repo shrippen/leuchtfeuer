@@ -22,7 +22,7 @@ const ICON = {
   wave: '<path d="M3 12h3l2-6 4 12 3-9 2 3h4"/>',
   home: '<path d="M4 11l8-7 8 7v9H4z"/>', radio: '<circle cx="12" cy="12" r="3"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/>',
   clock: '<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2"/>', cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
-  more: '<path d="M5 12h.01M12 12h.01M19 12h.01"/>', undo: '<path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/>', grip: '<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/>',
+  more: '<path d="M5 12h.01M12 12h.01M19 12h.01"/>',
 };
 const ico = n => `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ''}</svg>`;
 
@@ -109,7 +109,7 @@ function bindDrag(box, before, getList, sid) {
     };
   });
 }
-const grip = () => `<span class="grip" data-grip title="${tt('Drag to sort', 'Ziehen zum Sortieren')}" aria-hidden="true">${ico('grip')}</span>`;
+const grip = () => `<span class="grip" data-grip title="${tt('Drag to sort', 'Ziehen zum Sortieren')}" aria-hidden="true"></span> `;
 // Schnellwahl unter einem Zahlenfeld: Chips, die den Wert setzen
 const presets = (id, vals, unit, cur) => `<div class="chips presets">${vals.map(v => `<button type="button" class="chip is-filter" data-set="${id}" data-v="${v}" aria-pressed="${+cur === v}">${v}${unit}</button>`).join('')}</div>`;
 function bindPresets(root = document) {
@@ -213,7 +213,7 @@ function viewOverview() {
   const s = S;
   const tier = s.wifi.good ? 'ok' : 'warn';
   return `
-  <div class="vol-strip" data-nodirty><button class="btn btn-outline btn-sm" id="vm2" aria-label="${tt('Quieter', 'Leiser')}">−</button><label class="sr-only" for="vol2">${tt('Volume', 'Lautstärke')}</label><input id="vol2" type="range" min="0" max="100" value="${s.volume}"><output class="range-out" id="vol2-out">${s.volume}</output><button class="btn btn-outline btn-sm" id="vp2" aria-label="${tt('Louder', 'Lauter')}">+</button></div>
+  <div class="editbar is-sticky vol-strip" data-nodirty><button class="btn btn-outline btn-sm" id="vm2" aria-label="${tt('Quieter', 'Leiser')}">−</button><label class="sr-only" for="vol2">${tt('Volume', 'Lautstärke')}</label><input id="vol2" type="range" min="0" max="100" value="${s.volume}"><output class="range-out" id="vol2-out">${s.volume}</output><button class="btn btn-outline btn-sm" id="vp2" aria-label="${tt('Louder', 'Lauter')}">+</button></div>
   <div class="grid kpis">
     ${kpi(s.volumeKnown ? s.volume + ' %' : '–', 'Volume', 'Lautstärke')}
     ${kpi(Math.round(s.sys.tempC) + ' °C', 'Temperature', 'Temperatur')}
@@ -980,7 +980,7 @@ function viewSettings() {
       <div class="range field"><label for="v-bri">${T('Brightness %', 'Helligkeit %')}</label>
         <div class="range-row"><input id="v-bri" type="range" min="5" max="100" step="5" value="${v.brightness}"><output class="range-out" id="v-bri-o">${v.brightness}</output></div></div>
       <div class="field wide"><span class="field-label">${T('Start LED (click where the display should begin)', 'Start-LED (dort klicken, wo die Anzeige beginnen soll)')}</span>
-        <div class="led-pick" role="radiogroup" aria-label="${tt('Start LED', 'Start-LED')}">${Array.from({ length: 12 }, (_, i) => `<button type="button" role="radio" data-led="${i}" style="--i:${i}" aria-checked="${+v.rotate === i}" aria-label="LED ${i}"></button>`).join('')}<span class="led-pick-n mono" id="v-rot-o">${+v.rotate || 0}</span></div>
+        <div class="ring-pick" role="radiogroup" aria-label="${tt('Start LED', 'Start-LED')}">${Array.from({ length: 12 }, (_, i) => `<button type="button" role="radio" data-led="${i}" style="--i:${i}" aria-checked="${+v.rotate === i}" aria-label="LED ${i}"></button>`).join('')}<span class="ring-pick-n" id="v-rot-o">${+v.rotate || 0}</span></div>
         <input type="hidden" id="v-rot" value="${+v.rotate || 0}"></div>
       <div class="wide">${sw('v-timer', v.timerRing, 'Show the remaining time of a timer on the ring', 'Restzeit eines Timers auf dem Ring zeigen')}</div></div>
     <div class="row"><button class="btn btn-accent btn-sm" id="v-save">${ico('save')}${T('Save', 'Speichern')}</button><button class="btn btn-outline btn-sm" id="l-test">${ico('test')}${T('Test ring', 'Ring testen')}</button></div></div>`,
@@ -1223,7 +1223,7 @@ function bindSettings() {
     $('#l-test').onclick = () => act(() => api('/api/led/test', 'POST', {}));
     rng('v-bri');
     $('#v-rgb').oninput = () => $$('#v-col button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'custom'));
-    $$('.led-pick [data-led]').forEach(b => b.onclick = () => { $$('.led-pick [data-led]').forEach(x => x.setAttribute('aria-checked', x === b)); $('#v-rot').value = b.dataset.led; $('#v-rot-o').textContent = b.dataset.led; });
+    $$('.ring-pick [data-led]').forEach(b => b.onclick = () => { $$('.ring-pick [data-led]').forEach(x => x.setAttribute('aria-checked', x === b)); $('#v-rot').value = b.dataset.led; $('#v-rot-o').textContent = b.dataset.led; });
     saver('v-save', async () => {
       const h = $('#v-rgb').value, rgb = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
       await api('/api/settings/viz', 'PUT', { mode: segVal('v-mode'), color: segVal('v-col'), rgb, brightness: +$('#v-bri').value, rotate: +$('#v-rot').value || 0, timerRing: swVal('v-timer') }); await loadCfg();
@@ -1563,7 +1563,7 @@ async function pollCfg() {
 }
 $('#view').addEventListener('input', e => { if (e.target.id !== 'vol' && e.target.id !== 'vol2') { dirty = true; markDirty(e.target); } });
 $('#view').addEventListener('change', e => { if (e.target.id !== 'vol' && e.target.id !== 'vol2') { dirty = true; markDirty(e.target); } });
-$('#view').addEventListener('click', e => { const t = e.target.closest('.switch, .seg button, .a-day, .chip[data-set], [data-del], [data-adel], [data-bdel], #r-add, #a-add, #b-add, [data-bdel2], [data-bmv], #bi-add, [data-mv], #rq-add, [data-rbdel], [data-rsadd], [data-geo], .led-pick [data-led]'); if (t) markDirty(t); }, true);
+$('#view').addEventListener('click', e => { const t = e.target.closest('.switch, .seg button, .a-day, .chip[data-set], [data-del], [data-adel], [data-bdel], #r-add, #a-add, #b-add, [data-bdel2], [data-bmv], #bi-add, [data-mv], #rq-add, [data-rbdel], [data-rsadd], [data-geo], .ring-pick [data-led]'); if (t) markDirty(t); }, true);
 $('#sb-save').onclick = saveAll;
 $('#sb-discard').onclick = discardAll;
 async function refresh() { S = await api('/api/status'); tick(); }

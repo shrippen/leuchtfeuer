@@ -1682,6 +1682,20 @@ details.help.is-right>.help-text{left:auto;right:-.5rem}
 .toast>.toast-action:hover{background:var(--cyan-tint)}
 .toast>.toast-action:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
+/* ── Ring picker: one of N marks on a circle, e.g. the start LED of a light ring or a dial position.
+   .ring-pick (--n marks, default 12; --r radius) > button[role="radio"][aria-checked][style="--i:k"] for k = 0…n-1,
+   mark 0 at the top, clockwise; .ring-pick-n shows the value in the middle. Markers are squares (Kante rule). ── */
+.ring-pick{--n:12;--r:4.1rem;position:relative;width:calc(var(--r) * 2 + 2rem);aspect-ratio:1;margin:.3rem 0}
+.ring-pick>button{position:absolute;left:calc(50% - .65rem);top:calc(50% - .65rem);width:1.3rem;height:1.3rem;padding:0;border:2px solid var(--fg3);background:var(--bg-hard);cursor:pointer;
+  transform:rotate(calc(var(--i) * 360deg / var(--n))) translateY(calc(var(--r) * -1))}
+.ring-pick>button:hover{border-color:var(--fg0)}
+.ring-pick>button[aria-checked="true"]{background:var(--primary);border-color:var(--primary)}
+.ring-pick>button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.ring-pick>.ring-pick-n{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-mono);font-size:1.4rem;color:var(--fg2);pointer-events:none}
+
+/* ── Touch: chips get the small control height, so a finger hits them ── */
+@media (pointer:coarse){.chip{height:var(--h-s)}}
+
 /* ── Keyboard focus on segments and switches (they had none) ── */
 .seg button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 .switch:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
