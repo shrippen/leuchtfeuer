@@ -88,8 +88,12 @@ rep "- $(t 'aplay on leuchtfeuer_music (resampling, EQ, viz):' 'aplay über leuc
 info "  aplay: ${cpu:-?}"
 
 section "Clock and watchdog" "Uhr und Watchdog"
-if S 'busybox ntpd --help >/dev/null 2>&1'; then pass "busybox ntpd available" "busybox ntpd vorhanden"; else soft "no busybox ntpd: clock is not set (alarms depend on it)" "kein busybox ntpd: Uhr wird nicht gestellt (Wecker hängen daran)"; fi
-S 'test -f /run/leuchtfeuer-ntp.ok' && pass "clock set by NTP since boot" "Uhr seit dem Start per NTP gestellt" || soft "clock not (yet) set by NTP" "Uhr (noch) nicht per NTP gestellt"
+tsd=$(S 'for d in ntpd chronyd systemd-timesyncd sntpd; do pidof $d >/dev/null 2>&1 && { echo $d; break; }; done')
+if [ -n "$tsd" ]; then pass "time service of the device running ($tsd)" "Zeitdienst des Geräts läuft ($tsd)"
+else
+  if S 'busybox ntpd --help >/dev/null 2>&1'; then pass "busybox ntpd available" "busybox ntpd vorhanden"; else soft "no busybox ntpd: clock is not set (alarms depend on it)" "kein busybox ntpd: Uhr wird nicht gestellt (Wecker hängen daran)"; fi
+  S 'test -f /run/leuchtfeuer-ntp.ok' && pass "clock set by NTP since boot" "Uhr seit dem Start per NTP gestellt" || soft "clock not (yet) set by NTP" "Uhr (noch) nicht per NTP gestellt"
+fi
 dev=$(date -u +%s); spk=$(S 'date -u +%s'); d=$((spk - dev)); [ ${d#-} -le 3 ] && pass "clock deviation ${d} s (vs. this computer)" "Abweichung der Uhr ${d} s (zu diesem Rechner)" || soft "clock deviation ${d} s" "Abweichung der Uhr ${d} s"
 wd=$(S 'ls -l /dev/watchdog* 2>/dev/null; for p in /proc/[0-9]*; do ls -l $p/fd 2>/dev/null | grep -q watchdog && echo "offen von $(cat $p/comm 2>/dev/null) (pid ${p#/proc/})"; done')
 if echo "$wd" | grep -q /dev/watchdog; then

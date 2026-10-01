@@ -124,7 +124,8 @@ firewall(){
 
 # Uhr per NTP stellen (einmalig, im Hintergrund, höchstens 30 s); nicht, wenn das Gerät selbst einen Zeitdienst hat
 time_sync(){
-  pidof ntpd chronyd systemd-timesyncd >/dev/null 2>&1 && return 0
+  # eigener Zeitdienst des Geräts (sntpd: Harman-Firmware des Invoke)
+  pidof ntpd chronyd systemd-timesyncd sntpd >/dev/null 2>&1 && return 0
   busybox ntpd --help >/dev/null 2>&1 || { [ -e $R/leuchtfeuer-ntp.none ] || { log "kein busybox ntpd: Uhr wird nicht gestellt"; touch $R/leuchtfeuer-ntp.none; }; return 0; }
   s=$(cfg NTP_SERVER); s=${s:-pool.ntp.org}
   (
