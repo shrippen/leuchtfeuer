@@ -58,7 +58,7 @@ data:
 ## Verhältnis zur MQTT-Erkennung
 
 Die MQTT-Erkennung (Weboberfläche > Home Assistant) bleibt unverändert und kann parallel laufen. Sie liefert einzelne
-Entitäten (Lautstärke als Zahl, Leuchtring als Licht, Timer, Tasten-Ereignisse ...) und braucht einen MQTT-Broker. Diese
+Entitäten (Lautstärke als Zahl, Leuchtring als Licht und Tasten-Ereignisse – nur bei Geräten, die sie haben –, Timer ...) und braucht einen MQTT-Broker. Diese
 Integration braucht keinen Broker und bringt einen echten `media_player`: TTS und Durchsagen aus Automationen,
 Medienbrowser, Senderauswahl und die Media-Karte im Dashboard. Wer beides nutzt, bekommt zwei Geräte für denselben
 Lautsprecher.

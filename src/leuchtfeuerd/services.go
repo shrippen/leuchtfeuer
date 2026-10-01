@@ -12,7 +12,7 @@ import (
 )
 
 // Dienste: Die Kopfzeilen der Dienstskripte (/data/leuchtfeuer/services/<name>.sh) sind die eine Quelle für Hook und
-// leuchtfeuerd: "# title:", "# group:", "# process:", "# ports:", "# default:". Eine Gruppe (spotify, bluetooth, tidal ...)
+// leuchtfeuerd: "# title:", "# group:", "# process:", "# ports:", "# requires:", "# default:". Eine Gruppe (spotify, bluetooth, tidal ...)
 // wird mit SERVICE_<GRUPPE>="on|off" in der Shell-Konfiguration geschaltet; der Hook startet nur eingeschaltete
 // Dienste und öffnet nur deren Ports. Zustand je Dienst schreibt der Hook nach /run/leuchtfeuer-svc-<name>.state.
 

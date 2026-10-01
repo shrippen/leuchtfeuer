@@ -162,6 +162,9 @@ func (demoLED) Off()                 {}
 
 func runDemo(listen string) {
 	log.Printf("%s", demoMarker)
+	// Demo stellt einen Invoke dar; die Hersteller-Software gilt als verbunden
+	hw = targets["invoke"]
+	hw.linkOK = func(*app) bool { return true }
 	b, err := os.ReadFile(*demoWorld)
 	if err != nil {
 		log.Fatal(err)

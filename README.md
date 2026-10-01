@@ -69,6 +69,14 @@ survives reboots, so nothing in the read-only system image is changed after the 
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Research notes (German): [docs/RESEARCH-NOTES.md](docs/RESEARCH-NOTES.md).
 
+## Other devices
+
+Leuchtfeuer is device-independent: the Invoke is one **target**; its buttons, light ring and vendor sounds are
+extensions of that target. The target **`generic`** runs the same receivers, web radio, alarms, briefing, Home Assistant
+integration and voice satellite on any Linux with systemd and ALSA (Raspberry Pi, mini PC):
+`tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64`, then `sudo sh setup.sh` from the
+unpacked package. How it works and how to add a device: [docs/TARGETS.md](docs/TARGETS.md).
+
 ## Quick start
 
 Requirements: an Invoke, a Linux PC (developed on Arch), USB cable for the service port, `adb`, `docker`,

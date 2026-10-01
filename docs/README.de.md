@@ -73,6 +73,14 @@ Der Invoke läuft mit Linux 3.8 (Yocto + Android-Teile) auf einem Marvell BG2CD.
 Details: [docs/ARCHITECTURE.md](ARCHITECTURE.md) (englisch). Forschungsnotizen:
 [docs/RESEARCH-NOTES.md](RESEARCH-NOTES.md).
 
+## Andere Geräte
+
+Leuchtfeuer ist geräteunabhängig: Der Invoke ist ein **Zielgerät**; Tasten, Leuchtring und Hersteller-Klänge sind
+Erweiterungen dieses Ziels. Das Ziel **`generic`** bringt dieselben Empfänger, Webradio, Wecker, Briefing,
+Home-Assistant-Anbindung und Sprachsatellit auf jedes Linux mit systemd und ALSA (Raspberry Pi, Mini-PC):
+`tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64`, dann `sudo sh setup.sh` aus dem
+entpackten Paket. Aufbau und neues Gerät hinzufügen: [docs/TARGETS.md](TARGETS.md) (englisch).
+
 ## Schnellstart
 
 Voraussetzungen: ein Invoke, ein Linux-PC (entwickelt unter Arch), USB-Kabel für den Service-Port, `adb`,

@@ -30,6 +30,9 @@ const TABS = [
 ];
 
 let S = null;        // Status
+// Fähigkeiten des Zielgeräts (Status device.capabilities: buttons, ring, vendorSounds, vendorVolume). Ohne Angabe
+// (ältere Version) gilt alles als vorhanden.
+const can = c => !S || !S.device || (S.device.capabilities || []).includes(c);
 let CFG = null;      // Einstellungen
 let route = 'overview';
 let draft = {};      // ungespeicherte Änderungen je Ansicht
@@ -166,15 +169,20 @@ function fillOverview() {
     <p class="mono">${T('Sleep timer', 'Schlummertimer')}: <b class="muted">${s.sleepSecs ? fmtDur(s.sleepSecs) : T('off', 'aus')}</b></p>
     <div class="chips">${[15, 30, 45, 60, 90].map(m => `<button class="chip is-filter" data-sleep="${m}">${m} min</button>`).join('')}${s.sleepSecs ? `<button class="chip is-filter" data-sleep="0">${T('Off', 'Aus')}</button>` : ''}</div>`;
   const bt = s.bluetooth;
+  // Bluetooth-Karte nur, wenn der Agent eingeschaltet und installiert ist (ältere Versionen ohne Dienstliste: immer)
+  const agent = (s.sys.services || []).find(v => v.process === 'btagent');
+  $('#c-bt').classList.toggle('hidden', !!(s.sys.services && s.sys.services.length) && !(agent && agent.enabled && !agent.missing));
   $('#c-bt').innerHTML = `
     <h3>Bluetooth</h3>
     <p>${s.btMode === 'always' ? T('Always visible and ready to pair.', 'Immer sichtbar und koppelbereit.')
       : bt.open ? T('Pairing window <b>open</b>: pair now.', 'Kopplungs-Fenster <b>offen</b>: jetzt koppeln.')
-        : T('Not visible. Press the Bluetooth button on the speaker or open the window here; paired phones reconnect by themselves.',
-          'Nicht sichtbar. Bluetooth-Knopf am Lautsprecher drücken oder hier das Fenster öffnen; gekoppelte Handys verbinden sich selbst.')}</p>
+        : can('buttons') ? T('Not visible. Press the Bluetooth button on the speaker or open the window here; paired phones reconnect by themselves.',
+          'Nicht sichtbar. Bluetooth-Knopf am Lautsprecher drücken oder hier das Fenster öffnen; gekoppelte Handys verbinden sich selbst.')
+          : T('Not visible. Open the window here or in Home Assistant; paired phones reconnect by themselves.',
+            'Nicht sichtbar. Hier oder in Home Assistant das Fenster öffnen; gekoppelte Handys verbinden sich selbst.')}</p>
     ${s.btMode === 'always' ? '' : `<button class="btn btn-outline btn-sm" id="bt-toggle">${ico('bt')}${bt.open ? T('Close pairing', 'Kopplung schließen') : T('Open pairing (2 min)', 'Kopplung öffnen (2 Min.)')}</button>`}`;
   $('#c-svc').innerHTML = (s.sys.services || []).filter(v => v.enabled).map(v => `<div class="status" data-state="${v.failing ? 'bad' : v.running ? 'ok' : 'off'}"><span class="name">${esc(v.title)}</span><span class="row">${v.missing ? T('not installed', 'nicht installiert') : v.failing ? T(`keeps failing, retry in ${v.waitSecs} s`, `fällt aus, neuer Versuch in ${v.waitSecs} s`) : v.running ? T('running', 'läuft') : T('not running', 'läuft nicht')}</span></div>`).join('') +
-    `<div class="status" data-state="${s.wamp ? 'ok' : 'bad'}"><span class="name">audio-ui (WAMP)</span><span class="row">${s.wamp ? T('connected', 'verbunden') : T('not connected', 'nicht verbunden')}</span></div>`;
+    (s.device && !s.device.link ? '' : `<div class="status" data-state="${s.wamp ? 'ok' : 'bad'}"><span class="name">${esc((s.device && s.device.link) || 'audio-ui (WAMP)')}</span><span class="row">${s.wamp ? T('connected', 'verbunden') : T('not connected', 'nicht verbunden')}</span></div>`);
   bindOverview();
 }
 function bindOverview() {
@@ -305,7 +313,7 @@ function viewAlarms() {
       ${fld('a-ramp-' + i, 'Fade-in (seconds)', 'Anstieg (Sekunden)', a.rampSecs, 'type="number" min="0" max="1800"')}
       ${fld('a-snz-' + i, 'Snooze (minutes)', 'Schlummern (Minuten)', a.snoozeMin, 'type="number" min="0" max="60"')}
       ${fld('a-max-' + i, 'Stop after (minutes)', 'Stoppen nach (Minuten)', a.maxMins, 'type="number" min="0" max="240"')}
-      ${fld('a-sun-' + i, 'Sunrise light before (minutes, 0 = off)', 'Lichtwecker vorher (Minuten, 0 = aus)', a.sunriseMin || 0, 'type="number" min="0" max="60"')}
+      ${can('ring') ? fld('a-sun-' + i, 'Sunrise light before (minutes, 0 = off)', 'Lichtwecker vorher (Minuten, 0 = aus)', a.sunriseMin || 0, 'type="number" min="0" max="60"') : ''}
       ${fld('a-fade-' + i, 'Fade out when stopped (seconds)', 'Beim Stoppen ausblenden (Sekunden)', a.fadeOutSecs || 0, 'type="number" min="0" max="120"')}
       <div class="wide">${sw('a-hol-' + i, a.skipHolidays, 'Not on public holidays', 'Nicht an Feiertagen')}</div>
     </div>
@@ -339,7 +347,7 @@ function collectAlarms() {
     name: $(`#a-name-${i}`).value, enabled: swVal('a-en-' + i), source: $(`#a-src-${i}`).value,
     days: $$('.a-day[aria-pressed="true"]', c).map(b => +b.dataset.d),
     volume: +$(`#a-vol-${i}`).value || 0, rampSecs: +$(`#a-ramp-${i}`).value || 0, snoozeMin: +$(`#a-snz-${i}`).value || 0, maxMins: +$(`#a-max-${i}`).value || 0,
-    sunriseMin: +$(`#a-sun-${i}`).value || 0, fadeOutSecs: +$(`#a-fade-${i}`).value || 0, skipHolidays: swVal('a-hol-' + i),
+    sunriseMin: $(`#a-sun-${i}`) ? +$(`#a-sun-${i}`).value || 0 : a.sunriseMin || 0, fadeOutSecs: +$(`#a-fade-${i}`).value || 0, skipHolidays: swVal('a-hol-' + i),
     skipDate: (draft.alarms[i] || {}).skipDate || '',
   })).map((a, i) => a.source === 'url' ? { ...a, source: 'url:' + $(`#a-url-${i}`).value.trim() } : a);
 }
@@ -583,7 +591,7 @@ function viewHA() {
       ${fld('m-user', 'User', 'Benutzer', m.user)}<div class="field"><label for="m-pass">${T('Password (empty = keep)', 'Passwort (leer = behalten)')}</label><input class="input" id="m-pass" type="password" autocomplete="new-password"></div>
       ${fld('m-disc', 'Discovery prefix', 'Erkennungs-Präfix', m.discovery)}</div>
     ${sw('m-tls', m.tls, 'Encrypted (TLS, port 8883)', 'Verschlüsselt (TLS, Port 8883)')}${sw('m-ins', m.insecure, 'Accept self-signed broker certificate', 'Selbst signiertes Broker-Zertifikat annehmen')}
-    <p>${T('Also offered: the light ring as a light (colour, brightness, effects), announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: der Leuchtring als Licht (Farbe, Helligkeit, Effekte), Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.')}</p>
+    <p>${can('ring') ? T('Also offered: the light ring as a light (colour, brightness, effects), announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: der Leuchtring als Licht (Farbe, Helligkeit, Effekte), Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.') : T('Also offered: announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="m-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>`;
 }
 function bindHA() {
@@ -616,7 +624,7 @@ function viewSettings() {
   return `<div class="grid">
   <div class="card" data-tier="yellow"><h3>${T('Speaker', 'Lautsprecher')}</h3>
     ${fld('s-name', 'Name (Spotify, UPnP, Cast, AirPlay, Bluetooth)', 'Name (Spotify, UPnP, Cast, AirPlay, Bluetooth)', d.name)}
-    <div class="field"><span class="field-label">${T('Bluetooth pairing', 'Bluetooth-Kopplung')}</span>${seg('s-bt', [['button', 'Only after button press', 'Nur nach Knopfdruck'], ['always', 'Always open', 'Immer offen']], d.bluetoothPairing)}</div>
+    <div class="field"><span class="field-label">${T('Bluetooth pairing', 'Bluetooth-Kopplung')}</span>${seg('s-bt', [['button', can('buttons') ? 'Only after button press' : 'Only after opening (here or Home Assistant)', can('buttons') ? 'Nur nach Knopfdruck' : 'Nur nach Öffnen (hier oder Home Assistant)'], ['always', 'Always open', 'Immer offen']], d.bluetoothPairing)}</div>
     <p>${T('A name change applies after restarting the services below.', 'Eine Namensänderung gilt nach dem Neustart der Dienste weiter unten.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="s-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
   <div class="card" data-tier="yellow"><h3>${T('Sound', 'Klang')}</h3>
@@ -638,7 +646,7 @@ function viewSettings() {
       <input class="input q-trim" data-n="${n}" type="number" min="0" max="20" value="${(lim[n] || {}).trimDB || 0}" style="width:3.9rem" aria-label="${tt('trim dB', 'Ausgleich dB')}" title="${tt('Quieter by dB', 'Leiser um dB')}"></div></div>`).join('')}</div>
     <p class="small mono">${T('highest % · start % · quieter by dB', 'höchstens % · Start % · leiser um dB')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="q-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
-  <div class="card" data-tier="cyan"><h3>${T('Light ring', 'Leuchtring')}</h3>
+  ${can('ring') ? `<div class="card" data-tier="cyan"><h3>${T('Light ring', 'Leuchtring')}</h3>
     <p>${T('The ring can follow the music of all receivers or glow as a lamp. Volume knob, mute, alarm, timer and buttons keep showing their own animations.', 'Der Ring kann der Musik aller Empfänger folgen oder als Lampe leuchten. Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen.')} <span id="v-st">${vizHTML()}</span></p>
     <div class="field"><span class="field-label">${T('Display', 'Anzeige')}</span>${seg('v-mode', [['off', 'Off', 'Aus'], ['spectrum', 'Spectrum', 'Spektrum'], ['level', 'Level', 'Pegel'], ['pulse', 'Pulse', 'Puls'], ['static', 'Lamp', 'Lampe']], v.mode)}</div>
     <div class="field"><span class="field-label">${T('Colour', 'Farbe')}</span>${seg('v-col', [['rainbow', 'Rainbow', 'Regenbogen'], ['white', 'White', 'Weiß'], ['warm', 'Warm', 'Warm'], ['blue', 'Blue', 'Blau'], ['green', 'Green', 'Grün'], ['red', 'Red', 'Rot'], ['purple', 'Purple', 'Lila'], ['custom', 'Own', 'Eigene']], v.color)}</div>
@@ -647,7 +655,7 @@ function viewSettings() {
         <div class="range-row"><input id="v-bri" type="range" min="5" max="100" step="5" value="${v.brightness}"><output class="range-out" id="v-bri-o">${v.brightness}</output></div></div>
       ${fld('v-rot', 'Start LED (turns the display)', 'Start-LED (dreht die Anzeige)', v.rotate, 'type="number" min="0" max="11"')}
       <div class="wide">${sw('v-timer', v.timerRing, 'Show the remaining time of a timer on the ring', 'Restzeit eines Timers auf dem Ring zeigen')}</div></div>
-    <div class="row"><button class="btn btn-accent btn-sm" id="v-save">${ico('save')}${T('Save', 'Speichern')}</button><button class="btn btn-outline btn-sm" id="l-test">${ico('test')}${T('Test ring', 'Ring testen')}</button></div></div>
+    <div class="row"><button class="btn btn-accent btn-sm" id="v-save">${ico('save')}${T('Save', 'Speichern')}</button><button class="btn btn-outline btn-sm" id="l-test">${ico('test')}${T('Test ring', 'Ring testen')}</button></div></div>` : ''}
   <div class="card"><h3>${T('Services', 'Dienste')}</h3>
     <p>${T('Switched-off services are not started and their network ports stay closed.', 'Ausgeschaltete Dienste werden nicht gestartet, ihre Netzwerk-Ports bleiben zu.')}</p>
     <div class="stack">${CFG.groups.map(g => sw('g-' + g.group, g.enabled, GROUPS[g.group] || g.group, GROUPS[g.group] || g.group)).join('')}</div>
@@ -664,7 +672,7 @@ function viewSettings() {
     ${(S.update || {}).keySet ? `<div class="row"><button class="btn btn-outline btn-sm" id="u-check">${T('Check', 'Prüfen')}</button><button class="btn btn-accent btn-sm hidden" id="u-inst">${T('Install', 'Installieren')}</button></div>
       <p class="small">${T('Without internet on the speaker: upload the package and its .sig file.', 'Ohne Internet am Lautsprecher: Paket und .sig-Datei hochladen.')}</p>
       <div class="row"><input type="file" id="u-pkg" accept=".gz"><input type="file" id="u-sig" accept=".sig"><button class="btn btn-outline btn-sm" id="u-up">${ico('up')}${T('Upload', 'Hochladen')}</button></div>`
-      : `<p>${T('Updates from here need the release signing key (UPDATE_PUBKEY in /data/leuchtfeuer/config, see README). Until then update with ./install.sh.', 'Updates von hier brauchen den Signaturschlüssel der Releases (UPDATE_PUBKEY in /data/leuchtfeuer/config, siehe README). Bis dahin mit ./install.sh aktualisieren.')}</p>`}
+      : `<p>${T('Updates from here need the release signing key (UPDATE_PUBKEY in the config file, see README). Until then update with ' + (can('vendorVolume') ? './install.sh.' : 'setup.sh from a newer package.'), 'Updates von hier brauchen den Signaturschlüssel der Releases (UPDATE_PUBKEY in der Datei config, siehe README). Bis dahin ' + (can('vendorVolume') ? 'mit ./install.sh aktualisieren.' : 'mit setup.sh aus einem neueren Paket aktualisieren.'))}</p>`}
     <div class="row"><button class="btn btn-outline btn-sm" id="u-back">${ico('restart')}${T('Roll back last update', 'Letztes Update zurücknehmen')}</button></div></div>
   </div>
   <div class="card" style="margin-top:1.2rem" id="logcard"><h3 id="log-t">${T('Log', 'Protokoll')}</h3><div class="log" id="logbox">${tt('Choose a service above.', 'Wähle oben einen Dienst.')}</div></div>`;
@@ -784,13 +792,13 @@ function soundRowHTML(target, title, sub, replaced, canOriginal) {
 function soundsHTML() {
   const d = soundsData;
   return `<div class="card wide-card"><h3>${T('Sounds', 'Klänge')}</h3>
-    <p>${T('Replace the speaker\'s own sounds (start, error, pairing … of the vendor software) and the tones of Leuchtfeuer with your own files. Uploads are converted to the format of the original; "Original" brings it back.', 'Die Klänge des Lautsprechers (Start, Fehler, Kopplung … der Hersteller-Software) und die Töne von Leuchtfeuer durch eigene Dateien ersetzen. Hochgeladenes wird ins Format des Originals gewandelt; „Original“ stellt es wieder her.')}</p>
+    <p>${!can('vendorSounds') ? T('Replace the tones of Leuchtfeuer (alarm, timer, chime …) with your own files. Uploads are converted to the format of the original; "Original" brings it back.', 'Die Töne von Leuchtfeuer (Wecker, Timer, Gong …) durch eigene Dateien ersetzen. Hochgeladenes wird ins Format des Originals gewandelt; „Original“ stellt es wieder her.') : T('Replace the speaker\'s own sounds (start, error, pairing … of the vendor software) and the tones of Leuchtfeuer with your own files. Uploads are converted to the format of the original; "Original" brings it back.', 'Die Klänge des Lautsprechers (Start, Fehler, Kopplung … der Hersteller-Software) und die Töne von Leuchtfeuer durch eigene Dateien ersetzen. Hochgeladenes wird ins Format des Originals gewandelt; „Original“ stellt es wieder her.')}</p>
     <h4 class="mono muted small">${T('LEUCHTFEUER TONES', 'TÖNE VON LEUCHTFEUER')}</h4>
     <div class="list">${d ? d.tones.map(x => soundRowHTML('tone:' + x.id, T(...TONES[x.id]), x.replaced ? `${x.seconds} s` : T('built in', 'eingebaut'), x.replaced, true)).join('') : `<p>${T('Loading …', 'Lädt …')}</p>`}</div>
-    <h4 class="mono muted small">${T('SOUNDS OF THE SPEAKER', 'KLÄNGE DES LAUTSPRECHERS')}</h4>
+    ${can('vendorSounds') ? `<h4 class="mono muted small">${T('SOUNDS OF THE SPEAKER', 'KLÄNGE DES LAUTSPRECHERS')}</h4>
     <p class="small">${T('Found on the speaker (WAV). Which one is the start or the error sound: listen. They take effect when the vendor software plays them next; at the latest after a restart.', 'Auf dem Lautsprecher gefunden (WAV). Welcher der Start- oder Fehlerton ist: anhören. Sie gelten, sobald die Hersteller-Software sie das nächste Mal spielt, spätestens nach einem Neustart.')}</p>
     <div class="list" id="sn-vendor">${d ? (d.vendor.map(v => soundRowHTML('vendor:' + v.path, esc(v.name), `${esc(v.path)} · ${v.format.rate} Hz · ${v.format.channels === 1 ? tt('mono', 'mono') : tt('stereo', 'stereo')} · ${v.seconds} s${v.replaced && !v.mounted ? ' · ' + tt('not mounted yet', 'noch nicht eingehängt') : ''}`, v.replaced, true)).join('') || `<p class="small">${T('No WAV sounds found.', 'Keine WAV-Klänge gefunden.')}</p>`) : ''}</div>
-    <div class="row"><button class="btn btn-outline btn-sm" id="sn-scan">${ico('search')}${T('Search again', 'Neu suchen')}</button></div></div>`;
+    <div class="row"><button class="btn btn-outline btn-sm" id="sn-scan">${ico('search')}${T('Search again', 'Neu suchen')}</button></div>` : ''}</div>`;
 }
 async function loadSounds(rescan) {
   try { soundsData = await api('/api/sounds' + (rescan ? '?rescan=1' : '')); } catch (e) { toast(e.message, 'error'); return; }
@@ -811,7 +819,7 @@ function bindSounds() {
     } catch (e) { toast(e.message, 'error'); }
     soundsBusy = false;
   });
-  $('#sn-scan').onclick = () => act(() => loadSounds(true));
+  if ($('#sn-scan')) $('#sn-scan').onclick = () => act(() => loadSounds(true));
 }
 
 function svcListHTML() {
@@ -832,14 +840,17 @@ function bindSvcList() {
 function bindSettings() {
   bindSw($('#view')); bindSeg($('#view'));
   $('#s-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, name: $('#s-name').value, bluetoothPairing: segVal('s-bt') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
-  $('#l-test').onclick = () => act(() => api('/api/led/test', 'POST', {}));
   const rng = (id) => { $('#' + id).oninput = () => { $('#' + id + '-o').textContent = $('#' + id).value; }; };
-  rng('v-bri'); rng('e-bass'); rng('e-treb');
-  $('#v-rgb').oninput = () => $$('#v-col button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'custom'));
-  $('#v-save').onclick = () => act(async () => {
-    const h = $('#v-rgb').value, rgb = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-    await api('/api/settings/viz', 'PUT', { mode: segVal('v-mode'), color: segVal('v-col'), rgb, brightness: +$('#v-bri').value, rotate: +$('#v-rot').value || 0, timerRing: swVal('v-timer') }); await loadCfg();
-  }, tt('Saved', 'Gespeichert'));
+  rng('e-bass'); rng('e-treb');
+  if (can('ring')) {
+    $('#l-test').onclick = () => act(() => api('/api/led/test', 'POST', {}));
+    rng('v-bri');
+    $('#v-rgb').oninput = () => $$('#v-col button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'custom'));
+    $('#v-save').onclick = () => act(async () => {
+      const h = $('#v-rgb').value, rgb = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+      await api('/api/settings/viz', 'PUT', { mode: segVal('v-mode'), color: segVal('v-col'), rgb, brightness: +$('#v-bri').value, rotate: +$('#v-rot').value || 0, timerRing: swVal('v-timer') }); await loadCfg();
+    }, tt('Saved', 'Gespeichert'));
+  }
   $('#e-save').onclick = () => act(async () => { await api('/api/settings/eq', 'PUT', { ...eqBody(), bass: +$('#e-bass').value, treble: +$('#e-treb').value, loudness: swVal('e-loud'), night: swVal('e-night') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#q-save').onclick = () => act(async () => {
     const limits = {};
@@ -1028,7 +1039,10 @@ function render() {
 // Übersicht und Anzeigen, die sich laufend ändern, ohne Eingabefelder zu stören
 function tick() {
   if (!S) return;
-  $('#conn').innerHTML = S.wamp ? T('connected', 'verbunden') : T('audio-ui not reachable', 'audio-ui nicht erreichbar');
+  const link = S.device ? S.device.link : 'audio-ui';
+  $('#conn').innerHTML = !link ? esc(S.device.model || '') : S.wamp ? T('connected', 'verbunden') : T(`${link} not reachable`, `${link} nicht erreichbar`);
+  $$('#tabs [data-r="buttons"]').forEach(b => b.classList.toggle('hidden', !can('buttons')));
+  if (route === 'buttons' && !can('buttons')) location.hash = '#/';
   $('#brand').textContent = S.name;
   document.title = S.name;
   if (route === 'overview') {

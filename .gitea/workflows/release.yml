@@ -1,5 +1,6 @@
-# Release bei einem Tag v*: alle Programme bauen (Docker, ohne Tidal), Paket zusammenstellen und signieren
-# (tools/make-release.sh), Release auf Gitea anlegen und Paket, Prüfsumme und Signatur anhängen.
+# Release bei einem Tag v*: alle Programme bauen (Docker, ohne Tidal), Pakete je Zielgerät zusammenstellen und
+# signieren (tools/make-release.sh: invoke, generic-amd64, generic-arm64, generic-armv7), Release auf Gitea anlegen
+# und Pakete, Prüfsummen und Signaturen anhängen.
 # Braucht einen Runner mit Docker und die Secrets LEUCHTFEUER_SIGNING_KEY (relsign keygen) und RELEASE_TOKEN
 # (Gitea-Token mit Schreibrecht auf das Repository).
 name: Release
@@ -18,13 +19,22 @@ jobs:
         with:
           go-version: "1.24"
       - name: Prüfungen
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck build-essential file && tests/run.sh
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck build-essential file curl gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
+          tests/run.sh
       - name: Bauen
         run: ./build.sh --no-tidal
       - name: Paket
         env:
           LEUCHTFEUER_SIGNING_KEY: ${{ secrets.LEUCHTFEUER_SIGNING_KEY }}
-        run: tools/make-release.sh
+        run: |
+          set -eu
+          tools/make-release.sh --target invoke
+          for a in amd64 arm64 armv7; do
+            tools/build-generic.sh $a
+            tools/make-release.sh --target generic --arch $a
+          done
       - name: Release auf Gitea
         env:
           TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -33,7 +43,7 @@ jobs:
         run: |
           set -eu
           id=$(curl -fsS -X POST -H "Authorization: token $TOKEN" -H 'Content-Type: application/json' \
-            -d "{\"tag_name\":\"$TAG\",\"name\":\"Leuchtfeuer $TAG\",\"body\":\"Paket für install.sh --prebuilt und Updates aus der Weboberfläche (ohne Tidal).\"}" \
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"Leuchtfeuer $TAG\",\"body\":\"Pakete für Updates aus der Weboberfläche: invoke (install.sh --prebuilt, ohne Tidal) und generic-<arch> (beliebiges Linux, targets/generic/setup.sh).\"}" \
             "$API/releases" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
           for f in dist/*; do
             curl -fsS -X POST -H "Authorization: token $TOKEN" -F "attachment=@$f" "$API/releases/$id/assets?name=$(basename "$f")" >/dev/null

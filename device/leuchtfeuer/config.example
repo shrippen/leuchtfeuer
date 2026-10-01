@@ -1,7 +1,8 @@
 # Konfiguration von Leuchtfeuer (sh-Syntax). Der Installer legt sie als /data/leuchtfeuer/config ab;
 # Änderungen danach auf dem Gerät: Datei bearbeiten und die Dienste neu starten (oder neu booten).
 
-# Zielgerät (Hardware-Anpassung in src/leuchtfeuerd/target.go und device/); bisher nur "invoke"
+# Zielgerät dieser Vorlage (Harman Kardon Invoke). Andere Geräte: targets/<ziel>/, docs/TARGETS.md; der Hook setzt
+# LEUCHTFEUER_TARGET aus targets/<ziel>/target.sh, dieser Wert gilt nur ohne Hook.
 TARGET="invoke"
 
 # Name, unter dem sich das Gerät in Spotify, Tidal, UPnP, Cast, Sendspin und Bluetooth zeigt

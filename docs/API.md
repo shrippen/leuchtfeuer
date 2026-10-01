@@ -40,8 +40,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"v
 | Field | Meaning |
 |---|---|
 | `name`, `version` | device name, installed version |
-| `volume`, `muted`, `volumeKnown` | volume 0-100 (vendor `audio-ui`), mute; `volumeKnown` is false until `audio-ui` has answered |
-| `wamp` | connected to `audio-ui` |
+| `volume`, `muted`, `volumeKnown` | volume 0-100, mute; on the Invoke from the vendor `audio-ui` (`volumeKnown` is false until it has answered) |
+| `device` | the target: `{id, model, capabilities[], link, linkOK}`. `capabilities` lists the extensions this device has: `buttons`, `ring` (light ring), `vendorSounds`, `vendorVolume`; `link` names the vendor software leuchtfeuerd talks to (`""` = none). Clients should hide what is missing. |
+| `wamp` | same as `device.linkOK` (kept for older clients) |
 | `player` | the speaker's own player: `{kind, name, state, title}`; `kind` is `radio`, `alarm`, `timer`, `briefing` or `""`; `state` is `idle`, `buffering`, `playing` or `reconnecting` |
 | `sources` | sources that are playing or paused, playing first: `[{name, state, title, artist, album, since, muted}]`. Names: `spotify upnp cast airplay bluetooth sendspin tidal snapcast radio alarm announce briefing measure`. `muted` means paused because another source took over |
 | `activeSource` | the source in front (`""` = none) |
@@ -50,7 +51,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"v
 | `timers` | `[{id, name, remaining, total}]` (seconds) |
 | `sleepSecs` | time left on the sleep timer, 0 = off |
 | `wifi` | `{ssid, bssid, freq, rssi, linkMbps, gateway, lossPct, rttMs, good, log[]}` |
-| `sys` | `{tempC, uptimeSecs, load1, memTotalMB, memFreeMB, dataFreeMB, dataSizeMB, services[]}`; each service is `{name, title, group, running, enabled, fails, restarts, waitSecs, failing}` |
+| `sys` | `{tempC, uptimeSecs, load1, memTotalMB, memFreeMB, dataFreeMB, dataSizeMB, services[]}`; each service is `{name, title, group, process, ports, requires, running, enabled, missing, fails, restarts, waitSecs, failing}`; `missing`: a program from `requires` is not installed |
 | `bluetooth`, `btMode` | pairing window `{open, until}`; `button` or `always` |
 | `clock` | `{offsetMs, checked, server, lastSync, synced, error, noNtpTool}` |
 | `update` | `{current, latest, available, keySet, busy, pending, rolledBack, message}` |
@@ -163,7 +164,7 @@ speakers.
 | `buttons` | `{"<button>": {"short\|long\|double\|triple\|<value>": "<action>"}}` |
 | `sources` | `{policy "last"\|"mix", max, duckDB, limits {"<source>": {max, start, trimDB}}}`. `trimDB` (0-20) permanently lowers a source to even out loudness. |
 | `eq` | `{bass, treble, loudness, night, roomOn, room [{hz, db, q}]}`, room filters: up to 6, -15…+6 dB, Q 0.3…10 |
-| `viz` | light ring `{mode, color, rgb, brightness, rotate, timerRing}` |
+| `viz` | light ring `{mode, color, rgb, brightness, rotate, timerRing}` (only meaningful with capability `ring`) |
 | `briefing` | `{lang "de"\|"en", place, lat, lon, items [{type, on, name, url, days, text, region}], then ""\|"radio:<n>", tts ""\|"ha"\|"url", ttsUrl}`. Item types: `greeting weather warnings pollen calendar podcast ha text` |
 | `homeAssistant` | `{url, token, ttsEngine}`. Used by the briefing for speech (`/api/tts_get_url`) and templates (`/api/template`, admin token). |
 | `voice` | `{enabled, port 10700, mic "plughw:X,Y", mode "wake"\|"button", area, duckDB, muted}` |
@@ -228,6 +229,28 @@ Further helpers for the settings:
 - `POST /api/update/install`: install it.
 - `POST /api/update/upload`: multipart `file` + `sig`.
 - `POST /api/update/rollback`: back to the previous version.
+
+Packages are per target: `leuchtfeuer-<version>-invoke.tar.gz`, `leuchtfeuer-<version>-generic-<amd64|arm64|armv7>.tar.gz`;
+the update check picks the one for its own target.
+
+## Local bus
+
+Not part of the web API: the device-internal interface between leuchtfeuerd and its own helper programs (btagent,
+castrecv; Go client `src/lfbus`). HTTP on the Unix socket `$LEUCHTFEUER_RUN/leuchtfeuer-bus.sock` (`/run` on the Invoke,
+`/run/leuchtfeuer` on `generic`), mode 600, no authentication beyond file permissions.
+
+| Request | Body / answer |
+|---|---|
+| `GET /events` | Server-Sent Events. First `volume` with the current state, then: `volume {volume, muted, known}`, `claim {source}` (a source starts; others pause), `bt-pairing {action: open\|close\|toggle}`, `bt-control {action: play\|pause\|stop\|next\|previous}`, `button {name, value}` (devices with buttons). A comment line every 25 s. |
+| `GET /state` | `{volume, muted, known}` |
+| `POST /volume` | `{volume}` or `{delta}` or `{muted}` |
+| `POST /source` | `{name, state, title, artist, album}`: state of a source (now playing, source rule) |
+| `POST /ring` | `{animation, repeat}`: `bt_open`, `bt_closed`, `alarm`, `timer`, `success`; no effect without a ring |
+
+```sh
+curl --unix-socket /run/leuchtfeuer-bus.sock http://bus/state
+curl --unix-socket /run/leuchtfeuer-bus.sock -N http://bus/events
+```
 
 ## Discovery (mDNS)
 
