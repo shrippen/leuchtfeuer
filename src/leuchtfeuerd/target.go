@@ -30,6 +30,7 @@ type target struct {
 	RingAddr     int               // I²C-Adresse
 	WAMP         wampNames         // Hersteller-Router (audio-ui)
 	Animations   map[string]string // eigene Namen -> Ring-Animation der Hersteller-Software
+	SoundDirs    []string          // hier liegen die Klänge der Hersteller-Software (sounds.go)
 }
 
 var targets = map[string]target{
@@ -43,6 +44,7 @@ var targets = map[string]target{
 			MuteToggle: "com.harman.musicMuteToggle", LEDAnimate: "com.harman.ledAnimate", LEDOff: "com.harman.ledOff",
 		},
 		Animations: map[string]string{"alarm": "L_111_c_alarm", "timer": "L_112_c_timer", "success": "L_106_c_success"},
+		SoundDirs:  []string{"/usr/share", "/usr/local/share", "/etc", "/opt"},
 	},
 }
 

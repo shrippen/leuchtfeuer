@@ -38,6 +38,7 @@ Also in the web interface:
 - a **voice satellite** for Home Assistant Assist (Wyoming, optional)
 - an overview of **other Leuchtfeuer speakers** (copy settings, start updates)
 - **API keys**, **SSH keys**, **Prometheus metrics**, a **live log** and **syslog** forwarding
+- **sounds**: replace the speaker's start and error sounds and Leuchtfeuer's own tones with your own files
 
 The web interface sends strict security headers and checks the origin of every request. Streams reconnect by themselves;
 an alarm whose station fails rings with the built-in tone. An optional **hardware watchdog** restarts a hung speaker.

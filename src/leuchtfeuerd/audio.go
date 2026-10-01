@@ -336,6 +336,48 @@ func (p *player) runGst(s *playSession, kind, url string) string {
 	return res
 }
 
+// PlayFile spielt eine WAV-Datei über aplay (repeat: bis Stop wiederholen).
+func (p *player) PlayFile(kind, name, path string, repeat bool) {
+	p.mu.Lock()
+	p.stopLocked()
+	s := &playSession{stop: make(chan struct{})}
+	p.sess, p.Kind, p.Name, p.State = s, kind, name, "playing"
+	sink := p.sink(kind)
+	p.mu.Unlock()
+	p.changed()
+	go func() {
+		defer p.set(s, func() {
+			p.sess, p.cmd = nil, nil
+			p.Kind, p.Name, p.State = "", "", "idle"
+		})
+		for {
+			p.mu.Lock()
+			if p.sess != s {
+				p.mu.Unlock()
+				return
+			}
+			cmd := exec.Command("aplay", "-q", "-D", sink, path)
+			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			if err := cmd.Start(); err != nil {
+				p.mu.Unlock()
+				log.Printf("aplay %s: %v", path, err)
+				return
+			}
+			p.cmd = cmd
+			p.mu.Unlock()
+			err := cmd.Wait()
+			select {
+			case <-s.stop:
+				return
+			default:
+			}
+			if !repeat || err != nil {
+				return
+			}
+		}
+	}()
+}
+
 func splitLines(data []byte, atEOF bool) (int, []byte, error) {
 	if i := strings.IndexAny(string(data), "\r\n"); i >= 0 {
 		return i + 1, data[:i], nil
@@ -381,8 +423,12 @@ func synth(n note) []byte {
 	return buf
 }
 
-// PlayTone spielt die Tonfolge ab; repeat wiederholt sie bis Stop.
+// PlayTone spielt die Tonfolge ab (oder die eigene Datei des Tons, sounds.go); repeat wiederholt sie bis Stop.
 func (p *player) PlayTone(kind, name string, seq []note, repeat bool) {
+	if f := customTone(seq); f != "" {
+		p.PlayFile(kind, name, f, repeat)
+		return
+	}
 	p.mu.Lock()
 	p.stopLocked()
 	cmd := exec.Command("aplay", "-q", "-D", p.sink(kind), "-f", "S16_LE", "-r", "48000", "-c", "2", "-t", "raw")

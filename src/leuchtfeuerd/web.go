@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -616,6 +617,72 @@ func (w *webServer) routes() http.Handler {
 	// Sendersuche
 	getJ("/api/radio/search", func(r *http.Request) (any, error) {
 		return a.rb.Search(r.URL.Query().Get("q"), r.URL.Query().Get("country"))
+	})
+	// Klänge austauschen
+	getJ("/api/sounds", func(r *http.Request) (any, error) {
+		return map[string]any{"tones": listTones(), "vendor": a.sounds.Scan(r.URL.Query().Get("rescan") == "1")}, nil
+	})
+	post("/api/sounds/upload", func(r *http.Request) error {
+		t := r.URL.Query().Get("target")
+		b, err := readUpload(r.Body)
+		if err != nil {
+			return err
+		}
+		if len(b) == 0 {
+			return fmt.Errorf("keine Datei")
+		}
+		if id, ok := strings.CutPrefix(t, "tone:"); ok {
+			return replaceTone(id, b)
+		}
+		if p, ok := strings.CutPrefix(t, "vendor:"); ok {
+			return a.sounds.ReplaceVendor(p, b)
+		}
+		return fmt.Errorf("Ziel tone:<Name> oder vendor:<Pfad>")
+	})
+	post("/api/sounds/reset", func(r *http.Request) error {
+		var v struct{ Target string }
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		if id, ok := strings.CutPrefix(v.Target, "tone:"); ok {
+			return resetTone(id)
+		}
+		if p, ok := strings.CutPrefix(v.Target, "vendor:"); ok {
+			return a.sounds.ResetVendor(p)
+		}
+		return fmt.Errorf("Ziel tone:<Name> oder vendor:<Pfad>")
+	})
+	post("/api/sounds/play", func(r *http.Request) error { // auf dem Lautsprecher anhören (über die Durchsage)
+		var v struct {
+			Target   string
+			Original bool
+		}
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		name, b, err := a.sounds.soundSource(v.Target, v.Original)
+		if err != nil {
+			return err
+		}
+		f, err := os.CreateTemp("", "lf-preview-*.wav")
+		if err != nil {
+			return err
+		}
+		f.Write(b)
+		f.Close()
+		time.AfterFunc(5*time.Minute, func() { os.Remove(f.Name()) })
+		return a.ann.Play(announceReq{file: f.Name(), Name: name})
+	})
+	mux.HandleFunc("/api/sounds/file", func(rw http.ResponseWriter, r *http.Request) { // im Browser anhören
+		name, b, err := a.sounds.soundSource(r.URL.Query().Get("target"), r.URL.Query().Get("original") == "1")
+		if err != nil {
+			fail(rw, 400, err)
+			return
+		}
+		rw.Header().Set("Content-Type", "audio/wav")
+		rw.Header().Set("Content-Disposition", `inline; filename="`+strings.ReplaceAll(name, `"`, "")+`"`)
+		rw.Header().Set("Cache-Control", "no-store")
+		rw.Write(b)
 	})
 	// Raum einmessen
 	post("/api/measure/start", func(r *http.Request) error {

@@ -309,6 +309,20 @@ func runDemo(listen string) {
 		a.logs.publish(l)
 	}
 	os.WriteFile(dir+"/authorized_keys", []byte(demoKeys), 0o600)
+	// Klänge: nachgebildete Hersteller-Klänge, ein eigener Weckton
+	sysRoot, _ := os.MkdirTemp("", "leuchtfeuer-demo-system") // nicht unter dem Datenverzeichnis: das überspringt die Suche
+	sys := sysRoot + "/usr/share/harman/prompts"
+	os.MkdirAll(sys, 0o755)
+	for n, secs := range map[string]float64{"power_on.wav": 2.4, "network_error.wav": 1.1, "bt_connected.wav": 0.8, "setup_mode.wav": 1.6} {
+		frames := make([]float64, int(16000*secs))
+		os.WriteFile(sys+"/"+n, pcmData{pcmFormat: pcmFormat{16000, 1, 16}, frames: [][]float64{frames}}.wav(), 0o644)
+	}
+	soundRoots = []string{sysRoot + "/usr/share"}
+	a.sounds.mount = func(string, string) error { return nil }
+	a.sounds.umount = func(string) error { return nil }
+	a.sounds.mounted = func(string) bool { return true }
+	replaceTone("alarm", pcmData{pcmFormat: pcmFormat{48000, 2, 16}, frames: [][]float64{make([]float64, 48000*4), make([]float64, 48000*4)}}.wav())
+	a.sounds.ReplaceVendor(sys+"/power_on.wav", pcmData{pcmFormat: pcmFormat{48000, 2, 16}, frames: [][]float64{make([]float64, 48000*3), make([]float64, 48000*3)}}.wav())
 	w := &webServer{app: a, login: newLoginState(""), tokens: loadTokens(dir + "/tokens.json")}
 	w.tokens.Create("Home Assistant", "full")
 	w.tokens.Create("Prometheus", "read")

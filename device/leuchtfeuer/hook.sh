@@ -30,6 +30,8 @@
 #    60 s und füttert ihn nur, solange dieser Hook läuft (Lebenszeichen $R/leuchtfeuer-hook.alive je Durchlauf). Hängt das
 #    System oder der Hook, startet das Gerät neu. Schutz vor einer Neustart-Schleife: Nach 3 Starts mit scharfem
 #    Watchdog ohne 30 Minuten stabile Laufzeit bleibt er aus (zurücksetzen: /data/leuchtfeuer/watchdog-unstable löschen).
+#  - Klänge: von leuchtfeuerd ersetzte Klänge der Hersteller-Software (sounds/vendor.map: "<Original>\t<Datei>") per
+#    Bind-Mount einhängen, beim Start vor dem Neustart der Hersteller-Dienste (die öffnen die Dateien dann neu).
 # Notbremse: /data/leuchtfeuer/disable-hook anlegen -> Skript macht nichts.
 D=${LEUCHTFEUER_DIR:-/data/leuchtfeuer}
 R=${LEUCHTFEUER_RUN:-/run}   # Laufzeit-Dateien (Tests setzen beides um)
@@ -265,6 +267,18 @@ watchdog_ctl(){
   log "Watchdog scharf (pid $!)"
 }
 
+# ---- ersetzte Klänge der Hersteller-Software ----
+sounds_mount(){
+  m=$D/sounds/vendor.map
+  [ -f "$m" ] || return 0
+  tab=$(printf '\t')
+  while IFS="$tab" read -r orig file; do
+    [ -n "$orig" ] && [ -f "$D/sounds/$file" ] && [ -f "$orig" ] || continue
+    grep -q " $orig " /proc/mounts && continue
+    mount --bind "$D/sounds/$file" "$orig" && log "Klang $orig ersetzt" || log "FEHLER: Klang $orig nicht eingehängt"
+  done < "$m"
+}
+
 podium_trim(){
   [ -s $D/podium.conf ] || return 0
   grep -q ' /etc/podium/podium.conf ' /proc/mounts && return 0
@@ -292,6 +306,7 @@ watchdog_stop(){
 # Nur beim Laden als Bibliothek (Tests: HOOK_LIB=1) hier aufhören
 [ -n "${HOOK_LIB:-}" ] && return 0 2>/dev/null
 
+sounds_mount
 podium_trim
 ca_bundle
 tick=0
@@ -302,6 +317,7 @@ while :; do
   firewall
   ipv6_off
   uptime_s > $R/leuchtfeuer-hook.alive
+  sounds_mount
   services
   update_watch
   watchdog_ctl

@@ -117,6 +117,11 @@ for d in $devs; do
 done
 rep ""; rep "$(t 'The device with a clear level difference between silence and speech is the one for Settings > Voice (plughw:X,Y).' 'Das Gerät mit deutlichem Unterschied zwischen Stille und Sprache gehört in Home Assistant > Sprachassistent (plughw:X,Y).')"
 
+section "Sounds" "Klänge"
+snd=$(S 'for d in /usr/share /usr/local/share /etc /opt; do find $d -maxdepth 6 \( -iname "*.wav" -o -iname "*.mp3" -o -iname "*.ogg" \) 2>/dev/null; done | head -n 80; echo; cat /data/leuchtfeuer/sounds/vendor.map 2>/dev/null; grep " /usr/share.*wav\| /etc.*wav" /proc/mounts' 2>/dev/null)
+detail "$snd" 100
+n=$(echo "$snd" | grep -ci '\.wav$'); [ "${n:-0}" -gt 0 ] && pass "$n WAV sounds of the vendor software (replaceable)" "$n WAV-Klänge der Hersteller-Software (ersetzbar)" || soft "no WAV sounds found (start/error sound in another format?)" "keine WAV-Klänge gefunden (Start-/Fehlerton in anderem Format?)"
+
 section "Resources" "Ressourcen"
 res=$(S 'cat /proc/loadavg; free 2>/dev/null | head -n 2; df /data | tail -n 1; cat /sys/class/hwmon/hwmon0/device/tsen_temp 2>/dev/null')
 detail "$res"

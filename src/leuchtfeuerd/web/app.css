@@ -63,3 +63,4 @@ textarea.input.mono{font-family:var(--font-mono);font-size:.78rem}
 /* Quellen-Liste: Name nicht zerbrechen, Zahlenfelder knapp */
 .item .t{min-width:4.6rem}
 .item .row .input[type=number]{padding-left:.5rem;padding-right:.3rem}
+.grid>.wide-card{grid-column:1/-1}

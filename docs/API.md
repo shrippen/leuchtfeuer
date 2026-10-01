@@ -182,6 +182,19 @@ Further helpers for the settings:
 - `POST /api/services/group {group, enabled}`: switch a service group (Spotify, AirPlay …) on or off
 - `POST /api/services/restart {name}`: restart a service
 
+## Sounds
+
+- `GET /api/sounds` (`?rescan=1` searches again): returns `{tones, vendor}`.
+  - `tones`: Leuchtfeuer's own tones `alarm timer chime bell beep`, each `{id, replaced, seconds}`.
+  - `vendor`: the WAV files of the vendor software found on the speaker (start, error …), each
+    `{path, name, format {rate, channels, bits}, seconds, replaced, mounted}`.
+- `POST /api/sounds/upload?target=tone:<id>|vendor:<path>`: the body is the audio file (WAV, MP3, OGG, FLAC; at most
+  12 MB). It is converted to the format of the original and is at most 30 s for vendor sounds, 60 s for tones. Vendor
+  sounds are bind-mounted over the original at once and after every boot. Only paths from the list are accepted.
+- `POST /api/sounds/reset {target}`: back to the original.
+- `POST /api/sounds/play {target, original}`: play on the speaker (like an announcement).
+- `GET /api/sounds/file?target=…[&original=1]`: the file as `audio/wav`.
+
 ## Logs
 
 - `GET /api/logs?name=<service>`: the last 200 lines.

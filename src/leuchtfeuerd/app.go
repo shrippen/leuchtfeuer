@@ -54,10 +54,11 @@ type app struct {
 	eq      *eqWriter
 	brief   *briefing // Morgen-Briefing (briefing.go)
 	rb      *radioBrowser
-	meas    *measurer // Raum einmessen (measure.go)
-	voice   *voiceSat // Sprachassistent (voice.go)
-	peers   *peerHub  // andere Leuchtfeuer (peers.go)
-	logs    *logHub   // Protokolle live, Syslog, Aussetzer (logs.go)
+	meas    *measurer   // Raum einmessen (measure.go)
+	sounds  *soundStore // Klänge austauschen (sounds.go)
+	voice   *voiceSat   // Sprachassistent (voice.go)
+	peers   *peerHub    // andere Leuchtfeuer (peers.go)
+	logs    *logHub     // Protokolle live, Syslog, Aussetzer (logs.go)
 	started time.Time
 	version string
 
@@ -104,6 +105,7 @@ func newApp(cfg *shellConfig, st *store) *app {
 	a.led = &ledHW{h: a.h}
 	a.rb = newRadioBrowser()
 	a.meas = newMeasurer(a)
+	a.sounds = newSoundStore()
 	a.sch = newScheduler(a)
 	a.wifi = newWifiWatch(a)
 	a.mq = newMQTT(a)

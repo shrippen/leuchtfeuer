@@ -28,7 +28,7 @@ import (
 // Prozesse, freier Speicher. Zum Anhängen an ein Issue.
 
 var backupFiles = []string{"config", "leuchtfeuerd.json", "authorized_keys", "host_ed25519", "host_ecdsa", "sessions.json", "tokens.json"}
-var backupDirs = []string{"bluez/var", "librespot-cache"}
+var backupDirs = []string{"bluez/var", "librespot-cache", "sounds"}
 
 func backupAllowed(p string) bool {
 	p = path.Clean(strings.TrimPrefix(p, "./"))

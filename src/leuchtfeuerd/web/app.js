@@ -626,6 +626,7 @@ function viewSettings() {
     ${sw('e-loud', e.loudness, 'Loudness', 'Loudness')}${sw('e-night', e.night, 'Night mode', 'Nachtmodus')}
     <div class="row"><button class="btn btn-accent btn-sm" id="e-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div>
   ${roomHTML()}
+  ${soundsHTML()}
   <div class="card" data-tier="cyan"><h3>${T('Sources and volume', 'Quellen und Lautstärke')}</h3>
     <div class="field"><span class="field-label">${T('When a second source starts', 'Wenn eine zweite Quelle beginnt')}</span>${seg('q-pol', [['last', 'The newest plays, the others pause', 'Die neueste spielt, die anderen pausieren'], ['mix', 'All play together', 'Alle spielen zusammen']], so.policy)}</div>
     <div class="alarm">${fld('q-max', 'Highest volume % (0 = no limit)', 'Höchste Lautstärke % (0 = keine Grenze)', so.max || 0, 'type="number" min="0" max="100"')}
@@ -770,6 +771,49 @@ function bindRoom() {
   const ap = $('#rq-apply'); if (ap) ap.onclick = () => act(async () => { draft.room = roomSuggest.bands.slice(0, 6); $('#rq-bands').innerHTML = roomBandsHTML(draft.room); $('#rq-on').setAttribute('aria-checked', 'true'); await saveRoom(); }, tt('Room correction on', 'Raumkorrektur an'));
 }
 
+// ---------------------------------------------------------------- Klänge
+let soundsData = null, soundsBusy = false;
+const TONES = { alarm: ['Alarm', 'Wecker'], timer: ['Timer', 'Timer'], chime: ['Chime (also briefing)', 'Gong (auch Briefing)'], bell: ['Door bell', 'Türklingel'], beep: ['Beep', 'Piep'] };
+function soundRowHTML(target, title, sub, replaced, canOriginal) {
+  const t = esc(target);
+  return `<div class="item"><div><div class="t">${title}${replaced ? ` <span class="pill" data-state="applied">${T('own', 'eigener')}</span>` : ''}</div><div class="s">${sub}</div></div>
+    <div class="row"><button class="btn btn-outline btn-sm" data-snplay="${t}" aria-label="${tt('Play on the speaker', 'Auf dem Lautsprecher abspielen')}" title="${tt('Play on the speaker', 'Auf dem Lautsprecher abspielen')}">${ico('play')}</button>
+      <label class="btn btn-outline btn-sm" title="${tt('Replace with a file (WAV, MP3, OGG, FLAC)', 'Durch eine Datei ersetzen (WAV, MP3, OGG, FLAC)')}">${ico('up')}${T('Replace', 'Ersetzen')}<input type="file" accept="audio/*,.wav,.mp3,.ogg,.flac" data-snup="${t}" hidden></label>
+      ${replaced && canOriginal ? `<button class="btn btn-outline btn-sm" data-snreset="${t}">${T('Original', 'Original')}</button>` : ''}</div></div>`;
+}
+function soundsHTML() {
+  const d = soundsData;
+  return `<div class="card wide-card"><h3>${T('Sounds', 'Klänge')}</h3>
+    <p>${T('Replace the speaker\'s own sounds (start, error, pairing … of the vendor software) and the tones of Leuchtfeuer with your own files. Uploads are converted to the format of the original; "Original" brings it back.', 'Die Klänge des Lautsprechers (Start, Fehler, Kopplung … der Hersteller-Software) und die Töne von Leuchtfeuer durch eigene Dateien ersetzen. Hochgeladenes wird ins Format des Originals gewandelt; „Original“ stellt es wieder her.')}</p>
+    <h4 class="mono muted small">${T('LEUCHTFEUER TONES', 'TÖNE VON LEUCHTFEUER')}</h4>
+    <div class="list">${d ? d.tones.map(x => soundRowHTML('tone:' + x.id, T(...TONES[x.id]), x.replaced ? `${x.seconds} s` : T('built in', 'eingebaut'), x.replaced, true)).join('') : `<p>${T('Loading …', 'Lädt …')}</p>`}</div>
+    <h4 class="mono muted small">${T('SOUNDS OF THE SPEAKER', 'KLÄNGE DES LAUTSPRECHERS')}</h4>
+    <p class="small">${T('Found on the speaker (WAV). Which one is the start or the error sound: listen. They take effect when the vendor software plays them next; at the latest after a restart.', 'Auf dem Lautsprecher gefunden (WAV). Welcher der Start- oder Fehlerton ist: anhören. Sie gelten, sobald die Hersteller-Software sie das nächste Mal spielt, spätestens nach einem Neustart.')}</p>
+    <div class="list" id="sn-vendor">${d ? (d.vendor.map(v => soundRowHTML('vendor:' + v.path, esc(v.name), `${esc(v.path)} · ${v.format.rate} Hz · ${v.format.channels === 1 ? tt('mono', 'mono') : tt('stereo', 'stereo')} · ${v.seconds} s${v.replaced && !v.mounted ? ' · ' + tt('not mounted yet', 'noch nicht eingehängt') : ''}`, v.replaced, true)).join('') || `<p class="small">${T('No WAV sounds found.', 'Keine WAV-Klänge gefunden.')}</p>`) : ''}</div>
+    <div class="row"><button class="btn btn-outline btn-sm" id="sn-scan">${ico('search')}${T('Search again', 'Neu suchen')}</button></div></div>`;
+}
+async function loadSounds(rescan) {
+  try { soundsData = await api('/api/sounds' + (rescan ? '?rescan=1' : '')); } catch (e) { toast(e.message, 'error'); return; }
+  if (route === 'settings' && !inFormFocus()) render();
+}
+function bindSounds() {
+  if (!soundsData) loadSounds(false);
+  $$('[data-snplay]').forEach(b => b.onclick = () => act(() => api('/api/sounds/play', 'POST', { target: b.dataset.snplay })));
+  $$('[data-snreset]').forEach(b => b.onclick = () => act(async () => { await api('/api/sounds/reset', 'POST', { target: b.dataset.snreset }); await loadSounds(false); }, tt('Original restored', 'Original wiederhergestellt')));
+  $$('[data-snup]').forEach(inp => inp.onchange = async () => {
+    const f = inp.files[0]; if (!f || soundsBusy) return;
+    soundsBusy = true;
+    try {
+      const r = await fetch('/api/sounds/upload?target=' + encodeURIComponent(inp.dataset.snup), { method: 'POST', headers: { 'Content-Type': f.type || 'application/octet-stream' }, body: f });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || r.statusText);
+      toast(tt('Replaced', 'Ersetzt'), 'ok'); await loadSounds(false);
+    } catch (e) { toast(e.message, 'error'); }
+    soundsBusy = false;
+  });
+  $('#sn-scan').onclick = () => act(() => loadSounds(true));
+}
+
 function svcListHTML() {
   const st = Object.fromEntries((S.sys.services || []).map(v => [v.name, v]));
   return [...CFG.services.map(d => d.name), 'hook'].map(n => {
@@ -828,6 +872,7 @@ function bindSettings() {
   };
   $('#u-back').onclick = () => { if (confirm(tt('Restore the version before the last update?', 'Den Stand vor dem letzten Update wiederherstellen?'))) act(() => api('/api/update/rollback', 'POST', {}), tt('Rolling back, services restart', 'Wird zurückgenommen, Dienste starten neu')); };
   bindRoom();
+  bindSounds();
 }
 
 // ---------------------------------------------------------------- Geräte (andere Leuchtfeuer)

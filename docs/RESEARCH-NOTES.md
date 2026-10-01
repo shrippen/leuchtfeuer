@@ -317,3 +317,8 @@ Bis dahin: Multiroom über Snapcast oder Music Assistant (Sendspin), AirPlay 1 f
 - **mDNS:** leuchtfeuerd meldet `_leuchtfeuer._tcp` (und `_wyoming._tcp`) mit eigener Antwort auf Port 5353 wie castrecv; ob
   librespot (libmdns), castrecv, avahi (Tidal) und leuchtfeuerd sich dort vertragen, am Gerät mit `avahi-browse -a` prüfen.
 - **Überblenden:** amixer-Aufrufe je Schritt kosten auf dem BG2CD vermutlich 10-20 ms; bei Knacken `rampSteps` senken.
+- **Klänge der Hersteller-Software:** Wo Start- und Fehlerton liegen (Pfad, Format) und wer sie spielt, ist offen; die
+  Oberfläche sucht WAV-Dateien unter /usr/share, /usr/local/share, /etc und /opt, `smoke.sh` listet sie im Bericht. Wird
+  der Startton schon vor dem Hook gespielt (dnsmasq startet erst mit dem WLAN), greift der Ersatz erst beim Neustart der
+  Hersteller-Dienste durch den Hook bzw. beim nächsten Abspielen. Liegt ein Klang nicht als WAV vor (z. B. MP3/OGG),
+  wird er noch nicht angeboten.

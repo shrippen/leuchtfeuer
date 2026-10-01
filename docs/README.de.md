@@ -40,6 +40,7 @@ Außerdem in der Weboberfläche:
 - ein **Sprach-Satellit** für Home Assistant Assist (Wyoming, optional)
 - eine Übersicht **anderer Leuchtfeuer** (Einstellungen kopieren, Updates anstoßen)
 - **API-Schlüssel**, **SSH-Schlüssel**, **Prometheus-Metriken**, ein **Live-Protokoll** und die Weitergabe an **Syslog**
+- **Klänge**: Start- und Fehlerton des Lautsprechers sowie die eigenen Töne durch eigene Dateien ersetzen
 
 Die Weboberfläche schickt strenge Sicherheits-Header und prüft die Herkunft jeder Anfrage. Streams verbinden sich von
 selbst neu; fällt der Sender eines Weckers aus, klingelt der eingebaute Ton. Ein optionaler **Hardware-Watchdog** startet

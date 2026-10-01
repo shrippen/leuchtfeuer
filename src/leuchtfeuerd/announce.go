@@ -13,6 +13,7 @@ import (
 // Durchsagen laufen nacheinander, höchstens 5 Minuten.
 
 type announceReq struct {
+	file   string // eigene WAV-Datei (nur intern: Klang anhören)
 	URL    string `json:"url"`
 	Tone   string `json:"tone"`   // chime | bell | beep (statt URL)
 	Volume int    `json:"volume"` // % des Reglerbereichs für diese Durchsage, 0 = wie das Gerät
@@ -46,6 +47,10 @@ func (an *announcer) check(r announceReq) error {
 
 // Play startet eine Durchsage im Hintergrund.
 func (an *announcer) Play(r announceReq) error {
+	if r.file != "" {
+		go an.run(r)
+		return nil
+	}
 	if err := an.check(r); err != nil {
 		return err
 	}
@@ -69,7 +74,9 @@ func (an *announcer) run(r announceReq) {
 		time.Sleep(150 * time.Millisecond) // Absenkung wirkt, bevor die Durchsage beginnt
 	}
 	a.src.Update("announce", "playing", map[string]string{"title": name})
-	if r.URL != "" {
+	if r.file != "" {
+		an.pl.PlayFile("announce", name, r.file, false)
+	} else if r.URL != "" {
 		an.pl.PlayURL("announce", name, r.URL)
 	} else {
 		an.pl.PlayTone("announce", name, announceTones[r.Tone], false)

@@ -86,6 +86,19 @@ head -c 1100000 /dev/zero | tr '\0' 'x' > $T/d/log/big.log
 rotate_logs
 check "Protokoll gekürzt" '[ "$(wc -c < $T/d/log/big.log)" -lt 1000 ] && [ "$(wc -c < $T/d/log/big.log.1)" = 262144 ]'
 
+# ersetzte Klänge: einhängen, was fehlt; Eingehängtes nicht doppelt
+cat > $T/bin/mount <<'S'
+#!/bin/sh
+echo "$*" >> "$MOUNTLOG"
+S
+chmod 755 $T/bin/mount
+export MOUNTLOG=$T/mount.log
+mkdir -p $T/d/sounds $T/sys
+: > $T/sys/start.wav; : > $T/sys/fehler.wav; : > $T/d/sounds/v-1.wav
+printf '%s\tv-1.wav\n%s\tfehlt.wav\n' "$T/sys/start.wav" "$T/sys/fehler.wav" > $T/d/sounds/vendor.map
+sounds_mount
+check "Klang eingehängt, fehlende Datei übersprungen" 'grep -q -- "--bind $T/d/sounds/v-1.wav $T/sys/start.wav" $T/mount.log && ! grep -q fehler $T/mount.log'
+
 # Watchdog: nur mit WATCHDOG=on und Gerät; nach 3 unruhigen Starts bleibt er aus
 mkdir -p $T/d/bin
 printf '#!/bin/sh\necho "$@" > %s/wd.args\nexec sleep 30\n' "$T" > $T/d/bin/leuchtfeuerd
