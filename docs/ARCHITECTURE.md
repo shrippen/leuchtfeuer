@@ -65,7 +65,12 @@ The vendor stack (Bluedroid) forgot pairings and was unreliable. It is replaced 
    needs longer on a cold start than bluetoothd waits), starts `bluetoothd -n`. Kernel 3.8 has HCI/L2CAP/SCO/RFCOMM;
    the chip supplies its own BD address. `main.conf`: class *speaker*, BR/EDR only, no discoverable/pairable timeout.
 2. `bluetooth-2`: **`btagent`** (`src/btagent`): BlueZ agent `NoInputNoOutput`, accepts every pairing and service
-   authorization, marks paired devices *Trusted*, keeps the adapter powered, discoverable and pairable.
+   authorization, marks paired devices *Trusted*, keeps the adapter powered. By default (`BLUETOOTH_PAIRING="button"`)
+   the adapter is neither discoverable nor pairable; a short press on the Bluetooth button (`mcu-interface` publishes
+   `com.harman.test.inputEvent ["bluetooth", "0"]` on the WAMP router; a long press produces no event) opens a 2-minute
+   pairing window, a second press or a successful new pairing closes it, the light ring answers with a stock animation
+   (`com.harman.ledAnimate`; the firmware has no dedicated pairing animation). Trusted, already paired devices reconnect
+   at any time. `always` keeps the old behaviour.
 3. `bluetooth-3`: **bluez-alsa** `-p a2dp-sink --a2dp-volume` (SBC). 
 4. `bluetooth-4`: `bluealsa-aplay -D invoke_music`.
 
@@ -103,6 +108,6 @@ Outputs go to `build/` (not in git).
 - SSH: public-key only. adb (root shell without login on 5555) is stopped by the hook and filtered.
 - The firewall allows only the service ports; the vendor's WAMP router (9998/9999) is internal only.
 - The vendor cloud endpoints for OTA are blocked in `/etc/hosts` (StockRoot); Cortana/OTA/crash upload are not started.
-- Bluetooth pairing is deliberately open (no PIN) – anyone in range can pair while the speaker is discoverable
-  (always). Turn discoverability down in `btagent` if that is not acceptable for your environment.
+- Bluetooth pairing needs no PIN, but is only possible during the 2-minute window after a press on the speaker's
+  Bluetooth button (default). `BLUETOOTH_PAIRING="always"` makes it permanently open to anyone in range.
 - mDNS announcements come from avahi (Tidal), librespot (libmdns) and castrecv.

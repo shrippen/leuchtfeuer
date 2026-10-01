@@ -127,7 +127,7 @@ if [ -n "$CONFIG" ]; then
   [ -f "$CONFIG" ] || die "settings file $CONFIG not found" "Einstellungsdatei $CONFIG nicht gefunden"
   ok "using $CONFIG" "verwende $CONFIG"
 else
-  d_name="HK Invoke"; d_srv=""; d_host="invoke"; keep=0
+  d_name="HK Invoke"; d_srv=""; d_host="invoke"; d_bt="button"; keep=0
   if [ "$MODE" = update ]; then
     cur=$(sshd 'cat /data/invoke/config' 2>/dev/null || true)
     if [ -n "$cur" ]; then
@@ -136,6 +136,7 @@ else
       d_name=$(cfgval DEVICE_NAME "$cur"); d_name=${d_name:-HK Invoke}
       d_srv=$(cfgval SENDSPIN_SERVER "$cur")
       d_host=$(cfgval DHCP_HOSTNAME "$cur"); d_host=${d_host:-invoke}
+      d_bt=$(cfgval BLUETOOTH_PAIRING "$cur"); d_bt=${d_bt:-button}
       if [ "$INTERACTIVE" = 0 ] || ask_yn "Keep these settings?" "Diese Einstellungen behalten?" y; then keep=1; fi
     else
       [ "$INTERACTIVE" = 0 ] && keep=1
@@ -159,8 +160,16 @@ LAN (many routers do not forward multicast). If you use Music Assistant, enter i
     note "The host name your router lists for the speaker (e.g. 'invoke' makes it reachable as invoke.lan)." \
          "Der Hostname, unter dem der Router den Lautsprecher einträgt (z. B. 'invoke' ergibt invoke.lan)."
     ask s_host "DHCP host name" "DHCP-Hostname" "$d_host"
+    note "Bluetooth pairing: 'button' = the speaker is only visible and ready to pair for 2 minutes after a short press
+on its Bluetooth button (already paired phones always reconnect by themselves). 'always' = permanently visible,
+anyone in range can pair." \
+         "Bluetooth-Kopplung: 'button' = der Lautsprecher ist nur 2 Minuten nach einem kurzen Druck auf den Bluetooth-Knopf
+sichtbar und koppelbereit (schon gekoppelte Handys verbinden sich immer von selbst). 'always' = dauerhaft sichtbar,
+jeder in Reichweite kann koppeln."
+    ask s_bt "Bluetooth pairing (button/always)" "Bluetooth-Kopplung (button/always)" "$d_bt"
+    case $s_bt in button|always) ;; *) warn "unknown value, using 'button'" "unbekannter Wert, nehme 'button'"; s_bt=button ;; esac
     CONFIG="$STAGE/config.chosen"
-    printf 'DEVICE_NAME="%s"\nSENDSPIN_SERVER="%s"\nDHCP_HOSTNAME="%s"\n' "$s_name" "$s_srv" "$s_host" > "$CONFIG"
+    printf 'DEVICE_NAME="%s"\nSENDSPIN_SERVER="%s"\nDHCP_HOSTNAME="%s"\nBLUETOOTH_PAIRING="%s"\n' "$s_name" "$s_srv" "$s_host" "$s_bt" > "$CONFIG"
   fi
 fi
 
@@ -413,7 +422,8 @@ if [ -n "$CFGSRV" ]; then mahint=$(t "Sendspin connects to $CFGSRV." "Sendspin v
 else mahint=$(t "if it is not found automatically, set SENDSPIN_SERVER on the speaker (see settings)." "falls er nicht automatisch gefunden wird, SENDSPIN_SERVER auf dem Lautsprecher setzen (siehe Einstellungen).")
 fi
 info "What now:
-  - Bluetooth: pair the speaker on your phone (no PIN). It stays paired and reconnects by itself.
+  - Bluetooth: press the speaker's Bluetooth button briefly, then pair it on your phone within 2 minutes (no PIN).
+    It stays paired and reconnects by itself.
   - Spotify / UPnP / Cast / Tidal: pick the speaker by its name in the app (same Wi-Fi).
   - Music Assistant: $mahint
   - Log in:  ssh -i ${KEY%.pub} root@$IP
@@ -421,7 +431,8 @@ info "What now:
   - Emergency brake: ssh root@$IP 'touch /data/invoke/disable-hook' and reboot = original behaviour.
   - Remove again: ./uninstall.sh" \
 "Wie weiter:
-  - Bluetooth: Lautsprecher am Handy koppeln (ohne PIN). Er bleibt gekoppelt und verbindet sich selbst wieder.
+  - Bluetooth: den Bluetooth-Knopf am Lautsprecher kurz drücken und ihn innerhalb von 2 Minuten am Handy koppeln
+    (ohne PIN). Er bleibt gekoppelt und verbindet sich selbst wieder.
   - Spotify / UPnP / Cast / Tidal: den Lautsprecher in der App über seinen Namen wählen (gleiches WLAN).
   - Music Assistant: $mahint
   - Anmelden: ssh -i ${KEY%.pub} root@$IP

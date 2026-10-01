@@ -122,7 +122,7 @@ After the reboot the services come up within about 90 s.
 
 | Source | How |
 |---|---|
-| Bluetooth | pair "HK Invoke" on the phone (no PIN); it stays paired and reconnects by itself |
+| Bluetooth | press the speaker's **Bluetooth button briefly** (the light ring reacts; pressing again closes the window), then pair "HK Invoke" on the phone within 2 minutes (no PIN). It stays paired and reconnects by itself, also while the speaker is not visible. Setting `BLUETOOTH_PAIRING="always"` keeps it permanently visible |
 | Spotify | "HK Invoke" appears in the Spotify app's device list (same Wi-Fi; Premium) |
 | UPnP/DLNA | pick "HK Invoke" as renderer in your UPnP app; https:// streams work (current CA bundle) |
 | Music Assistant | the player appears via Sendspin (set `SENDSPIN_SERVER`) and, if the Cast provider finds it, as a Chromecast; add it by IP in the Google Cast provider's known hosts if mDNS does not cross your Wi-Fi/LAN |

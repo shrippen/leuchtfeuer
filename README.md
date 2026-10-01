@@ -10,7 +10,7 @@ speaker. After the install the speaker shows up as **"HK Invoke"** in:
 | **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | "legacy" (unencrypted) protocol dialect, see below |
 | **Google Cast** (audio) | own receiver emulation (`src/castrecv`) | only for senders that do not verify the device with Google: Music Assistant, Home Assistant, VLC, pychromecast. **Not** YouTube / Spotify-Cast / Chrome tab |
 | **Tidal Connect** (optional) | proprietary iFi binary | **not licensed for this device**, can be revoked – opt-in, see [Legal](#legal-and-risks) |
-| **Bluetooth A2DP sink** | BlueZ 5.50 + bluez-alsa + own agent (`src/btagent`) | pairs without a prompt, remembers pairings, phone volume and the speaker's volume knob stay in sync |
+| **Bluetooth A2DP sink** | BlueZ 5.50 + bluez-alsa + own agent (`src/btagent`) | invisible until you press the speaker's **Bluetooth button** (2-minute pairing window, ring feedback); pairs without a prompt, remembers pairings, phone volume and the speaker's volume knob stay in sync |
 
 Everything plays through the speaker's own DSP/amplifier chain; the **volume knob** controls all sources
 and stays in sync with the phone volume over Bluetooth in both directions.

@@ -10,7 +10,7 @@ normalen Netzwerk-Lautsprecher. Nach der Installation erscheint er als **„HK I
 | **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | „Legacy“-Dialekt (unverschlüsselt), siehe unten |
 | **Google Cast** (Audio) | eigene Empfänger-Nachbildung (`src/castrecv`) | nur für Sender ohne Geräteprüfung durch Google: Music Assistant, Home Assistant, VLC, pychromecast. **Nicht** YouTube / Spotify-Cast / Chrome-Tab |
 | **Tidal Connect** (optional) | proprietäres iFi-Programm | **nicht für dieses Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, siehe [Rechtliches](#rechtliches-und-risiken) |
-| **Bluetooth-A2DP-Empfänger** | BlueZ 5.50 + bluez-alsa + eigener Agent (`src/btagent`) | koppelt ohne Abfrage, merkt sich Kopplungen, Handy-Lautstärke und Drehrad bleiben synchron |
+| **Bluetooth-A2DP-Empfänger** | BlueZ 5.50 + bluez-alsa + eigener Agent (`src/btagent`) | unsichtbar, bis du den **Bluetooth-Knopf** am Lautsprecher drückst (2 Minuten Pairing-Fenster, Rückmeldung am Leuchtring); koppelt ohne Abfrage, merkt sich Kopplungen, Handy-Lautstärke und Drehrad bleiben synchron |
 
 Alles läuft über die eigene DSP-/Verstärkerkette des Lautsprechers. Das **Drehrad** regelt alle Quellen und bleibt
 über Bluetooth in beide Richtungen mit der Handy-Lautstärke synchron.

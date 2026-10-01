@@ -64,6 +64,14 @@ func (s *volState) onWamp(topic string, args []any) {
 		s.mu.Unlock()
 		return
 	}
+	if topic == "com.harman.test.inputEvent" {
+		if len(args) >= 1 {
+			if b, _ := args[0].(string); b == "bluetooth" {
+				pw.toggle(*window)
+			}
+		}
+		return
+	}
 	if topic != "com.harman.volumeChanged" || len(args) < 2 {
 		return
 	}
@@ -121,6 +129,10 @@ func (s *volState) ensureWamp() {
 		return
 	}
 	if err := w.subscribe("com.harman.volumeChanged"); err != nil {
+		w.conn.Close()
+		return
+	}
+	if err := w.subscribe("com.harman.test.inputEvent"); err != nil {
 		w.conn.Close()
 		return
 	}

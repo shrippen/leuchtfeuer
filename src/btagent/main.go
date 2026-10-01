@@ -22,6 +22,8 @@ const (
 var (
 	name    = flag.String("name", "HK Invoke", "Anzeigename")
 	adapter = flag.String("adapter", "hci0", "Adapter")
+	pairing = flag.String("pairing", "button", "button = nur nach Druck auf den Bluetooth-Knopf koppelbereit, always = dauerhaft")
+	window  = flag.Duration("pairing-window", 2*time.Minute, "Dauer des Pairing-Fensters nach dem Knopfdruck")
 	bus     *dbus.Conn
 )
 
@@ -82,9 +84,11 @@ func registerAgent() {
 func tick() {
 	registerAgent()
 	path := dbus.ObjectPath("/org/bluez/" + *adapter)
+	pw.check()
+	open := pw.isOpen()
 	want := map[string]any{
-		"Powered": true, "Alias": *name, "Discoverable": true,
-		"DiscoverableTimeout": uint32(0), "Pairable": true, "PairableTimeout": uint32(0),
+		"Powered": true, "Alias": *name, "Discoverable": open,
+		"DiscoverableTimeout": uint32(0), "Pairable": open, "PairableTimeout": uint32(0),
 	}
 	var props map[string]dbus.Variant
 	if err := bus.Object(bluez, path).Call("org.freedesktop.DBus.Properties.GetAll", 0, "org.bluez.Adapter1").Store(&props); err != nil {
@@ -131,6 +135,8 @@ func main() {
 	if err := bus.Export(agent{}, agentPath, "org.bluez.Agent1"); err != nil {
 		log.Fatal(err)
 	}
+	pw.always = *pairing == "always"
+	log.Printf("Bluetooth-Kopplung: %s", *pairing)
 	go volumeLoop()
 	for {
 		tick()

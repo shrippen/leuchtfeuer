@@ -10,3 +10,8 @@ SENDSPIN_SERVER=""
 
 # DHCP-Hostname, unter dem der Router das Gerät einträgt (z. B. "invoke" -> invoke.lan)
 DHCP_HOSTNAME="invoke"
+
+# Bluetooth-Kopplung: "button" = der Lautsprecher ist nur nach einem kurzen Druck auf den Bluetooth-Knopf
+# (2 Minuten lang) sichtbar und koppelbereit; schon gekoppelte Geräte verbinden sich immer von selbst.
+# "always" = dauerhaft sichtbar und koppelbereit (jeder in Reichweite kann koppeln).
+BLUETOOTH_PAIRING="button"

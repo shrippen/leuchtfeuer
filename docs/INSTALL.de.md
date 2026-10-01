@@ -127,7 +127,7 @@ Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
 
 | Quelle | Wie |
 |---|---|
-| Bluetooth | „HK Invoke“ am Handy koppeln (ohne PIN); bleibt gekoppelt und verbindet sich selbst wieder |
+| Bluetooth | am Lautsprecher den **Bluetooth-Knopf kurz drücken** (der Leuchtring reagiert; erneutes Drücken schließt das Fenster), dann „HK Invoke“ innerhalb von 2 Minuten am Handy koppeln (ohne PIN). Es bleibt gekoppelt und verbindet sich selbst wieder, auch wenn der Lautsprecher nicht sichtbar ist. Mit `BLUETOOTH_PAIRING="always"` bleibt er dauerhaft sichtbar |
 | Spotify | „HK Invoke“ erscheint in der Geräteliste der Spotify-App (gleiches WLAN; Premium) |
 | UPnP/DLNA | „HK Invoke“ in der UPnP-App als Renderer wählen; https://-Streams gehen (aktueller CA-Bestand) |
 | Music Assistant | Der Player erscheint über Sendspin (`SENDSPIN_SERVER` setzen) und, wenn der Cast-Anbieter ihn findet, als Chromecast; sonst im Google-Cast-Anbieter unter „known hosts“ per IP eintragen, wenn mDNS nicht zwischen WLAN und LAN durchkommt |
