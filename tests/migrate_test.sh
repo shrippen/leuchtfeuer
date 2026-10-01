@@ -22,6 +22,7 @@ echo "1 0 0 0" > $T/run/invoke-svc-invoked.state
 sh "$ROOT/device/leuchtfeuer/migrate.sh"
 sleep 0.2
 check "Verzeichnis umgezogen, alter Pfad verweist" '[ -d $T/data/leuchtfeuer ] && [ -L $T/data/invoke ] && [ "$(cat $T/data/invoke/config)" = "DEVICE_NAME=\"Küche\"" ]'
+check "verschoben, nicht kopiert (laufender Hook, Protokoll zieht mit)" '[ ! -e $T/data/invoke.alt ] && grep -q "alten Hook" $T/data/leuchtfeuer/hook.log'
 check "Einstellungen umbenannt" '[ -f $T/data/leuchtfeuer/leuchtfeuerd.json ] && [ ! -e $T/data/leuchtfeuer/invoked.json ]'
 check "alte Programme entfernt, Kopplungen bleiben" '[ ! -e $T/data/leuchtfeuer/bin/invoked ] && [ ! -e $T/data/leuchtfeuer/services/invoked.sh ] && [ -f $T/data/leuchtfeuer/bluez/var/pairing ]'
 check "alter Hook und alte Dienste beendet" '! kill -0 $H 2>/dev/null && ! kill -0 $S1 2>/dev/null'
