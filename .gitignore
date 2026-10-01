@@ -20,3 +20,5 @@ dist/
 src/leuchtfeuerd/leuchtfeuerd
 __pycache__/
 .pytest_cache/
+src/btagent/btagent
+src/castrecv/castrecv
