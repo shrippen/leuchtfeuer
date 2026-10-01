@@ -85,6 +85,11 @@ lässt diese Datei unverändert, außer man gibt `--config` an.
   dropbear, FFmpeg/avahi im Tidal-Bündel, …) behalten ihre eigenen Lizenzen. `build.sh` holt die genauen Quellen per
   Tag/Commit.
 
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE). Das gilt für Code und Dokumentation dieses Repositories; die gebauten und installierten
+Programme (librespot, gmrender-resurrect, BlueZ, …) und die Hersteller-Firmware behalten ihre eigenen Lizenzen und Bedingungen.
+
 ## Danksagung
 
 [coggy9/HKHacking](https://github.com/coggy9/HKHacking) (StockRoot-Abbild, Flash-Verfahren),

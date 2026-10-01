@@ -83,6 +83,11 @@ keeps this file unless you pass `--config`.
 - The programs installed on the speaker (librespot, gmrender-resurrect, sendspin-go, BlueZ, bluez-alsa, dropbear,
   FFmpeg/avahi for the Tidal bundle, …) keep their own licences. `build.sh` fetches the exact sources by tag/commit.
 
+## License
+
+MIT, see [LICENSE](LICENSE). This covers the code and documentation of this repository; the programs it builds
+and installs (librespot, gmrender-resurrect, BlueZ, …) and the vendor firmware keep their own licences and terms.
+
 ## Credits
 
 [coggy9/HKHacking](https://github.com/coggy9/HKHacking) (StockRoot image, flashing procedure),
