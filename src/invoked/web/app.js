@@ -51,7 +51,7 @@ async function act(fn, okMsg) {
 }
 
 // ---------------------------------------------------------------- Bausteine
-const sw = (id, on, en, de) => `<button class="switch" role="switch" id="${id}" aria-checked="${!!on}" type="button"><span class="switch-track"></span>${T(en, de)}</button>`;
+const sw = (id, on, en, de) => `<button class="switch" role="switch" id="${id}" aria-checked="${!!on}" type="button"><span class="switch-track"></span><span class="switch-label">${T(en, de)}</span></button>`;
 const fld = (id, en, de, val, extra = '') => `<div class="field"><label for="${id}">${T(en, de)}</label><input class="input" id="${id}" value="${esc(val)}" ${extra}></div>`;
 const kpi = (v, en, de) => `<div class="kpi"><b>${v}</b><span>${T(en, de)}</span></div>`;
 function seg(id, opts, val) {

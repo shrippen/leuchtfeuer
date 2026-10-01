@@ -25,12 +25,17 @@
 .chips{display:flex;flex-wrap:wrap;gap:.4rem}
 .alarm{display:grid;gap:.9rem 1.2rem;grid-template-columns:repeat(2,minmax(0,1fr))}
 .alarm .wide{grid-column:1/-1}
-.time-in{font-family:var(--font-heading);font-weight:700;font-size:2rem;max-width:9rem;letter-spacing:.06em}
+.time-in{font-family:var(--font-heading);font-weight:700;font-size:1.7rem;width:10rem;max-width:100%;padding-right:.4rem;letter-spacing:.04em}
 .vol{width:100%}
 .log{white-space:pre-wrap;word-break:break-all;background:var(--bg-hard);border:1px solid var(--bg2);padding:.7rem .9rem;font-family:var(--font-mono);font-size:.72rem;color:var(--fg2);max-height:22rem;overflow:auto}
 .hidden{display:none!important}
 .bar{height:6px;background:var(--bg-hard);border:1px solid var(--bg2)}
 .bar>i{display:block;height:100%;background:var(--primary)}
-@media (max-width:600px){.time-in{font-size:1.6rem}}
+@media (max-width:600px){.time-in{font-size:1.5rem}}
 .login{max-width:26rem;margin:0 auto;padding:3rem var(--gutter) 4rem}
 .login-err{color:var(--danger)}
+/* Firefox: Ein Button als Flex-Container wird dort in Flex-Zeilen zu schmal (der Text ragt heraus und "Mute" überlappt den
+   nächsten Knopf). Deshalb der Kante-Schalter hier als Inline-Block mit Inline-Block-Kindern. */
+.switch{display:inline-block;flex:none;white-space:nowrap}
+.switch-track{display:inline-block;width:2.4rem;vertical-align:middle}
+.switch-label{display:inline-block;vertical-align:middle;margin-left:.7rem}
