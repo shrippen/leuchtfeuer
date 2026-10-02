@@ -6,7 +6,7 @@ the briefing, Home Assistant, the voice satellite and updates, is shared and wor
 
 | Target | Device | Extensions |
 |---|---|---|
-| `invoke` | Harman Kardon Invoke (Marvell BG2CD, vendor software "podium") | buttons, ring, vendorSounds, vendorVolume |
+| `invoke` | Harman Kardon Invoke (Marvell BG2CD, vendor software "podium"); guide: [INVOKE.md](INVOKE.md) | buttons, ring, vendorSounds, vendorVolume |
 | `generic` | any Linux with systemd and ALSA (Raspberry Pi, mini PC, old laptop) | none |
 
 The web interface, MQTT discovery and the API follow `device.capabilities` from `GET /api/status`: a device without a
@@ -14,6 +14,8 @@ ring has no ring card, no sunrise light and no ring entity in Home Assistant; a 
 "Buttons" tab.
 
 ## Installing on any Linux (`generic`)
+
+Step by step for users: [INSTALL.md](INSTALL.md). In short:
 
 ```sh
 tools/build-generic.sh arm64                       # or amd64, armv7; needs Go and a C (cross) compiler

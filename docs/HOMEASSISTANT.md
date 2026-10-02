@@ -19,7 +19,7 @@ Assistant neu starten.
    einmal angezeigt. Ein Schlüssel mit Bereich `read` wird abgelehnt, weil die Integration auch steuert.
 2. Home Assistant findet den Lautsprecher per Zeroconf (`_leuchtfeuer._tcp`) und zeigt ihn unter *Einstellungen > Geräte &
    Dienste* als gefunden an. Nur noch den Schlüssel eingeben.
-3. Ohne Erkennung: *Integration hinzufügen > Leuchtfeuer*, Adresse (z. B. `invoke.lan` oder `http://192.168.1.23`) und
+3. Ohne Erkennung: *Integration hinzufügen > Leuchtfeuer*, Adresse (z. B. `kueche.lan` oder `http://192.168.1.23`) und
    Schlüssel eingeben. HTTPS mit dem selbstsignierten Zertifikat des Lautsprechers geht (`https://...`, ohne
    Zertifikatsprüfung).
 

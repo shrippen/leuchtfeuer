@@ -1,10 +1,10 @@
-# Leuchtfeuer – Forschungsnotizen
+# Leuchtfeuer – Forschungsnotizen zum Harman Kardon Invoke
 
 > Seit Oktober 2026 heißen Verzeichnis, Programme und Bezeichner generisch „leuchtfeuer“ (`/data/leuchtfeuer`, `leuchtfeuerd`, ALSA `leuchtfeuer_*`, `/run/leuchtfeuer-*`); die Notizen unten sind darauf angepasst. Ältere Installationen hatten `/data/invoke`, `invoked` und `invoke_*`.
 
 > Arbeitsnotizen aus der Entstehung des Projekts (deutsch), bereinigt um gerätespezifische und persönliche
 > Angaben (Kennungen, Adressen, Schlüssel). Sie halten fest, *wie* die Erkenntnisse zustande kamen.
-> Der **aktuelle Stand** und die Anleitung stehen in der [README](../README.de.md) und [INSTALL.de.md](INSTALL.de.md);
+> Der **aktuelle Stand** und die Anleitung stehen in der [README](README.de.md) und [INVOKE.de.md](INVOKE.de.md);
 > spätere Änderungen (BlueZ statt Bluedroid, Cast-Empfänger, Lautstärke-Abgleich) in [ARCHITECTURE.md](ARCHITECTURE.md).
 > Der Abschnitt „Plan“ ist historisch.
 

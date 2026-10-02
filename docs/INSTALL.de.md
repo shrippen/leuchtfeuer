@@ -1,250 +1,112 @@
 # Installationsanleitung
 
-Der vollständige Weg vom Werkszustand eines Invoke bis zum Zustand aus der [README](README.de.md). Die
-Hardware-Teile (1-3) wurden einmal an einem Gerät durchgeführt; der Software-Teil (4) ist mit `build.sh` und
-`install.sh` automatisiert.
+Leuchtfeuer läuft auf jedem kleinen Rechner mit Lautsprecher: einem Raspberry Pi mit Sound-HAT oder USB-DAC, einem Mini-PC
+am HiFi-Verstärker, einem alten Laptop. Diese Anleitung richtet es auf **jedem Linux mit systemd und ALSA** ein (Zielgerät
+`generic`). [English](INSTALL.md)
 
-> **Teststand.** Der Update-Weg von `install.sh` (SSH, Übertragung per Prüfsummenvergleich, Neustart,
-> `verify-install.sh`) wurde gegen das fertige Gerät ausgeführt und hat den Zustand exakt reproduziert. Der Weg der
-> **Erstinstallation über adb** (Teil 4, „frisches StockRoot-Gerät“) ist umgesetzt und durchgesehen, wurde aber **noch nicht
-> an einem fabrikfrischen Gerät ausgeführt**; das gilt auch für `wifi-setup.sh` und `uninstall.sh` (die Formularfelder der
-> WLAN-Einrichtung stammen aus der Hersteller-Bibliothek). Probleme bitte als Issue melden. **Alles einmal lesen, bevor
-> es losgeht.**
+Für den **Harman Kardon Invoke** gibt es eine eigene Anleitung, weil er vorher einen Hardware-Schritt braucht:
+**[INVOKE.de.md](INVOKE.de.md)**.
 
-> ⚠️ Teile 1-3 schreiben in den NAND-Flash des Lautsprechers. Ein Fehler kann ihn unbrauchbar machen. Teil 1
-> (Sicherung) ist Pflicht. Den U-Boot-Befehl `l2nand 83` **niemals ohne `-m`** ausführen: Er löscht den ganzen Flash
-> inklusive `factory_setting` (Zertifikate, MAC, Kalibrierung des Geräts), die in keinem Firmware-Abbild steht.
+## Was du brauchst
 
-## 0. Vorbereitung (PC)
+- **Das Gerät:** Linux mit systemd und ALSA (Raspberry Pi OS, Debian, Ubuntu, Fedora, Arch, …) auf `amd64`, `arm64` oder
+  `armv7`, mit Lautsprecher oder Verstärker an einer Soundkarte (3,5 mm, HDMI, USB-DAC, I²S-HAT). Netzwerk, am besten per
+  Kabel oder gutem WLAN.
+- **Zum Bauen des Pakets:** `git`, Go ≥ 1.22 und ein C-Compiler für das Gerät (`cc` auf dem Gerät selbst oder ein
+  Cross-Compiler: `aarch64-linux-gnu-gcc` für `arm64`, `arm-linux-gnueabihf-gcc` für `armv7`). Fertige Release-Pakete gibt
+  es noch nicht.
+- **Empfänger** kommen aus deiner Distribution (siehe Schritt 3); Leuchtfeuer bringt seine Weboberfläche, den Cast-Empfänger
+  und den Bluetooth-Agenten selbst mit.
 
-Linux-PC. Nötig: `adb`, `docker`, `go` (≥ 1.22), `curl`, `git`, `unzip`, `python3`, `socat`, `telnet`, `gh`
-(GitHub-CLI, nur für `scripts/fetch.sh`; alternativ die drei Dateien von Hand laden, siehe unten).
+## 1. Paket bauen
 
-```sh
-git clone <dieses Repo> leuchtfeuer && cd leuchtfeuer
-./scripts/fetch.sh                      # lädt Hersteller-Flashwerkzeug, das geroottete Abbild „StockRoot“ und das OTA aus den
-                                        # Releases von github.com/coggy9/HKHacking nach firmware/ (nicht im Git)
-sudo cp tools/99-invoke-marvell.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
-```
-
-Ohne `gh`: `Harman.Kardon.INVOKE.Flashing.zip` (Release *HarmanFlash*), `83_IMAGE` (Release *StockRoot*) und
-`Harman.Kardon.INVOKE.Driver.OTA2.zip` (Release *FinalOTA*) nach `firmware/` legen, dann
-`unzip firmware/Harman.Kardon.INVOKE.Flashing.zip -d firmware/extracted/flashing`. Das StockRoot-Abbild muss die
-SHA-256 `f59d0a56f5d3d4cc90b146e2433ec32da36239e6c4373813d57fe92e19326cc7` haben.
-
-### Flashing-Modus (für Teil 1 und 2)
-
-Im Normalbetrieb meldet sich der Invoke nicht am USB. So kommt man ins Marvell-Boot-ROM (USB-ID `1286:8174`):
-
-1. Strom abziehen, den **Service-USB-Port** mit dem PC verbinden.
-2. Das **Reset-Loch** (Büroklammer) gedrückt halten, Strom anstecken, weiter halten.
-3. Innerhalb von 5 s **genau 4× die Mic-aus-Taste** drücken. Der Leuchtring wird gelb.
-4. Reset loslassen, sobald Konsole/U-Boot in der Skriptausgabe erscheint.
-
-Das kann mehrere Anläufe brauchen (das Boot-ROM setzt sich manchmal 2-3× zurück, bevor die Kette durchläuft).
-
-## 1. NAND sichern (Pflicht)
+Auf deinem Rechner oder direkt auf dem Gerät:
 
 ```sh
-tools/usb-ramboot.sh backup         # starten, dann den Flashing-Modus auslösen; bootet Kernel + Ramdisk nur im RAM,
-                                    # alle Partitionen read-only, nichts eingehängt, NAND unberührt
-scripts/nand-backup.sh              # (zweites Terminal) liest jede Partition zweimal per adb, vergleicht Prüfsummen,
-                                    # danach den ganzen Chip roh inkl. OOB -> backup/<zeit>/
-python3 scripts/verify-backup.py backup/<zeit>
+git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
+tools/build-generic.sh arm64                         # amd64, arm64 oder armv7; ohne Angabe: Architektur dieses Rechners
+tools/make-release.sh --target generic --arch arm64  # -> dist/leuchtfeuer-<Version>-generic-arm64.tar.gz
 ```
 
-`backup/<zeit>/` **sicher und an zwei Orten** aufbewahren. Es enthält die Geräteschlüssel (`factory_setting`) und
-eventuelle WLAN-Zugangsdaten in `app`; nie veröffentlichen. Eine beschädigte `factory_setting` lässt sich nur aus
-dieser Sicherung wiederherstellen.
+## 2. Installieren
 
-## 2. Geroottetes Abbild flashen
+Das Paket aufs Gerät kopieren und daraus `setup.sh` starten:
 
 ```sh
-tools/usb-flash.sh                  # starten; dann Flashing-Modus auslösen. Lädt U-Boot in den RAM, Konsole in recon/
-tools/uboot-send.sh "l2nand -m 83"  # flasht firmware/83_IMAGE (StockRoot 11.1842). -m = nur die beschriebenen Blöcke
-                                    # löschen. (uboot-send.sh verweigert l2nand ohne -m)
+mkdir lf && tar -xzf leuchtfeuer-*-generic-arm64.tar.gz -C lf
+sudo sh lf/setup.sh --name Küche --password 'dein Web-Passwort'
 ```
 
-Im Log auf `Congratulations! u2nand succeed!` warten. Empfohlene Prüfung, dass `factory_setting`, die B-Partitionen
-und die Bad-Block-Tabelle noch mit der Sicherung übereinstimmen:
+`setup.sh` installiert nach `/opt/leuchtfeuer` (`--dir` ändert das), schreibt die Einstellungsdatei `config`
+(Weboberfläche auf Port 8080, `--port` ändert das; Zeitzone vom System) und aktiviert `leuchtfeuer.service`. Ohne
+`--password` erzeugt es ein Passwort und schreibt es nach `/opt/leuchtfeuer/log/leuchtfeuerd.log`.
+
+## 3. Empfänger
+
+Leuchtfeuer startet jeden Empfänger, dessen Programm installiert ist; die anderen erscheinen als „nicht installiert“. Unter
+Debian und Raspberry Pi OS:
 
 ```sh
-tools/uboot-send.sh ramdisk         # bootet wieder die read-only-Ramdisk, ohne Neustart dazwischen
-scripts/verify-after-flash.sh backup/<zeit>
+sudo apt install alsa-utils librespot shairport-sync gmediarender snapclient
 ```
 
-Lautsprecher aus- und einstecken. StockRoot ist die Hersteller-Version 11.1842 plus Root-Login, adbd an (Port 5555,
-ohne Anmeldung) und gesperrte OTA-Server in `/etc/hosts`.
+| Empfänger | Programm | Hinweise |
+|---|---|---|
+| Spotify Connect | `librespot` | braucht Spotify Premium |
+| AirPlay 1 | `shairport-sync` | |
+| UPnP / DLNA | `gmediarender` (gmrender-resurrect) | |
+| Snapcast | `snapclient` | anfangs aus; `SNAPCAST_SERVER` setzen |
+| Sendspin (Music Assistant) | `sendspin-player` aus [sendspin-go](https://github.com/Sendspin/sendspin-go/releases) | nach `/opt/leuchtfeuer/bin/` legen |
+| Cast (für Music Assistant, Home Assistant, VLC) | `castrecv`, im Paket enthalten | |
+| Bluetooth A2DP | `bluetoothd` und bluez-alsa des Systems (`sudo apt install bluez bluez-alsa-utils`) | unter Einstellungen > Dienste einschalten; Leuchtfeuer ergänzt seinen Agenten |
 
-## 3. Lautsprecher ins WLAN bringen
+Tidal Connect gibt es nur auf dem Invoke.
 
-Nach dem Flashen öffnet der Lautsprecher einen unverschlüsselten Zugangspunkt `HK Invoke_XXXXXX` (Adresse
-192.168.43.1). PC damit verbinden, dann:
+## 4. Erster Start
 
-```sh
-scripts/wifi-setup.sh "<deine SSID>" "<deine WLAN-Passphrase>"    # WPA2-PSK, 2,4 GHz
-```
+`http://<gerät>:8080/` öffnen und anmelden. Eine frische Installation beginnt mit dem **Einrichtungsassistenten**: Name,
+Zeitzone und Feiertage, Ort für das Wetter, ein paar Webradio-Sender und ob du Home Assistant nutzt. Danach erscheint das
+Gerät unter seinem Namen in Spotify, AirPlay, UPnP-Apps und Music Assistant.
 
-Die Antwort `continue` heißt: Er verbindet sich mit deinem Netz. PC wieder ins Heimnetz, die IP des Lautsprechers im
-Router nachsehen. Prüfen: `adb connect <ip>:5555 && adb shell id` muss `uid=0(root)` ausgeben.
+## Einstellungen
 
-> Der Lautsprecher reagiert empfindlich auf die WLAN-Qualität. Am Rand der Reichweite zeigen Pings Verlust und hohe
-> Laufzeiten; näher stellen oder an einen guten Access Point binden (`wpa_cli` / Router). Alles Folgende läuft über das
-> WLAN; eine schlechte Verbindung macht `install.sh` langsam, aber es setzt fort (nur geänderte Dateien werden übertragen).
+Fast alles lässt sich in der Weboberfläche einstellen. Die Datei `/opt/leuchtfeuer/config` enthält, was schon vor der
+Weboberfläche gebraucht wird:
 
-## 4. Installieren (baut die Software bei Bedarf)
-
-```sh
-./install.sh
-```
-
-Der Installer ist **interaktiv**: Er erklärt jeden Schritt und fragt, was er braucht. Er
-1. prüft deinen Rechner (`ssh`, `tar`, `adb`),
-2. fragt nach der IP-Adresse des Lautsprechers (steht im Router) und prüft, dass sie antwortet,
-3. lässt dich einen SSH-Schlüssel wählen (oder erzeugen); der **öffentliche** Schlüssel kommt auf den Lautsprecher, der
-   private bleibt bei dir,
-4. stellt fest, ob es eine Erstinstallation (über adb) oder ein Update (über SSH) ist,
-5. fragt die Einstellungen ab: Name des Lautsprechers, Adresse deines Music Assistant für Sendspin, DHCP-Hostname,
-6. fragt, ob **Tidal Connect** installiert werden soll (Standard: nein, weil für diesen Lautsprecher nicht lizenziert),
-7. baut die Programme, falls sie fehlen (`./build.sh`: Docker + Go, beim ersten Mal 20-60 Minuten, Ergebnis in `build/`;
-   dazu die beiden LADSPA-Plugins der Tonkette: Visualizer-Abgriff und Klang), oder lädt mit `--prebuilt` stattdessen das
-   Release-Paket,
-8. zeigt eine Zusammenfassung und fragt, bevor etwas geändert wird,
-9. bei einem **frischen StockRoot-Gerät**: verbindet sich per adb (Port 5555), prüft Root, Firmware und freien Platz,
-   richtet das eigene dropbear mit gerätespezifischem Host-Schlüssel und deinem Schlüssel ein, hängt den Autostart-Haken
-   an `/data/dnsmasq.conf` (Original als `dnsmasq.conf.orig` gesichert), wartet auf SSH (und prüft dabei den selbst
-   erzeugten Host-Schlüssel),
-10. kopiert alle Dateien per SSH (nur geänderte), schließt adb, bietet einen Neustart an und führt zuletzt
-    `scripts/verify-install.sh` aus.
-
-Die Meldungen sind je nach `$LANG` englisch oder deutsch (erzwingen mit `LEUCHTFEUER_LANG=en|de`). Optionen überspringen
-Fragen: `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--dry-run`. **Nicht interaktiv** (Skripte):
-`./install.sh --non-interactive --ip <ip> --key <pub> [--config DATEI] [--no-tidal]`. Späteres erneutes Ausführen
-aktualisiert den Lautsprecher; nur geänderte Dateien werden übertragen, und deine Einstellungen auf dem Lautsprecher
-bleiben, außer du wählst neue. Separat bauen: `./build.sh [--no-tidal] [--force]`.
-
-**Ohne Bauen:** `./install.sh --prebuilt [TAG]` nimmt das Release-Paket von Gitea (neuestes Release oder der angegebene Tag),
-statt zu bauen: kein Docker, wenige Minuten. Es wird gegen seine `.sha256` geprüft und, wenn `docs/release-key.pub` den
-Release-Schlüssel enthält und Go installiert ist, gegen seine Signatur. Tidal Connect ist nicht enthalten (proprietär, nicht
-unseres zum Weitergeben); wer es will, baut selbst.
-
-Nach dem Neustart kommen die Dienste binnen etwa 90 s hoch.
-
-## 5. Benutzen
-
-| Quelle | Wie |
+| Einstellung | Bedeutung |
 |---|---|
-| Bluetooth | am Lautsprecher den **Bluetooth-Knopf kurz drücken** (der Leuchtring reagiert; erneutes Drücken schließt das Fenster), dann „HK Invoke“ innerhalb von 2 Minuten am Handy koppeln (ohne PIN). Es bleibt gekoppelt und verbindet sich selbst wieder, auch wenn der Lautsprecher nicht sichtbar ist. Mit `BLUETOOTH_PAIRING="always"` bleibt er dauerhaft sichtbar |
-| Spotify | „HK Invoke“ erscheint in der Geräteliste der Spotify-App (gleiches WLAN; Premium) |
-| UPnP/DLNA | „HK Invoke“ in der UPnP-App als Renderer wählen; https://-Streams gehen (aktueller CA-Bestand) |
-| Music Assistant | Der Player erscheint über Sendspin (`SENDSPIN_SERVER` setzen) und, wenn der Cast-Anbieter ihn findet, als Chromecast; sonst im Google-Cast-Anbieter unter „known hosts“ per IP eintragen, wenn mDNS nicht zwischen WLAN und LAN durchkommt |
-| AirPlay | „HK Invoke“ erscheint im AirPlay-Menü von iPhone, iPad und Mac (AirPlay 1, nur Audio) |
-| Weboberfläche | `http://<ip-des-lautsprechers>/` (Port 80): Anmeldeseite, Passwort von `install.sh` gesetzt (oder bei der Erstinstallation ein zufälliges, das am Ende einmal angezeigt wird). Der Lautsprecher speichert nur einen gesalzenen PBKDF2-Hash. Änderbar in den Einstellungen oder später mit `scripts/set-web-password.sh` |
-| Tidal | „HK Invoke“ erscheint in der Tidal-Connect-Liste der Tidal-App |
-| Snapcast | anfangs aus. Einstellungen > Dienste > Snapcast an, und `SNAPCAST_SERVER="host"` in `/data/leuchtfeuer/config`; der Lautsprecher meldet sich dann als Client bei deinem snapserver an (Multiroom, synchron mit den anderen Räumen). Der Server sollte 48000:16:2 senden (FLAC oder PCM); in snapweb für diesen Client etwa 100 ms Latenz einstellen |
+| `ALSA_CARD` | Soundkarte für Ausgabe und Lautstärke (Nummer oder Name aus `aplay -l`) |
+| `ALSA_OUTPUT` | `"pipewire"` oder `"pulse"`, wenn ein Sound-Server die Karte belegt (Desktop-Systeme) |
+| `WEB_PORT`, `WEB_TLS` | Port der Weboberfläche, HTTPS mit eigenem Zertifikat |
+| `WIFI_IFACE` | Netzwerk-Schnittstelle (leer = die der Standardroute) |
+| `SERVICE_<NAME>` | welche Empfänger laufen (auch unter Einstellungen > Dienste) |
+| `SNAPCAST_SERVER`, `SENDSPIN_SERVER` | Server, wenn sie nicht von selbst gefunden werden |
+| `FIREWALL` | `on` baut eine iptables-Kette für die eingeschalteten Dienste (anfangs aus) |
+| `UPDATE_PUBKEY` | Signaturschlüssel der Releases für Updates aus der Weboberfläche |
 
-Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast und Bluetooth bewegt dieselbe Lautstärke
-(UPnP behält zusätzlich seine eigene Software-Lautstärke). Logs liegen unter `/data/leuchtfeuer/log/` auf dem Lautsprecher
-(`ssh root@<ip> 'tail -f /data/leuchtfeuer/log/*.log'`).
+Nach einer Änderung an der Datei: `sudo systemctl restart leuchtfeuer`.
 
-### Weboberfläche, Wecker, Home Assistant
+Was die Weboberfläche alles kann, steht in der [README](README.de.md); die HTTP-API in [API.md](API.md) (englisch), die
+Home-Assistant-Integration in [HOMEASSISTANT.md](HOMEASSISTANT.md).
 
-- **Wecker/Timer:** zuerst die Zeitzone einstellen (Reiter Wecker & Timer). Ein Wecker kann über N Sekunden auf eine Ziellautstärke
-  ansteigen, Signaltöne oder einen Webradio-Sender spielen, schlummern und sich nach einer Grenze selbst stoppen. Timer
-  nutzen die Timer-Animation des Leuchtrings. Die Mikrofon-Taste ist standardmäßig auf *smart* gelegt (Wecker schlummern /
-  Timer beenden / Stumm); der Reiter Tasten protokolliert Name und Wert jeder gemeldeten Taste, damit du sie belegen kannst.
-- **WLAN-Wächter:** Reiter Netzwerk. Er pingt alle 20 s den Router; nach zwei schlechten Messungen in Folge (Standard: 20 % Verlust
-  oder 150 ms) sucht er andere Access Points deines Netzes, wechselt zum besten, der nicht als schlecht markiert ist, und prüft
-  erneut. „Access Points suchen“ listet sie auf und erlaubt den Wechsel von Hand; *Probelauf* protokolliert nur.
-- **Home Assistant:** Reiter Home Assistant: MQTT-Broker eintragen. Der Lautsprecher meldet sich per MQTT-Erkennung selbst an
-  (Gerät mit Lautstärke, Stumm, Webradio, Kopplung, Timern, Wecker-Tasten, Sensoren, Tasten-Ereignissen).
-- **Leuchtring:** kann als Visualizer der Musik aller Empfänger folgen (Einstellungen > Leuchtring: Spektrum, Pegel oder
-  Puls, Farbe, Helligkeit, Start-LED; anfangs aus) oder als Lampe in jeder Farbe leuchten. Ein laufender Timer zeigt seine
-  Restzeit als Füllstand. Drehrad, Stumm, Wecker, Timer und Tasten zeigen weiter ihre eigenen Animationen. In Home Assistant
-  ist der Ring ein Licht mit Farbe, Helligkeit und Effekten.
-- **Wecker, mehr:** *Lichtwecker* (der Ring wird N Minuten vor der Weckzeit von tiefrot bis warmweiß heller), *nicht an
-  Feiertagen* (Bundesland unter Wecker & Timer wählen), *nächstes Mal aussetzen* (einmalig), *beim Stoppen ausblenden*, und
-  jede Stream- oder Datei-Adresse als Ton (z. B. eine Datei auf dem Musikserver).
-- **Schlummertimer:** Übersicht, 15-90 Minuten: die Musik wird über 30 s leiser und alle Quellen halten an.
-- **Läuft gerade:** Titel und Interpret von Spotify, AirPlay, Bluetooth, Cast und Webradio; UPnP, Sendspin, Tidal und
-  Snapcast erscheinen als spielend, solange sie den Lautsprecher nutzen. Bluetooth lässt sich in der Weboberfläche anhalten
-  und weiterschalten.
-- **Quellen und Lautstärke** (Einstellungen): Beginnt eine zweite Quelle, spielt die neueste, die anderen pausieren
-  (Bluetooth und Cast halten wirklich an, das Webradio stoppt, die übrigen sind stumm, bis sie wieder beginnen, und kommen
-  5 s nach dem Ende der neuesten zurück). *Alle spielen zusammen* stellt das alte Verhalten her. Höchste Lautstärke gesamt und
-  je Quelle, Startlautstärke je Quelle (z. B. Bluetooth beginnt immer mit 25 %).
-- **Klang** (Einstellungen): Bass und Höhen (±12 dB), *Loudness* (mehr Bass und Höhen, je leiser er spielt) und
-  *Nachtmodus* (gleicht laute und leise Stellen an). Gilt für alle Quellen, wirkt sofort.
-- **Durchsagen:** Home Assistant schickt eine Audio-Adresse (Sprachausgabe, Türklingel) oder `chime` / `bell` / `beep` an die
-  Text-Entität *Durchsage*; die Musik wird solange leiser (Einstellungen > Quellen: um wie viel dB). Die Übersicht hat
-  Probe-Knöpfe, eine Taste lässt sich auf den Gong legen.
-- **Dienste** (Einstellungen): Spotify, UPnP, Cast, AirPlay, Sendspin, Bluetooth, Tidal und Snapcast ein- oder ausschalten.
-  Ein ausgeschalteter Dienst startet nicht, seine Ports bleiben zu. Ein Dienst, der immer wieder abstürzt, wird mit
-  wachsenden Pausen (30 s ... 30 Min.) neu gestartet und als fehlerhaft angezeigt.
-- **Sichern und wiederherstellen** (Einstellungen): eine Datei mit Einstellungen, Kopplungen, Spotify-Anmeldung und
-  SSH-Schlüsseln (enthält Geheimnisse); zurückgespielt ist alles wieder da, z. B. nach einem Zurücksetzen. Das
-  *Diagnosepaket* (Status, Einstellungen ohne Geheimnisse, Protokolle) ist für Fehlerberichte.
-- **HTTPS:** `WEB_TLS="on"` in `/data/leuchtfeuer/config` schaltet die Weboberfläche auf HTTPS mit eigenem Zertifikat (der Browser
-  warnt einmal); HTTP leitet dann um. Auch MQTT kann TLS nutzen (Reiter Home Assistant).
-- **Uhr:** Der Lautsprecher stellt seine Uhr nach dem Start und alle 6 h per NTP (`NTP_SERVER`); die Übersicht warnt, wenn
-  sie mehr als 2 s falsch geht.
+## Aktualisieren und entfernen
 
-### Erkennung zwischen WLAN ↔ LAN
+- **Aktualisieren:** ein neueres Paket bauen und dessen `setup.sh` erneut ausführen; Einstellungen, Schlüssel und
+  Kopplungen bleiben. Mit einem Signaturschlüssel (`UPDATE_PUBKEY`) installiert Einstellungen > Sichern & Update signierte
+  Pakete und nimmt ein fehlerhaftes Update von selbst zurück.
+- **Entfernen:** `sudo sh /opt/leuchtfeuer/setup.sh --uninstall` (Einstellungen bleiben), `--purge` löscht auch die.
 
-Viele Router (z. B. FRITZ!Box) leiten Multicast nicht zwischen WLAN und LAN weiter. Ein PC im LAN sieht den
-Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die IP verwenden (Cast „known hosts“,
-`SENDSPIN_SERVER`) oder den Client ins WLAN setzen.
+## Fehlersuche
 
-## 6. Wartung
-
-- **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (oder `./install.sh --prebuilt`). Bevor
-  neue Dateien an ihren Platz kommen, werden die alten nach `/data/leuchtfeuer/.prev` gesichert; fällt danach binnen 10 Minuten
-  ein Dienst wiederholt aus, kehrt der Lautsprecher von selbst zur vorigen Version zurück (Einstellungen > Update zeigt das
-  und hat einen Knopf zum Zurücknehmen von Hand).
-- **Update aus der Weboberfläche:** Einstellungen > Update prüft die Release-Seite und installiert ein neueres Release. Dafür
-  braucht es den Signaturschlüssel der Releases in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, setzt `install.sh` aus
-  `docs/release-key.pub`): nur damit signierte Pakete werden angenommen. Ohne Internet am Lautsprecher dort Paket und `.sig`
-  hochladen.
-- **Releases (Betreuer):** einmal einen Schlüssel erzeugen mit `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
-  den ausgegebenen öffentlichen Schlüssel in `docs/release-key.pub` eintragen, den geheimen als Secret
-  `LEUCHTFEUER_SIGNING_KEY` (und ein Gitea-Token als `RELEASE_TOKEN`) für `.gitea/workflows/release.yml` hinterlegen. Ein Tag
-  `v*` baut, signiert und veröffentlicht dann das Paket; von Hand: `./build.sh --no-tidal && tools/make-release.sh --key <datei>`.
-- **Tests ohne Lautsprecher:** `tests/run.sh` (läuft auch in der CI).
-- **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>` (prüft auch die Plugins der Tonkette, die Quellen-Regler und den Hersteller-Dienst `audio-ui`).
-- **Gerätetest:** `scripts/smoke.sh --ip <ip> --key <pub> [--token lf_…] [--listen]`. Geht tiefer als verify und schreibt
-  einen Bericht als Markdown:
-  - jedes Quellen-PCM öffnet
-  - Regler und die Datei des Klang-Plugins sind da
-  - CPU-Last der Tonkette
-  - Uhr, NTP und Watchdog
-  - jedes Aufnahmegerät wird mit Pegel aufgenommen, um das Mikrofon für den Sprachassistenten zu finden
-  - mit Schlüssel: API, Sicherheits-Header und Herkunftsprüfung
-  - mit `--listen`: Gong, Radio, Absenken, Überblenden und Briefing, einzeln abgefragt
-- **Hardware-Watchdog:** `WATCHDOG="on"` in `/data/leuchtfeuer/config` (nur wenn `smoke.sh` ein `/dev/watchdog` gefunden hat und
-  es nicht belegt ist). `leuchtfeuerd -watchdog` setzt eine Frist von 60 s und füttert ihn nur, solange der Hook lebt. Nach
-  3 Starts ohne 30 Minuten stabile Laufzeit bleibt er aus; wieder scharf schalten: `/data/leuchtfeuer/watchdog-unstable`
-  löschen. Die Notbremse schließt ihn ordentlich.
-- **`mcu-interface` nicht beenden** (Hersteller-Dienst für Ring und Verstärker): Der Hersteller-Überwacher startet dann seinen
-  Stapel im Wiederherstellungsmodus neu, `audio-ui` verliert die Verbindung zum Router und der Verstärker bleibt stumm.
-  Ein Neustart des Lautsprechers behebt das.
-- **Notbremse:** `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'`, neu starten → Originalverhalten.
-- **Deinstallieren:** `./uninstall.sh --ip <ip> --key <pub> [--purge]` (entfernt den Autostart-Haken, stellt
-  `dnsmasq.conf` wieder her, startet neu; `--purge` löscht auch `/data/leuchtfeuer`).
-- **Werkszustand:** Die Hersteller-Firmware lässt sich mit dem Hersteller-Werkzeug erneut flashen (`l2nand -m 83` mit
-  dem Hersteller-Abbild); eine beschädigte `factory_setting` aus der Sicherung wiederherstellen.
-
-## 7. Fehlersuche
-
-| Symptom | Prüfen |
+| Anzeichen | Prüfen |
 |---|---|
-| `adb shell id` zeigt nicht root | Kein StockRoot (Firmware 12.x hat adbd aus und Port 22 zu) – Teil 2 |
-| `install.sh` langsam oder Zeitüberschreitung | WLAN-Verbindung (Ping-Verlust); Lautsprecher näher stellen, erneut starten – unveränderte Dateien werden übersprungen |
-| SSH verweigert | `--key` muss der öffentliche Schlüssel zum privaten Schlüssel/Agenten sein; zu viele Agent-Schlüssel erschöpfen die 10 Versuche von dropbear → `-o IdentitiesOnly=yes` |
-| Dienst fehlt | `ssh root@<ip> 'ps; tail /data/leuchtfeuer/log/<dienst>.log'`; der Haken startet tote Dienste alle 30 s neu |
-| Bluetooth nicht sichtbar | `scripts/verify-install.sh`; `/data/leuchtfeuer/log/bluetooth-*.log`; `hciconfig hci0` muss `UP RUNNING PSCAN ISCAN` zeigen |
-| Music Assistant meldet „Legacy-Modus“ bei Sendspin | Erwartet: sendspin-go 1.8.x spricht den unverschlüsselten Dialekt; wird akzeptiert, solange „Allow legacy clients“ an ist |
-| Kein Ton, „audio-ui nicht erreichbar“ | `scripts/verify-install.sh` (Plugins, `audio-ui`, Quellen-Regler); meist hilft ein Neustart des Lautsprechers. Fehlt `/data/leuchtfeuer/lib/ladspa/leuchtfeuer-viz-tap.so` oder `leuchtfeuer-eq.so`, erneut `install.sh` ausführen (die Tonkette braucht beide) |
-| Eine Quelle ist stumm | Einstellungen > Quellen: steht sie auf *pausiert (andere Quelle)*? Sie kommt 5 s nach dem Ende der anderen zurück, oder *Alle spielen zusammen* wählen. `amixer -c 0 sget "Quelle spotify"` sollte 255 sein |
-| Ein Dienst fällt wiederholt aus | Die Übersicht zeigt es; Einstellungen > Dienste > Protokoll. Nach einem Update geht der Lautsprecher von selbst zurück; sonst den Dienst ausschalten |
-| Wecker zur falschen Zeit | Die Übersicht warnt, wenn die Uhr falsch geht; `NTP_SERVER` prüfen und ob der Lautsprecher ihn erreicht (`/data/leuchtfeuer/hook.log`) |
-| Tidal-Anmeldung scheitert | Das iFi-Zertifikat wurde evtl. gesperrt; hier nicht behebbar |
+| Weboberfläche geht nicht auf | `systemctl status leuchtfeuer`; ist der Port (`WEB_PORT`) belegt oder von einer Firewall gesperrt? |
+| Ein Empfänger ist „nicht installiert“ | sein Programm fehlt (Tabelle in Schritt 3); installieren, er startet binnen 30 s |
+| Kein Ton | `aplay -l` zeigt die Karte; steht `ALSA_CARD` darauf? Belegt ein Sound-Server die Karte: `ALSA_OUTPUT="pipewire"` |
+| Protokolle | `/opt/leuchtfeuer/log/` und `/opt/leuchtfeuer/hook.log`, oder Einstellungen > Dienste > Protokoll, oder `journalctl -u leuchtfeuer` |
+| In Apps nicht zu finden | mDNS zwischen WLAN und LAN (siehe [INVOKE.de.md](INVOKE.de.md#erkennung-zwischen-wlan--lan), gilt für jedes Gerät) |
+
+## Ein Gerät mit eigener Hardware
+
+Tasten, ein Leuchtring oder Hersteller-Software sind **Erweiterungen** eines Zielgeräts. Wie man ein Gerät ergänzt
+(Treiber in leuchtfeuerd, Hook, Ton und Paket): [TARGETS.md](TARGETS.md) (englisch).

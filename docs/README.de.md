@@ -2,153 +2,126 @@
 
 # Leuchtfeuer
 
-_Netzwerk-Lautsprecher-Werkzeuge für den Harman Kardon Invoke_
+_Macht aus einem kleinen Rechner mit Lautsprecher einen Smartspeaker_
 
-Macht aus einem **Harman Kardon Invoke** (dem Cortana-Lautsprecher, den Harman aufgegeben hat) einen
-normalen Netzwerk-Lautsprecher. Nach der Installation erscheint er als **„HK Invoke“** in:
+Leuchtfeuer macht aus jedem kleinen Linux-Rechner mit Lautsprecher einen **Netzwerk- und Smartspeaker**: einen Raspberry Pi
+mit Sound-HAT, einen Mini-PC am HiFi-Verstärker oder einen Smartspeaker, den der Hersteller aufgegeben hat, wie den
+**Harman Kardon Invoke**. Der gemeinsame Teil (Empfänger, Weboberfläche, Wecker, Home Assistant) ist überall gleich; was ein
+Gerät zusätzlich hat (Tasten, einen Leuchtring, einen eigenen Verstärker), kommt von seinem **Zielgerät**.
+[English](../README.md)
+
+| Zielgerät | Gerät | Anleitung |
+|---|---|---|
+| `generic` | jedes Linux mit systemd und ALSA: Raspberry Pi, Mini-PC, alter Laptop | [INSTALL.de.md](INSTALL.de.md) |
+| `invoke` | Harman Kardon Invoke (der aufgegebene Cortana-Lautsprecher): Drehrad, Tasten, Leuchtring, Mikrofone | [INVOKE.de.md](INVOKE.de.md) |
+
+Ein weiteres Gerät mit eigener Hardware: [TARGETS.md](TARGETS.md) (englisch).
+
+## Empfänger
+
+Nach der Installation erscheint das Gerät unter seinem Namen in:
 
 | Was | Wie | Hinweise |
 |---|---|---|
 | **Spotify Connect** | [librespot](https://github.com/librespot-org/librespot) | braucht ein Spotify-Premium-Konto |
 | **UPnP / DLNA-Renderer** | [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect) | z. B. mit Symfonium, BubbleUPnP, foobar2000 |
-| **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | „Legacy“-Dialekt (unverschlüsselt), siehe unten |
-| **AirPlay** (AirPlay 1) | [shairport-sync](https://github.com/mikebrady/shairport-sync) 3.3.9 | iPhone, iPad, Mac; AirPlay 2 wird nicht unterstützt (Multiroom: Snapcast oder Sendspin) |
+| **Sendspin** (Music Assistant) | [sendspin-go](https://github.com/Sendspin/sendspin-go) | „Legacy“-Dialekt (unverschlüsselt) |
+| **AirPlay** (AirPlay 1) | [shairport-sync](https://github.com/mikebrady/shairport-sync) | iPhone, iPad, Mac; AirPlay 2 wird nicht unterstützt (Multiroom: Snapcast oder Sendspin) |
 | **Google Cast** (Audio) | eigene Empfänger-Nachbildung (`src/castrecv`) | nur für Sender ohne Geräteprüfung durch Google: Music Assistant, Home Assistant, VLC, pychromecast. **Nicht** YouTube / Spotify-Cast / Chrome-Tab |
-| **Tidal Connect** (optional) | proprietäres iFi-Programm | **nicht für dieses Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, siehe [Rechtliches](#rechtliches-und-risiken) |
-| **Snapcast** (optional) | [snapclient](https://github.com/badaix/snapcast) 0.31 | Multiroom synchron mit anderen Snapcast-Lautsprechern; anfangs aus, braucht deinen snapserver |
-| **Bluetooth-A2DP-Empfänger** | BlueZ 5.50 + bluez-alsa + eigener Agent (`src/btagent`) | unsichtbar, bis du den **Bluetooth-Knopf** am Lautsprecher drückst (2 Minuten Pairing-Fenster, Rückmeldung am Leuchtring); koppelt ohne Abfrage, merkt sich Kopplungen, Handy-Lautstärke und Drehrad bleiben synchron |
+| **Snapcast** (optional) | [snapclient](https://github.com/badaix/snapcast) | Multiroom synchron mit anderen Snapcast-Lautsprechern; anfangs aus, braucht deinen snapserver |
+| **Bluetooth-A2DP-Empfänger** | BlueZ + bluez-alsa + eigener Agent (`src/btagent`) | Kopplungsfenster aus der Weboberfläche, aus Home Assistant oder per Taste; merkt sich Kopplungen, Handy-Lautstärke bleibt synchron |
+| **Tidal Connect** (nur Invoke, optional) | proprietäres iFi-Programm | **nicht für dieses Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, siehe [INVOKE.de.md](INVOKE.de.md#risiken) |
 
-**Weboberfläche** (Port 80, optional HTTPS, Design [Kante](https://github.com/shrippen/shrippen.github.io), Englisch/Deutsch,
-live aktualisiert): Status und **Läuft gerade** (Titel und Interpret von Spotify, AirPlay, Bluetooth, Cast, Webradio),
-**Webradio**, **Wecker** (Anstieg, Schlummern, Radio, Signalton oder jede Stream-Adresse, **Lichtwecker** am Ring, nicht an
-Feiertagen, einmal aussetzen, Ausblenden) und **Timer**, ein **Schlummertimer**, **Klang** (Bass, Höhen, Loudness,
-Nachtmodus), eine **Quellen-Regel** (die neueste Quelle spielt, die anderen pausieren) und **Lautstärkegrenzen** je Quelle,
-**Durchsagen** über die Musik, **Tastenbelegung**, der **WLAN-Wächter** (misst die echte Verbindungsqualität zum Router und
-wechselt bei anhaltend schlechter Qualität zu einem besseren Access Point desselben Netzes), **Home Assistant**
-(MQTT-Erkennung: Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timer, Schlummertimer, Wecker-Tasten, Durchsagen, der
-Leuchtring als Licht, Läuft gerade, Temperatur, WLAN, Tasten-Ereignisse; auf Wunsch über TLS), der **Leuchtring**
-(Visualizer: Spektrum, Pegel oder Puls; Lampe in jeder Farbe; Timer-Fortschritt), **Dienste an/aus**, **Sichern und
-Wiederherstellen**, ein **Diagnosepaket** und **signierte Updates mit automatischem Rückfall**.
+Der Ton kann auch an eine andere Soundkarte (HDMI, USB) oder einen **Bluetooth-Lautsprecher** gehen (Einstellungen > Ausgabe).
 
-Außerdem in der Weboberfläche:
-- ein **Morgen-Briefing**: Begrüßung, Wetter, Unwetterwarnungen, Pollenflug, Kalender (ICS, auch Müllabfuhr),
-  Nachrichten wie die *tagesschau in 100 Sekunden*, Vorlagen aus Home Assistant; gesprochen über die Sprachausgabe von
-  Home Assistant; auch als Weckton
-- eine **Sendersuche** (radio-browser.info) mit Lieblingssendern auf Tasten (Doppel-/Dreifachdruck)
-- eine **Raumkorrektur**: mit dem Handy messen, der Lautsprecher schlägt Filter gegen Dröhnen vor
-- ein **Pegelausgleich** je Quelle, und Quellen **blenden über**, wenn eine andere übernimmt
-- ein **Sprach-Satellit** für Home Assistant Assist (Wyoming, optional)
+## Weboberfläche
+
+Port 80 auf dem Invoke, sonst 8080; optional HTTPS, Design [Kante](https://github.com/shrippen/Kante), Englisch/Deutsch, live
+aktualisiert. Beim ersten Start fragt ein **Einrichtungsassistent** nach Name, Zeitzone, Ort, Sendern und Home Assistant.
+
+- **Läuft gerade** (Titel und Interpret von Spotify, AirPlay, Bluetooth, Cast, Webradio) und Lautstärke
+- **Webradio** mit **Sendersuche** (radio-browser.info) und Lieblingssendern auf Tasten
+- **Wecker** (Anstieg, Schlummern, Radio, Signalton oder jede Stream-Adresse, nicht an Feiertagen, einmal aussetzen,
+  Ausblenden), **Timer** und ein **Schlummertimer**
+- ein **Morgen-Briefing**: Begrüßung, Wetter, Unwetterwarnungen, Pollenflug, Kalender (ICS, auch Müllabfuhr), Nachrichten
+  wie die *tagesschau in 100 Sekunden*, Vorlagen aus Home Assistant; gesprochen über die Sprachausgabe von Home Assistant;
+  auch als Weckton
+- **Klang** (Bass, Höhen, Loudness, Nachtmodus, wirkt sofort) und eine **Raumkorrektur**, mit dem Handy gemessen
+- eine **Quellen-Regel** (die neueste Quelle spielt, die anderen blenden aus und pausieren), **Lautstärkegrenzen** und ein
+  **Pegelausgleich** je Quelle
+- **Durchsagen** über die Musik (Sprachausgabe, Türklingel)
+- **Home Assistant**: MQTT-Erkennung (Lautstärke, Stumm, Webradio, Bluetooth-Kopplung, Timer, Wecker-Tasten, Durchsagen,
+  Läuft gerade, Sensoren), eine [eigene Integration](HOMEASSISTANT.md) mit echtem Mediaplayer und ein **Sprach-Satellit**
+  für Assist (Wyoming, optional, mit Mikrofon)
+- der **WLAN-Wächter** (misst die echte Verbindungsqualität und wechselt zu einem besseren Access Point desselben Netzes)
+- **Dienste an/aus**, **Sichern und Wiederherstellen**, ein **Diagnosepaket**, **signierte Updates mit automatischem Rückfall**
 - eine Übersicht **anderer Leuchtfeuer** (Einstellungen kopieren, Updates anstoßen)
-- **API-Schlüssel**, **SSH-Schlüssel**, **Prometheus-Metriken**, ein **Live-Protokoll** und die Weitergabe an **Syslog**
-- **Klänge**: Start- und Fehlerton des Lautsprechers sowie die eigenen Töne durch eigene Dateien ersetzen
+- **API-Schlüssel**, **SSH-Schlüssel**, **Prometheus-Metriken**, ein **Live-Protokoll**, Weitergabe an **Syslog**
+- **Klänge**: die Töne von Leuchtfeuer durch eigene Dateien ersetzen
+
+Auf Geräten mit diesen Erweiterungen außerdem: **Tastenbelegung** (jede Taste, per Drücken angelernt), der **Leuchtring**
+(Visualizer, Lampe, Lichtwecker, Timer-Fortschritt, als Licht in Home Assistant) und die **eigenen Klänge** des Geräts.
 
 Die Weboberfläche schickt strenge Sicherheits-Header und prüft die Herkunft jeder Anfrage. Streams verbinden sich von
 selbst neu; fällt der Sender eines Weckers aus, klingelt der eingebaute Ton. Ein optionaler **Hardware-Watchdog** startet
-einen hängenden Lautsprecher neu.
-Home-Assistant-Integration mit echtem Mediaplayer: [HOMEASSISTANT.md](HOMEASSISTANT.md).
-API: [API.md](API.md).
+ein hängendes Gerät neu. API: [API.md](API.md) (englisch).
 
-Alles läuft über die eigene DSP-/Verstärkerkette des Lautsprechers. Das **Drehrad** regelt alle Quellen und bleibt
-über Bluetooth in beide Richtungen mit der Handy-Lautstärke synchron.
-
-Außerdem: SSH nur mit Schlüssel (eigenes dropbear), die offene Root-Shell auf Port 5555 (adb) ist zu, eine Firewall
-lässt nur die nötigen Ports herein, und die Harman-Clouddienste (Cortana, OTA-Updates, Absturzberichte, totes
-Harman-Spotify) sind abgeschaltet.
-
-**Kein Ziel:** Cortana wiederherzustellen. Der optionale Sprach-Satellit reicht nur das Mikrofon an das eigene Home Assistant weiter.
+**Kein Ziel:** ein Cloud-Sprachassistent. Der optionale Sprach-Satellit reicht nur das Mikrofon an das eigene Home Assistant
+weiter.
 
 ## Funktionsweise (kurz)
 
-Der Invoke läuft mit Linux 3.8 (Yocto + Android-Teile) auf einem Marvell BG2CD. Die beschreibbare Partition `/data`
-übersteht Neustarts, deshalb wird nach dem ersten Flashen nichts mehr am schreibgeschützten Systemabbild geändert:
-
-1. Ein **gerootetes Stock-Abbild** („StockRoot“ aus [coggy9/HKHacking](https://github.com/coggy9/HKHacking)) liefert
-   den ersten Zugang. Es wird mit dem Hersteller-Werkzeug über den Service-USB-Port geflasht, **ohne die
-   gerätespezifische Partition `factory_setting` zu löschen**.
-2. `dnsmasq` (läuft beim Start als root) dient über ein paar Zeilen in `/data/dnsmasq.conf` als **Autostart-Haken**
-   und startet `/data/leuchtfeuer/hook.sh`, einen kleinen Überwacher: SSH und Firewall einrichten, Harman-Dienste
-   kürzen, die Audiodienste am Laufen halten.
-3. Alle Programme werden mit Docker und Go für das Gerät gebaut (glibc 2.23 / musl, ARMv7), siehe `build.sh`.
-
-Details: [docs/ARCHITECTURE.md](ARCHITECTURE.md) (englisch). Forschungsnotizen:
-[docs/RESEARCH-NOTES.md](RESEARCH-NOTES.md).
-
-## Ausgabe
-
-Einstellungen > Ausgabe wählt, wo der Ton herauskommt: die eingebaute Ausgabe, eine andere Soundkarte der Hardware (HDMI, USB)
-oder ein **Bluetooth-Lautsprecher** (wird gesucht, gekoppelt und von selbst wieder verbunden). Einzelheiten:
-[docs/ARCHITECTURE.md](ARCHITECTURE.md#output) (englisch).
-
-## Andere Geräte
-
-Leuchtfeuer ist geräteunabhängig: Der Invoke ist ein **Zielgerät**; Tasten, Leuchtring und Hersteller-Klänge sind
-Erweiterungen dieses Ziels. Das Ziel **`generic`** bringt dieselben Empfänger, Webradio, Wecker, Briefing,
-Home-Assistant-Anbindung und Sprachsatellit auf jedes Linux mit systemd und ALSA (Raspberry Pi, Mini-PC):
-`tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64`, dann `sudo sh setup.sh` aus dem
-entpackten Paket. Aufbau und neues Gerät hinzufügen: [docs/TARGETS.md](TARGETS.md) (englisch).
+Ein kleiner Überwacher (`hook.sh`, gestartet von systemd oder vom Startvorgang des Geräts) startet und beobachtet die
+Empfänger, richtet Firewall und SSH ein, wo das Zielgerät es will, und stellt die Uhr. **leuchtfeuerd** liefert
+Weboberfläche und API und kümmert sich um Wecker, Timer, Briefing, Home Assistant und Lautstärke. Alle Quellen spielen in
+**eine ALSA-Tonkette** mit Reglern je Quelle, dem Klang-Plugin und dem Visualizer-Abgriff, die am Ausgang des Geräts endet.
+Einzelheiten: [ARCHITECTURE.md](ARCHITECTURE.md) (englisch).
 
 ## Schnellstart
 
-Voraussetzungen: ein Invoke, ein Linux-PC (entwickelt unter Arch), USB-Kabel für den Service-Port, `adb`,
-`docker`, `go` ≥ 1.22, `curl`, `git`, `unzip`, `python3`, `socat`, `telnet`. Der Invoke muss im WLAN erreichbar sein.
+**Jedes Linux** (Raspberry Pi, Mini-PC), siehe [INSTALL.de.md](INSTALL.de.md):
 
 ```sh
 git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
-
-# 1. ZUERST docs/INSTALL.de.md Teile 1-3 lesen: NAND sichern, StockRoot flashen, Lautsprecher ins WLAN bringen.
-# 2. installieren: fragt und erklärt Schritt für Schritt (baut bei Bedarf auch alles, Docker, einmalig 20-60 Minuten)
-./install.sh
-# (ohne Rückfragen: ./install.sh --non-interactive --ip <ip> --key ~/.ssh/id_ed25519.pub)
-# (ohne Bauen, kein Docker: ./install.sh --prebuilt   – Release-Paket von Gitea, ohne Tidal)
+tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64
+# auf dem Gerät, mit dem Paket aus dist/:
+mkdir lf && tar -xzf leuchtfeuer-*-generic-arm64.tar.gz -C lf && sudo sh lf/setup.sh --name Küche
+sudo apt install alsa-utils librespot shairport-sync gmediarender     # die gewünschten Empfänger
 ```
 
-Danach das Handy mit „HK Invoke“ koppeln oder ihn in Spotify / der UPnP-App / Music Assistant auswählen.
-Die vollständige Schritt-für-Schritt-Anleitung samt Hardware-Teil steht in **[docs/INSTALL.de.md](INSTALL.de.md)**
-([English](INSTALL.md), [README in English](../README.md)).
+Danach `http://<gerät>:8080/` öffnen.
 
-## Konfiguration
+**Harman Kardon Invoke:** zuerst den Lautsprecher sichern und flashen, dann `./install.sh` (fragt und erklärt jeden
+Schritt). Alles steht in **[INVOKE.de.md](INVOKE.de.md)**.
 
-`/data/leuchtfeuer/config` auf dem Lautsprecher (Vorlage: `device/leuchtfeuer/config.example`): Gerätename, Adresse des
-Music-Assistant-Servers für Sendspin, DHCP-Hostname, welche Dienste laufen (`SERVICE_<NAME>="on|off"`, auch in der
-Weboberfläche), Snapcast-Server, NTP-Server, HTTPS für die Weboberfläche und der öffentliche Schlüssel für signierte
-Updates. Ein erneutes `./install.sh` aktualisiert den Lautsprecher und
-lässt diese Datei unverändert, außer man gibt `--config` an.
+## Entwicklung
 
-## Notbremse / Deinstallieren
+- Tests ohne Gerät: `tests/run.sh` (Go mit Race-Detector, Shell, Klang-Plugin, Weboberfläche, Home-Assistant-Integration;
+  läuft auch in der CI). Auf einem Gerät: `scripts/smoke.sh`.
+- Demo-Modus für Screenshots (ohne Gerät, Demodaten „Studio Weber“): `demo/start.sh`.
+- Releases: ein Paket je Zielgerät, signiert (`tools/make-release.sh`, `.gitea/workflows/release.yml`).
 
-- `ssh root@<ip> 'touch /data/leuchtfeuer/disable-hook'` und neu starten: Originalverhalten (dann gilt wieder der gesperrte
-  Hersteller-sshd, und adb ist an).
-- `./uninstall.sh --ip <ip> --key <pub>` entfernt den Autostart-Haken (`--purge` löscht auch `/data/leuchtfeuer`).
+## Rechtliches
 
-## Rechtliches und Risiken
-
-- **Du kannst den Lautsprecher unbrauchbar machen.** Flashen des NAND über USB geschieht auf eigene Gefahr. Mach zuerst
-  die Sicherung aus [docs/INSTALL.de.md](INSTALL.de.md) Teil 1 und bewahre sie auf: Die Partition `factory_setting`
-  (Zertifikate, MAC, Kalibrierung) gibt es nur im Lautsprecher und in dieser Sicherung. Niemals `l2nand 83` ohne `-m`.
-- Dieses Projekt **enthält keine Harman- oder Marvell-Firmware**; `scripts/fetch.sh` lädt sie aus den öffentlichen
-  Releases von coggy9/HKHacking. Die NAND-Sicherung nicht weitergeben (enthält die Geräteschlüssel).
-- **Tidal Connect** nutzt das proprietäre `tidal_connect_application` von iFi audio mit iFis Gerätezertifikat (aus
-  [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). Das ist für diesen Lautsprecher
-  nicht lizenziert, Tidal kann es jederzeit sperren. Es ist freiwillig: `./build.sh --no-tidal` und
-  `./install.sh --no-tidal` lassen es weg.
+- Die Empfänger (librespot, gmrender-resurrect, sendspin-go, shairport-sync, snapclient, BlueZ, bluez-alsa, …) behalten
+  ihre eigenen Lizenzen; auf dem Invoke holt `build.sh` die genauen Quellen per Tag oder Commit, sonst kommen sie aus
+  deiner Distribution.
 - Der Cast-Empfänger ist eine **eigenständige Nachbildung** des Cast-Protokolls, keine Google-Software.
 - Sendspin verbindet sich derzeit im Legacy-Dialekt (unverschlüsselt); Music Assistant zeigt dazu einen Hinweis.
-- Release-Pakete (`install.sh --prebuilt`, Updates aus der Weboberfläche) enthalten keine Hersteller-Firmware und kein
-  Tidal; Updates aus der Weboberfläche werden nur mit gültiger Ed25519-Signatur (`UPDATE_PUBKEY`) angenommen, ein
-  fehlerhaftes Update wird zurückgenommen.
-- Die auf dem Lautsprecher installierten Programme (librespot, gmrender-resurrect, sendspin-go, BlueZ, bluez-alsa,
-  dropbear, FFmpeg/avahi im Tidal-Bündel, …) behalten ihre eigenen Lizenzen. `build.sh` holt die genauen Quellen per
-  Tag/Commit.
+- Release-Pakete enthalten keine Hersteller-Firmware und kein Tidal; Updates aus der Weboberfläche werden nur mit gültiger
+  Ed25519-Signatur (`UPDATE_PUBKEY`) angenommen, ein fehlerhaftes Update wird zurückgenommen.
+- Invoke: Flashen kann den Lautsprecher unbrauchbar machen, und Tidal Connect ist für ihn nicht lizenziert – siehe
+  [INVOKE.de.md](INVOKE.de.md#risiken).
 
 ## Lizenz
 
 MIT, siehe [LICENSE](../LICENSE). Das gilt für Code und Dokumentation dieses Repositories; die gebauten und installierten
-Programme (librespot, gmrender-resurrect, BlueZ, …) und die Hersteller-Firmware behalten ihre eigenen Lizenzen und Bedingungen.
+Programme und eine Hersteller-Firmware behalten ihre eigenen Lizenzen und Bedingungen.
 
 ## Danksagung
 
-[coggy9/HKHacking](https://github.com/coggy9/HKHacking) (StockRoot-Abbild, Flash-Verfahren),
+[coggy9/HKHacking](https://github.com/coggy9/HKHacking) (StockRoot-Abbild und Flash-Verfahren für den Invoke),
 [librespot](https://github.com/librespot-org/librespot), [gmrender-resurrect](https://github.com/hzeller/gmrender-resurrect),
-[Sendspin](https://github.com/Sendspin/sendspin-go), [BlueZ](https://www.bluez.org/),
-[bluez-alsa](https://github.com/arkq/bluez-alsa), [dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html),
-[TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker).
+[Sendspin](https://github.com/Sendspin/sendspin-go), [shairport-sync](https://github.com/mikebrady/shairport-sync),
+[Snapcast](https://github.com/badaix/snapcast), [BlueZ](https://www.bluez.org/), [bluez-alsa](https://github.com/arkq/bluez-alsa),
+[dropbear](https://matt.ucc.asn.au/dropbear/dropbear.html), [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker).
