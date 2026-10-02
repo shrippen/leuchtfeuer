@@ -232,7 +232,7 @@ Alle als Dienste unter `/data/leuchtfeuer/services/*.sh` (Quelle `device/leuchtf
   2.23 (Xenial-armhf-Cross, `tools/build-gmrender.sh`, `tools/docker/xenial-armhf.Dockerfile`),
   GStreamer/GLib des Geräts. 49494/tcp, 1900/udp. Getestet: Ton per SetAVTransportURI/Play
   vom Rechner abgespielt (PLAYING -> STOPPED am Ende).
-- **Sendspin:** sendspin-go v1.8.2 Player (Go + cgo, glibc 2.23, libopus 1.5.2 statisch,
+- **Sendspin:** sendspin-go v1.8.2 Player (Go + cgo, glibc 2.23, libopus 1.6.1 statisch,
   miniaudio lädt libasound des Geräts), `tools/build-sendspin.sh`. Der Player verbindet sich
   selbst (ws://…:8927/sendspin); mDNS-Suche geht über den Router nicht -> fest
   `--server <music-assistant>:8927` (Music Assistant 2.10, `SENDSPIN_SERVER` in `/data/leuchtfeuer/config`).
@@ -290,7 +290,7 @@ Alle als Dienste unter `/data/leuchtfeuer/services/*.sh` (Quelle `device/leuchtf
 
 ## Multiroom: Snapcast umgesetzt, AirPlay 2 geprüft (2026-10-01)
 
-**Snapcast** ist eingebaut (`services/snapclient.sh`, `tools/build-snapclient.sh`): snapclient 0.31 statisch (musl), ohne
+**Snapcast** ist eingebaut (`services/snapclient.sh`, `tools/build-snapclient.sh`): snapclient 0.35 statisch (musl), ohne
 ALSA-Ausgabe; der Datei-Player schreibt in eine Pipe, das `aplay` des Geräts spielt über `leuchtfeuer_snapcast`. So bleibt die
 Tonkette dieselbe wie bei den anderen Diensten (Quellen-Regler, Klang, Visualizer). Die Verzögerung von `aplay` gleicht
 die Latenz-Einstellung des Clients in snapweb aus (Startwert 100 ms, am Gerät nachmessen). Ohne avahi keine

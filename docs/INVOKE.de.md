@@ -52,6 +52,34 @@ Einzelheiten: [ARCHITECTURE.md](ARCHITECTURE.md) (englisch); Forschungsnotizen: 
   [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). Das ist für diesen Lautsprecher nicht lizenziert, Tidal kann es jederzeit sperren. Es ist freiwillig: `./build.sh --no-tidal` und
   `./install.sh --no-tidal` lassen es weg, Release-Pakete enthalten es nie.
 
+### Alte Systemsoftware des Geräts (wichtig)
+
+Leuchtfeuer bringt seine eigene Software aktuell mit, **das Betriebssystem des Invoke lässt sich aber nicht
+erneuern**. Harmans Stand von 2018 bleibt und enthält Programme, die seit Jahren keine Sicherheitsfixes mehr
+bekommen und trotzdem am WLAN hängen:
+
+| Teil | Stand auf dem Gerät | bekannt verwundbar |
+|---|---|---|
+| Kernel | 3.8.13 (2013) | zahlreiche, nicht nachrüstbar |
+| glibc | 2.23 | – (Grundlage für alles andere) |
+| wpa_supplicant | 2.5 (2015) | u. a. KRACK (CVE-2017-13077 ff.) |
+| dnsmasq | 2.75 (2015) | u. a. CVE-2017-14491 ff., DNSpooq |
+| OpenSSL (System) | 1.0.2h (2016) | EOL seit 2019 |
+| GnuTLS / libcurl / libxml2 | 3.4.9 / 7.47.1 / 2.9.4 | alle EOL |
+| GStreamer | 1.8.3 | EOL |
+| BusyBox / dhcpcd | 1.24.1 / 5.5.6 | EOL |
+
+Leuchtfeuer nutzt diese Teile so wenig wie möglich und bringt für alles Eigene aktuelle Bibliotheken mit
+(eigene curl mit mbedTLS, eigenes mbedTLS für AirPlay, eigenes OpenSSL 3.5 für Snapcast, aktueller
+CA-Bestand). Was bleibt, mildert die Einrichtung ab: Die Firewall endet auf `DROP` und lässt nur die
+nötigen Ports herein, adbd ist aus, IPv6 ist aus, SSH nimmt nur Schlüssel, und die Update-Server des
+Herstellers sind über `/etc/hosts` gesperrt.
+
+**Daraus folgt für den Betrieb:** Stell den Lautsprecher nur in ein Netz, dem du traust. Gib ihn nicht aus
+dem Internet frei (keine Portweiterleitung, kein DMZ), und hänge ihn möglichst in ein Gäste- oder IoT-Netz.
+Auf Zielgeräten wie dem Raspberry Pi stellt sich das nicht: dort kommen diese Teile aus der Distribution
+und werden mit ihr aktualisiert.
+
 ## Installation
 
 Der vollständige Weg vom Werkszustand eines Invoke bis zu einem laufenden Leuchtfeuer. Die Hardware-Teile (1-3) wurden

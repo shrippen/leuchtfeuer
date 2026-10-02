@@ -140,13 +140,13 @@ interface shows "not connected" and switching back to the built-in output restor
 | `castrecv.sh` | `src/castrecv` (Go) | 8009/tcp (TLS), 8008, 8443 | Cast receiver emulation, plays with `gst-launch-1.0` |
 | `tidal-1/2/3-*.sh` | iFi `tidal_connect_application` + bundled libs, avahi 0.6.32 (LD_PRELOAD shim for the missing `avahi` user), own `dbus-daemon` config | 2019/tcp | optional |
 | `shairport.sh` | shairport-sync 3.3.9 (AirPlay 1, Apple ALAC decoder), tinysvcmdns | 5000/tcp, 6001-6011/udp | does not attenuate; volume, play begin/end and metadata pipe go to leuchtfeuerd |
-| `snapclient.sh` | snapclient 0.31 (static musl, file player) + `aplay -D leuchtfeuer_snapcast` | outgoing 1704 | off by default; `SNAPCAST_SERVER` |
+| `snapclient.sh` | snapclient 0.35 (static musl, file player) + `aplay -D leuchtfeuer_snapcast` | outgoing 1704 | off by default; `SNAPCAST_SERVER` |
 | `leuchtfeuerd.sh` | `src/leuchtfeuerd` | 80/tcp (443 with `WEB_TLS`) | see below |
 | `bluetooth-1..4-*.sh` | bluetoothd, `btagent`, bluealsa, bluealsa-aplay | – | see below |
 
 ## Bluetooth
 
-Invoke: the vendor stack (Bluedroid) forgot pairings and was unreliable. It is replaced by **BlueZ 5.50**
+Invoke: the vendor stack (Bluedroid) forgot pairings and was unreliable. It is replaced by **BlueZ 5.87**
 (`tools/build-bluez.sh`; state under `/data/leuchtfeuer/bluez/var` so pairings persist):
 
 1. `bluetooth-1`: loads the kernel module `bt8xxx` (Marvell SD8887) with its firmware, brings `hci0` up (the chip

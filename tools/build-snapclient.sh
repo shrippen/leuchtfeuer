@@ -4,14 +4,25 @@
 # Codecs: FLAC (Standard von snapserver) und PCM; libFLAC, OpenSSL und alsa-lib statisch (snapcast verlangt
 # beide beim Bauen; abgespielt wird trotzdem über den Datei-Player), Boost nur als Header.
 #   tools/build-snapclient.sh [tag]   -> build/snapclient/snapclient
+# Die Prüfsummen unten sind gegen die veröffentlichten Werte der Projekte geprüft (OpenSSL: .sha256 des Releases,
+# FLAC: SHA256SUMS.txt von xiph, alsa-lib: GPG-Signatur des ALSA Release Teams). Bei neuen Versionen Version und
+# Prüfsumme zusammen anpassen und die Herkunft erneut kontrollieren.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
-tag=${1:-v0.31.0}
+tag=${1:-v0.35.0}
 out=$here/build/snapclient
+FLAC_VER=1.5.0
+FLAC_SHA=f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920
+ALSA_VER=1.2.16.1
+ALSA_SHA=f740db7f488255944ffd4428416ee3390a96742856916433df468c281436480e
+SSL_VER=3.5.9   # LTS-Linie; 3.0.x läuft im Sicherheitsunterhalt aus
+SSL_SHA=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 mkdir -p "$out"
 docker image inspect invoke-armv7-musl >/dev/null 2>&1 || \
   docker build -q -t invoke-armv7-musl -f "$here/tools/docker/armv7-musl.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -e TAG="$tag" invoke-armv7-musl bash -euc '
+docker run --rm -v "$out:/out" -e TAG="$tag" \
+  -e FLAC_VER=$FLAC_VER -e FLAC_SHA=$FLAC_SHA -e ALSA_VER=$ALSA_VER -e ALSA_SHA=$ALSA_SHA \
+  -e SSL_VER=$SSL_VER -e SSL_SHA=$SSL_SHA invoke-armv7-musl bash -euc '
   apk add --no-cache -q cmake git boost-dev xz >/dev/null
   H=armv7l-linux-musleabihf
   # ohne PIE wie dropbear (statisch, fester Ladeort; der Kernel 3.8 des Geräts)
@@ -19,16 +30,22 @@ docker run --rm -v "$out:/out" -e TAG="$tag" invoke-armv7-musl bash -euc '
   export CC=/opt/tc/bin/gcc CXX=/opt/tc/bin/g++ AR=/opt/tc/bin/ar RANLIB=/opt/tc/bin/ranlib
   P=/opt/deps; mkdir -p $P
   cd /tmp
-  wget -q https://downloads.xiph.org/releases/flac/flac-1.4.3.tar.xz && tar xf flac-1.4.3.tar.xz
-  (cd flac-1.4.3 && ./configure -q --host=$H --prefix=$P --enable-static --disable-shared --disable-cpplibs --disable-programs \
+  wget -q https://downloads.xiph.org/releases/flac/flac-$FLAC_VER.tar.xz
+  echo "$FLAC_SHA  flac-$FLAC_VER.tar.xz" | sha256sum -cs || { echo "Pruefsumme falsch: flac-$FLAC_VER.tar.xz" >&2; exit 1; }
+  tar xf flac-$FLAC_VER.tar.xz
+  (cd flac-$FLAC_VER && ./configure -q --host=$H --prefix=$P --enable-static --disable-shared --disable-cpplibs --disable-programs \
      --disable-examples --disable-doxygen-docs --disable-ogg >/dev/null && make -s -j$(nproc) >/dev/null && make -s install >/dev/null)
-  wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.12.tar.bz2 && tar xf alsa-lib-1.2.12.tar.bz2
-  (cd alsa-lib-1.2.12 && ./configure -q --host=$H --prefix=$P --enable-static --disable-shared --disable-python \
+  wget -q https://www.alsa-project.org/files/pub/lib/alsa-lib-$ALSA_VER.tar.bz2
+  echo "$ALSA_SHA  alsa-lib-$ALSA_VER.tar.bz2" | sha256sum -cs || { echo "Pruefsumme falsch: alsa-lib-$ALSA_VER.tar.bz2" >&2; exit 1; }
+  tar xf alsa-lib-$ALSA_VER.tar.bz2
+  (cd alsa-lib-$ALSA_VER && ./configure -q --host=$H --prefix=$P --enable-static --disable-shared --disable-python \
      --disable-ucm --disable-topology >/dev/null && make -s -j$(nproc) >/dev/null && make -s install >/dev/null)
-  wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.15/openssl-3.0.15.tar.gz && tar xf openssl-3.0.15.tar.gz
-  (cd openssl-3.0.15 && ./Configure linux-armv4 no-shared no-tests --prefix=$P --libdir=lib >/dev/null \
+  wget -q https://github.com/openssl/openssl/releases/download/openssl-$SSL_VER/openssl-$SSL_VER.tar.gz
+  echo "$SSL_SHA  openssl-$SSL_VER.tar.gz" | sha256sum -cs || { echo "Pruefsumme falsch: openssl-$SSL_VER.tar.gz" >&2; exit 1; }
+  tar xf openssl-$SSL_VER.tar.gz
+  (cd openssl-$SSL_VER && ./Configure linux-armv4 no-shared no-tests --prefix=$P --libdir=lib >/dev/null \
      && make -s -j$(nproc) build_libs >/dev/null && make -s install_dev >/dev/null)
-  sha256sum flac-1.4.3.tar.xz alsa-lib-1.2.12.tar.bz2 openssl-3.0.15.tar.gz > /out/deps.sha256
+  { echo "flac $FLAC_VER $FLAC_SHA"; echo "alsa-lib $ALSA_VER $ALSA_SHA"; echo "openssl $SSL_VER $SSL_SHA"; } > /out/deps.sha256
   export PKG_CONFIG_PATH=$P/lib/pkgconfig PKG_CONFIG_LIBDIR=$P/lib/pkgconfig
   git clone -q --depth 1 --branch "$TAG" https://github.com/badaix/snapcast.git && cd snapcast
   git rev-parse HEAD > /out/source.commit
