@@ -62,7 +62,9 @@ PC
   mkdir -p /tmp/ba && make -s install DESTDIR=/tmp/ba >/dev/null
   # Ergebnis einsammeln
   cp /tmp/bz$R/libexec/bluetooth/bluetoothd /out/ 2>/dev/null || cp /tmp/bz$R/lib/bluetooth/bluetoothd /out/ 2>/dev/null || find /tmp/bz -name bluetoothd -exec cp {} /out/ \;
-  for t in hciconfig hcitool btmgmt l2ping sdptool; do find /tmp/bz -name $t -type f -exec cp {} /out/ \; ; done
+  # btmgmt entfällt: es braucht die interaktive Shell von BlueZ (readline), die --disable-client abschaltet.
+  # Im Projekt wird es nirgends benutzt; zum Nachsehen reichen hciconfig und hcitool.
+  for t in hciconfig hcitool l2ping sdptool; do find /tmp/bz -name $t -type f -exec cp {} /out/ \; ; done
   find /tmp/ba -type f \( -name bluealsa -o -name bluealsa-aplay \) -exec cp {} /out/ \;
   # ALSA-Plugin "bluealsa": Ausgabe an Bluetooth-Lautsprecher (A2DP-Quelle), siehe asound-target.conf
   find /tmp/ba -type f -name libasound_module_pcm_bluealsa.so -exec cp {} /out/ \;
