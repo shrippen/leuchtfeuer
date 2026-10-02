@@ -467,7 +467,7 @@ function viewAlarms() {
         <button class="btn btn-accent btn-sm" id="t-start" style="align-self:end">${ico('play')}${T('Start', 'Start')}</button></div>
       <div class="list" id="t-list">${timersHTML()}</div></div>
     <div class="card"><h3>${T('Time zone', 'Zeitzone')}</h3>
-      <p>${T('Alarms use this time zone (the speaker itself runs on Pacific time).', 'Wecker nutzen diese Zeitzone (der Lautsprecher selbst läuft auf Pacific Time).')}</p>
+      <p>${T('Alarms, timers and the briefing use this time zone, whatever the system clock of the device is set to.', 'Wecker, Timer und Briefing nutzen diese Zeitzone, egal worauf die Systemuhr des Geräts eingestellt ist.')}</p>
       <div class="row"><input class="input" id="tz" list="tzs" value="${esc(CFG.settings.timezone)}" style="max-width:16rem"><datalist id="tzs">${timeZones().map(z => `<option value="${z}">`).join('')}</datalist>
         <button class="btn btn-outline btn-sm" id="tz-save">${ico('save')}${T('Save', 'Speichern')}</button></div>
       ${browserTZ() && browserTZ() !== CFG.settings.timezone ? `<p class="small">${T('This browser uses', 'Dieser Browser nutzt')} <button type="button" class="chip is-filter" id="tz-mine">${esc(browserTZ())}</button></p>` : ''}
@@ -1286,7 +1286,7 @@ function viewDevices() {
     <div class="row"><button class="btn btn-accent btn-sm" id="pe-copy">${ico('copy')}${T('Copy', 'Kopieren')}</button></div></div>
   <div class="card"><h3>${T('Add speaker', 'Lautsprecher eintragen')}</h3>
     ${found.length ? `<p>${T('Found in the network:', 'Im Netz gefunden:')}</p><div class="list">${found.map(f => `<div class="item"><div><div class="t">${esc(f.name)}</div><div class="s">${esc(f.url)} · ${esc(f.version)}</div></div><button class="btn btn-outline btn-sm" data-pfill="${esc(f.url)}" data-pname="${esc(f.name)}">${T('Use', 'Übernehmen')}</button></div>`).join('')}</div>` : `<p class="small">${T('None found automatically (the router may not pass mDNS on). Enter the address by hand.', 'Keiner automatisch gefunden (der Router reicht mDNS evtl. nicht weiter). Adresse von Hand eintragen.')}</p>`}
-    ${fld('pe-url', 'Address', 'Adresse', '', 'placeholder="http://invoke-kueche.lan"')}${fld('pe-name', 'Name (optional)', 'Name (optional)', '')}
+    ${fld('pe-url', 'Address', 'Adresse', '', 'placeholder="http://kueche.lan"')}${fld('pe-name', 'Name (optional)', 'Name (optional)', '')}
     <div class="field"><label for="pe-tok">${T('API key of that speaker', 'API-Schlüssel dieses Lautsprechers')}</label><input class="input" id="pe-tok" type="password" autocomplete="off" placeholder="lf_…"></div>
     <div class="row"><button class="btn btn-accent btn-sm" id="pe-add">${ico('plus')}${T('Add', 'Eintragen')}</button></div></div></div>`;
 }

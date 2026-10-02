@@ -29,8 +29,8 @@ bilingual (`"deutsch / english"`).
 **Successful actions:** `{"ok": true}`.
 
 ```sh
-curl -H "Authorization: Bearer $KEY" http://invoke.lan/api/status
-curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"volume":30}' http://invoke.lan/api/volume
+curl -H "Authorization: Bearer $KEY" http://speaker.lan:8080/api/status
+curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"volume":30}' http://speaker.lan:8080/api/volume
 ```
 
 ## Status and live events
@@ -79,7 +79,7 @@ Prometheus text format. Example `prometheus.yml`:
 scrape_configs:
   - job_name: leuchtfeuer
     authorization: { credentials: lf_... }   # key with scope "read"
-    static_configs: [{ targets: ["invoke.lan:80"] }]
+    static_configs: [{ targets: ["speaker.lan:8080"] }]
 ```
 
 The metrics, all prefixed `leuchtfeuer_`:

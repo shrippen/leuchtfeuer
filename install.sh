@@ -7,7 +7,7 @@
 #   ./install.sh                         interactive: asks and explains every step (default)
 #   ./install.sh --non-interactive --ip 192.168.1.50 --key ~/.ssh/id_ed25519.pub [options]
 #
-# Prerequisite: the speaker is flashed (docs/INSTALL.md parts 1-3) and in your Wi-Fi.
+# Prerequisite: the speaker is flashed (docs/INVOKE.md parts 1-3) and in your Wi-Fi. Other devices: docs/INSTALL.md.
 # First install talks to the speaker over adb (port 5555, open on StockRoot) and from then on over SSH;
 # running it again updates the speaker (idempotent, only changed files are transferred, the speaker's
 # configuration is kept).
@@ -133,10 +133,10 @@ fi
 # ====================================================================== settings
 if [ "$MODE" = first ] && [ "$INTERACTIVE" = 1 ]; then
   say "Before you start: your NAND backup" "Vorher: deine NAND-Sicherung"
-  info "The backup from docs/INSTALL.md part 1 (backup/<time>/ in this folder) is the only copy of your speaker's
+  info "The backup from docs/INVOKE.md part 1 (backup/<time>/ in this folder) is the only copy of your speaker's
 factory_setting partition (certificates, MAC, calibration). If this computer's disk fails, it is gone. Copy the
 backup folder to a second place now (USB stick, NAS, cloud drive)." \
-"Die Sicherung aus docs/INSTALL.md Teil 1 (backup/<zeit>/ in diesem Ordner) ist die einzige Kopie der Partition
+"Die Sicherung aus docs/INVOKE.de.md Teil 1 (backup/<zeit>/ in diesem Ordner) ist die einzige Kopie der Partition
 factory_setting deines Lautsprechers (Zertifikate, MAC, Kalibrierung). Geht die Platte dieses Rechners kaputt, ist sie
 weg. Kopiere den Ordner backup jetzt an einen zweiten Ort (USB-Stick, NAS, Cloud-Speicher)."
   ls -d backup/*/ 2>/dev/null | sed 's/^/    /' || true
