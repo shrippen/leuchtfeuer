@@ -360,7 +360,7 @@ function viewRadio() {
       <div class="stack"><div class="field"><label for="r-name-${i}">${grip()}${i < 5 ? `<span class="pill" data-state="applied">${i + 1}</span> ` : ''}${T('Name', 'Name')}</label><input class="input r-name" id="r-name-${i}" value="${esc(p.name)}"></div>
       <div class="field"><label for="r-url-${i}">${T('Stream address', 'Stream-Adresse')}</label><input class="input r-url" id="r-url-${i}" value="${esc(p.url)}" placeholder="https://"></div>
       ${cur === p.name ? `<span class="pill" data-state="applied">${stateLabel(S.player.state)}</span>` : ''}</div>
-      <div class="stack"><button class="btn btn-accent btn-sm" data-play="${i}">${ico('play')}${T('Play', 'Abspielen')}</button>
+      <div class="stack"><button class="btn btn-outline btn-sm" data-play="${i}">${ico('play')}${T('Play', 'Abspielen')}</button>
       <div class="row"><button class="btn btn-outline btn-sm" data-mv="${i}" data-d="-1" aria-label="${tt('Up', 'Nach oben')}" ${i ? '' : 'disabled'}>${ico('arrowUp')}</button>
       <button class="btn btn-outline btn-sm" data-mv="${i}" data-d="1" aria-label="${tt('Down', 'Nach unten')}" ${i < R.length - 1 ? '' : 'disabled'}>${ico('arrowDown')}</button>
       <button class="btn btn-outline btn-sm" data-del="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div></div>`).join('')}</div>

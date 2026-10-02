@@ -7,10 +7,10 @@
 .grid{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start}
 .grid.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.2rem 1.6rem;margin-bottom:1.4rem}
 .card{background:var(--bg-panel);border-top:4px solid var(--bg2);padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.8rem;min-width:0}
-.card[data-tier="yellow"]{border-top-color:var(--yellow)}
+.card[data-tier="yellow"]{border-top-color:var(--primary)}
 .card[data-tier="cyan"]{border-top-color:var(--cyan)}
 .card[data-tier="red"]{border-top-color:var(--danger)}
-.card h3{font-family:var(--font-heading);font-weight:700;font-size:1.05rem;letter-spacing:.06em;text-transform:uppercase;color:var(--fg0)}
+.card h3{font-family:var(--font-heading);font-weight:700;font-size:var(--title-s);letter-spacing:var(--title-track);text-transform:uppercase;color:var(--fg0)}
 .card p,.hint{color:var(--fg3);font-size:.85rem}
 .row{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
 .row.between{justify-content:space-between}
