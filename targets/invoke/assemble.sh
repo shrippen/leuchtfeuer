@@ -13,6 +13,12 @@ else echo "Hinweis: build/bluez/libasound_module_pcm_bluealsa.so fehlt (tools/bu
 # Pflicht für asound-music.conf: ohne die beiden Plugins gibt es keinen Ton
 cp build/viztap/leuchtfeuer-viz-tap.so build/viztap/leuchtfeuer-eq.so "$S/lib/ladspa/"
 chmod 755 "$S"/dropbearmulti "$S"/bluez/bin/*
+# Tidal-Bibliotheken früherer Bündel (curl 7.38 aus Jessie mit Abhängigkeiten, OpenSSL 1.0.1, FFmpeg unter Vollnamen):
+# entfallen, seit curl aktuell mit mbedTLS und OpenSSL 1.0.2u gebaut wird (tools/build-tidal-bundle.sh)
+for l in libssl.so.1.0.0 libcrypto.so.1.0.0 libgnutls-deb0.so.28 libnettle.so.4 libhogweed.so.2 libgssapi_krb5.so.2 \
+  libk5crypto.so.3 libkrb5.so.3 libkrb5support.so.0 libkeyutils.so.1 libcom_err.so.2 libldap_r-2.4.so.2 liblber-2.4.so.2 \
+  libsasl2.so.2 librtmp.so.1 libssh2.so.1 libp11-kit.so.0 libtasn1.so.6 libavcodec.so.57.107.100 \
+  libavformat.so.57.83.100 libavutil.so.55.78.100 libswresample.so.2.9.100; do echo "tidal/lib/$l"; done >> "$S/.remove"
 if [ "$TIDAL" = 1 ]; then
   mkdir -p "$S/tidal"
   cp -a build/tidal/bin build/tidal/cert build/tidal/lib build/tidal/sbin "$S/tidal/"

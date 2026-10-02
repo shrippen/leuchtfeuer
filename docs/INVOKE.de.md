@@ -47,9 +47,9 @@ Einzelheiten: [ARCHITECTURE.md](ARCHITECTURE.md) (englisch); Forschungsnotizen: 
   Kalibrierung) gibt es nur im Lautsprecher und in dieser Sicherung. Niemals `l2nand 83` ohne `-m`.
 - Dieses Projekt **enthält keine Harman- oder Marvell-Firmware**; `scripts/fetch.sh` lädt sie aus den öffentlichen
   Releases von coggy9/HKHacking. Die NAND-Sicherung nicht weitergeben (enthält die Geräteschlüssel).
-- **Tidal Connect** gibt es nur auf dem Invoke, über das proprietäre `tidal_connect_application` von iFi audio mit iFis
-  Gerätezertifikat (aus [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). Das ist für
-  diesen Lautsprecher nicht lizenziert, Tidal kann es jederzeit sperren. Es ist freiwillig: `./build.sh --no-tidal` und
+- **Tidal Connect** (als Modul auch für andere ARM-Geräte, siehe [INSTALL.de.md](INSTALL.de.md)) nutzt das proprietäre
+  `tidal_connect_application` von iFi audio mit iFis Gerätezertifikat (aus
+  [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). Das ist für diesen Lautsprecher nicht lizenziert, Tidal kann es jederzeit sperren. Es ist freiwillig: `./build.sh --no-tidal` und
   `./install.sh --no-tidal` lassen es weg, Release-Pakete enthalten es nie.
 
 ## Installation

@@ -28,4 +28,18 @@ sh $T/au.sh rollback Test >/dev/null
 check "alter Stand zurück" '[ "$(cat $T/d/bin/a)" = alt ] && [ "$(cat $T/d/VERSION)" = v1 ] && [ "$(cat $T/d/podium.conf)" = pod1 ]'
 check "neue Datei wieder weg, entfernte wieder da" '[ ! -e $T/d/bin/n ] && [ "$(cat $T/d/services/volume-sync.sh)" = weg ]'
 check "Rückfall vermerkt" 'grep -q Test $T/d/update-rolledback && [ ! -e $T/d/update-pending ]'
+
+# Rückfall, während das ersetzte Programm läuft (Tidal, Spotify ...): darf nicht an "Text file busy" scheitern
+# (die laufende Datei wird ersetzt, nicht überschrieben). Alt = Kopie von sleep, neu = Kopie von tail (läuft).
+rm -rf $T/d $T/s; mkdir -p $T/d/bin $T/d/lib $T/s/bin $T/s/lib
+SLEEP=$(command -v sleep) TAIL=$(command -v tail)
+cp "$SLEEP" $T/d/bin/prog; echo alt-lib > $T/d/lib/libx.so; echo v1 > $T/d/VERSION; : > $T/d/hook.log
+cp "$TAIL" $T/s/bin/prog; echo neu-lib > $T/s/lib/libx.so; echo v2 > $T/s/VERSION
+sh "$ROOT/device/leuchtfeuer/apply-update.sh" apply $T/s norestart >/dev/null 2>&1
+$T/d/bin/prog -f /dev/null & sp=$!
+sleep 0.2
+check "neue Fassung läuft" 'cmp -s $T/d/bin/prog "$TAIL" && kill -0 $sp'
+sh $T/au.sh rollback Test2 >/dev/null 2>&1
+check "Rückfall bei laufendem Programm vollständig" 'cmp -s $T/d/bin/prog "$SLEEP" && [ "$(cat $T/d/lib/libx.so)" = alt-lib ] && [ "$(cat $T/d/VERSION)" = v1 ]'
+kill $sp 2>/dev/null
 exit $fail

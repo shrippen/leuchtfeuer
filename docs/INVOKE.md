@@ -43,9 +43,9 @@ Details: [ARCHITECTURE.md](ARCHITECTURE.md); research notes (German): [RESEARCH-
   backup. Never run `l2nand 83` without `-m`.
 - This project **does not contain Harman or Marvell firmware**; `scripts/fetch.sh` downloads it from the public releases of
   coggy9/HKHacking. Do not share your NAND backup (it contains your device keys).
-- **Tidal Connect** is available on the Invoke only, through the proprietary `tidal_connect_application` of iFi audio with
-  iFi's device certificate (from [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). That
-  is not licensed for this speaker, and Tidal may block it any time. It is opt-in: `./build.sh --no-tidal` and
+- **Tidal Connect** (also available as a module for other ARM devices, see [INSTALL.md](INSTALL.md)) runs the
+  proprietary `tidal_connect_application` of iFi audio with iFi's device certificate (from
+  [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). That is not licensed for this speaker, and Tidal may block it any time. It is opt-in: `./build.sh --no-tidal` and
   `./install.sh --no-tidal` leave it out, and release packages never contain it.
 
 ## Installation

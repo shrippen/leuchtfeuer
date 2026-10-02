@@ -30,7 +30,7 @@ Nach der Installation erscheint das Gerät unter seinem Namen in:
 | **Google Cast** (Audio) | eigene Empfänger-Nachbildung (`src/castrecv`) | nur für Sender ohne Geräteprüfung durch Google: Music Assistant, Home Assistant, VLC, pychromecast. **Nicht** YouTube / Spotify-Cast / Chrome-Tab |
 | **Snapcast** (optional) | [snapclient](https://github.com/badaix/snapcast) | Multiroom synchron mit anderen Snapcast-Lautsprechern; anfangs aus, braucht deinen snapserver |
 | **Bluetooth-A2DP-Empfänger** | BlueZ + bluez-alsa + eigener Agent (`src/btagent`) | Kopplungsfenster aus der Weboberfläche, aus Home Assistant oder per Taste; merkt sich Kopplungen, Handy-Lautstärke bleibt synchron |
-| **Tidal Connect** (nur Invoke, optional) | proprietäres iFi-Programm | **nicht für dieses Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, siehe [INVOKE.de.md](INVOKE.de.md#risiken) |
+| **Tidal Connect** (optional, nur ARM) | proprietäres iFi-Programm | **nicht für dein Gerät lizenziert**, kann gesperrt werden – nur auf Wunsch, nie in einem Paket: Invoke siehe [INVOKE.de.md](INVOKE.de.md#risiken), sonst als Modul, siehe [INSTALL.de.md](INSTALL.de.md) |
 
 Der Ton kann auch an eine andere Soundkarte (HDMI, USB) oder einen **Bluetooth-Lautsprecher** gehen (Einstellungen > Ausgabe).
 

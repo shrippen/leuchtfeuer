@@ -38,5 +38,5 @@ done
 . "$t/assemble.sh"
 git describe --tags --always --dirty 2>/dev/null > "$S/VERSION" || echo dev > "$S/VERSION"
 # entfallene Dateien älterer Versionen (volume-sync: jetzt in leuchtfeuerd; bis Oktober 2026 hieß alles "invoke")
-printf '%s\n' services/volume-sync.sh services/invoked.sh bin/invoked lib/ladspa/invoke-viz-tap.so lib/ladspa/invoke-eq.so > "$S/.remove"
+printf '%s\n' services/volume-sync.sh services/invoked.sh bin/invoked lib/ladspa/invoke-viz-tap.so lib/ladspa/invoke-eq.so >> "$S/.remove"
 chmod 755 "$S"/*.sh "$S"/bin/* "$S"/services/*.sh

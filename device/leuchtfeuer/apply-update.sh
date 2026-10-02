@@ -75,8 +75,13 @@ apply(){
 rollback(){
   [ -d "$P" ] || { log "kein voriger Stand (.prev) vorhanden"; rm -f $D/update-pending; exit 1; }
   cd "$P"
-  find . -type f ! -name .new-files ! -name VERSION | while read -r f; do
-    if inplace "$f" && [ -f "$D/$f" ]; then cat "$f" > "$D/$f"; else mkdir -p "$D/$(dirname "$f")"; cp -p "$f" "$D/$f"; fi
+  # Zurücklegen per mv: ersetzt den Verzeichniseintrag, statt in die Datei zu schreiben. Ein laufendes Programm ("Text
+  # file busy") hält den Rückfall so nicht auf, und geladene Bibliotheken laufender Prozesse bleiben unberührt.
+  # Liste vorher sammeln, damit find nicht durch einen Ordner läuft, aus dem gerade verschoben wird.
+  list=$(find . -type f ! -name .new-files ! -name VERSION)
+  printf '%s\n' "$list" | while read -r f; do
+    [ -n "$f" ] || continue
+    if inplace "$f" && [ -f "$D/$f" ]; then cat "$f" > "$D/$f"; else mkdir -p "$D/$(dirname "$f")"; mv -f "$f" "$D/$f"; fi
   done
   [ -f .new-files ] && while read -r f; do [ -n "$f" ] && rm -f "$D/$f"; done < .new-files
   [ -f VERSION ] && cp VERSION $D/VERSION
