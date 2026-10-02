@@ -1,24 +1,35 @@
 #!/usr/bin/env bash
 # Baut den Sendspin-Player (sendspin-go) für den Invoke: Go + cgo gegen glibc 2.23 armhf
-# (Xenial-Cross). miniaudio lädt libasound.so.2 des Geräts zur Laufzeit; libopus 1.5.2 statisch.
+# (Xenial-Cross). miniaudio lädt libasound.so.2 des Geräts zur Laufzeit; libopus statisch.
 #   tools/build-sendspin.sh [tag]   -> build/sendspin/sendspin-player
+# Die Prüfsummen unten sind gegen die veröffentlichten Werte geprüft (Go: Liste auf go.dev/dl, opus: SHA256SUMS.txt
+# von xiph). Bei neuen Versionen Version und Prüfsumme zusammen anpassen und die Herkunft erneut kontrollieren.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 tag=${1:-v1.8.2}
 out=$here/build/sendspin
+GO_VER=1.27.1
+GO_SHA=63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445
+OPUS_VER=1.6.1
+OPUS_SHA=6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1
 mkdir -p "$out" "$here/build/go-cache"
-docker run --rm -v "$out:/out" -v "$here/build/go-cache:/root/go" -e TAG="$tag" invoke-xenial-armhf bash -euc '
-  cd /tmp && wget -q https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && tar xzf go1.25.1.linux-amd64.tar.gz
+docker run --rm -v "$out:/out" -v "$here/build/go-cache:/root/go" -e TAG="$tag" \
+  -e GO_VER=$GO_VER -e GO_SHA=$GO_SHA -e OPUS_VER=$OPUS_VER -e OPUS_SHA=$OPUS_SHA invoke-xenial-armhf bash -euc '
+  cd /tmp && wget -q https://go.dev/dl/go$GO_VER.linux-amd64.tar.gz
+  echo "$GO_SHA  go$GO_VER.linux-amd64.tar.gz" | sha256sum -c --quiet
+  tar xzf go$GO_VER.linux-amd64.tar.gz
   # libopus aktuell und statisch (Xenial hat 1.1.2, zu alt für hraban/opus)
-  wget -q https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz && tar xzf opus-1.5.2.tar.gz
-  (cd opus-1.5.2 && ./configure -q --host=arm-linux-gnueabihf --prefix=/opt/opus --enable-static --disable-shared \
+  wget -q https://downloads.xiph.org/releases/opus/opus-$OPUS_VER.tar.gz
+  echo "$OPUS_SHA  opus-$OPUS_VER.tar.gz" | sha256sum -c --quiet
+  tar xzf opus-$OPUS_VER.tar.gz
+  (cd opus-$OPUS_VER && ./configure -q --host=arm-linux-gnueabihf --prefix=/opt/opus --enable-static --disable-shared \
      --disable-doc --disable-extra-programs CFLAGS="-O2 -fPIC -mfpu=neon" >/dev/null && make -s -j$(nproc) >/dev/null && make -s install >/dev/null)
-  sha256sum opus-1.5.2.tar.gz > /out/opus.sha256
+  { echo "go $GO_VER $GO_SHA"; echo "opus $OPUS_VER $OPUS_SHA"; } > /out/opus.sha256
   export PATH=/tmp/go/bin:$PATH
   mkdir -p /tmp/pc && cat > /tmp/pc/opus.pc <<PC
 Name: opus
 Description: opus (statisch)
-Version: 1.5.2
+Version: $OPUS_VER
 Cflags: -I/opt/opus/include/opus
 Libs: /opt/opus/lib/libopus.a -lm
 PC

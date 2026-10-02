@@ -48,6 +48,33 @@ Details: [ARCHITECTURE.md](ARCHITECTURE.md); research notes (German): [RESEARCH-
   [TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). That is not licensed for this speaker, and Tidal may block it any time. It is opt-in: `./build.sh --no-tidal` and
   `./install.sh --no-tidal` leave it out, and release packages never contain it.
 
+### The device's old system software (important)
+
+Leuchtfeuer ships its own software up to date, but **the Invoke's operating system cannot be renewed**.
+Harman's 2018 image stays, and it contains programs that have had no security fixes for years yet sit on
+your Wi-Fi:
+
+| Part | On the device | Known vulnerable |
+|---|---|---|
+| Kernel | 3.8.13 (2013) | many, not fixable |
+| glibc | 2.23 | – (everything else builds on it) |
+| wpa_supplicant | 2.5 (2015) | KRACK (CVE-2017-13077 ff.) among others |
+| dnsmasq | 2.75 (2015) | CVE-2017-14491 ff., DNSpooq among others |
+| OpenSSL (system) | 1.0.2h (2016) | EOL since 2019 |
+| GnuTLS / libcurl / libxml2 | 3.4.9 / 7.47.1 / 2.9.4 | all EOL |
+| GStreamer | 1.8.3 | EOL |
+| BusyBox / dhcpcd | 1.24.1 / 5.5.6 | EOL |
+
+Leuchtfeuer uses these parts as little as it can and brings current libraries for everything of its own
+(its own curl with mbedTLS, its own mbedTLS for AirPlay, its own OpenSSL 3.5 for Snapcast, a current CA
+bundle). What remains is contained by the setup: the firewall ends in `DROP` and lets in only the ports
+that are needed, adbd is off, IPv6 is off, SSH takes keys only, and the vendor's update servers are
+blocked through `/etc/hosts`.
+
+**What that means for running it:** only put the speaker on a network you trust. Do not expose it to the
+internet (no port forwarding, no DMZ), and prefer a guest or IoT network. This does not apply to targets
+like the Raspberry Pi: there these parts come from the distribution and are updated with it.
+
 ## Installation
 
 Complete path from a factory Invoke to a running Leuchtfeuer. The hardware parts (1-3) were done once on one device; the
