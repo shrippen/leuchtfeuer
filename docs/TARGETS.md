@@ -114,6 +114,11 @@ declare them with `# requires:`. Device-only services (the Invoke's BlueZ build 
 `targets/<id>/services/`. `targets/<id>/assemble.sh` is sourced by `scripts/assemble.sh` with `S` (staging directory),
 `t`, `DIR`, `ARCH`, `TIDAL` and copies the programs and system files of the device.
 
+Optional parts that should not be in every package (space is short on smart speakers) can be **modules**: a tarball with
+a `MODULE` file (`name=`, `arch=`, `check=` a command that says what is missing) plus `bin/`, `services/` and data, which
+`setup.sh --module FILE` unpacks into the installation and `setup.sh --remove-module NAME` removes again. Example:
+`targets/generic/modules/tidal` with `tools/make-tidal-module.sh`.
+
 ### Checks
 
 - `sh tests/hook_test.sh`, `cd src/leuchtfeuerd && go test ./...`

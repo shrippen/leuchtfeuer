@@ -59,7 +59,30 @@ sudo apt install alsa-utils librespot shairport-sync gmediarender snapclient
 | Cast (for Music Assistant, Home Assistant, VLC) | `castrecv`, part of the package | |
 | Bluetooth A2DP | the system's `bluetoothd` and bluez-alsa (`sudo apt install bluez bluez-alsa-utils`) | switch on in Settings > Services; Leuchtfeuer adds its agent |
 
-Tidal Connect is only available on the Invoke.
+### Tidal Connect (optional module, ARM only)
+
+Tidal Connect uses the proprietary `tidal_connect_application` of iFi audio with iFi's device certificate (from
+[TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). It is **not licensed for your
+device**, and Tidal may block it any time. That is why it is never part of a package: you build it yourself as a module
+and add it only if you want it. The program exists for 32-bit ARM only, so it runs on a Raspberry Pi and similar boards
+(also on 64-bit systems via multiarch), not on x86.
+
+```sh
+tools/build-tidal-bundle.sh generic && tools/make-tidal-module.sh      # -> dist/leuchtfeuer-tidal-<version>-armhf.tar.gz
+# on the device:
+sudo sh /opt/leuchtfeuer/setup.sh --module leuchtfeuer-tidal-*-armhf.tar.gz
+sudo sh /opt/leuchtfeuer/setup.sh --remove-module tidal                # remove it again
+```
+
+The module (about 3.4 MB packed) brings only what current systems lack; the rest comes from the system. If something is
+missing, `setup.sh` prints the `apt install` line (on 64-bit with `:armhf`): `libstdc++6 libasound2 libportaudio2
+libavahi-client3 zlib1g libogg0`, plus `alsa-utils` and `avahi-daemon`. The speaker then appears in the Tidal app under
+its name; Tidal plays into Leuchtfeuer's sound chain like every other source.
+
+The program is from 2019 and expects old interfaces. To keep it as safe as possible, the module replaces what it can:
+HTTPS goes through a current curl with mbedTLS, its own TLS uses OpenSSL 1.0.2u from Debian's security updates (SSLv3
+stays off), FFmpeg 3.4.13 is built without network and TLS. The program itself cannot be updated; it listens on port
+2019/tcp in your network.
 
 ## 4. First start
 

@@ -19,12 +19,14 @@ step "Visualizer-Plugin übersetzt" sh -c "cc -shared -fPIC -O2 -Wall -Wextra -W
 step "Hook" sh tests/hook_test.sh
 step "apply-update.sh" sh tests/apply_update_test.sh
 step "Umzug älterer Installationen" sh tests/migrate_test.sh
+step "Module (setup.sh --module)" sh tests/module_test.sh
+step "ELF: schwache Versionsanforderung" sh tests/elf_weak_test.sh
 if command -v curl >/dev/null && command -v cc >/dev/null; then
   step "Zielgerät generic (Ende zu Ende)" sh tests/generic_e2e.sh
 fi
-step "Shell-Syntax" sh -c 'for f in device/leuchtfeuer/*.sh device/leuchtfeuer/services/*.sh targets/*/*.sh targets/*/services/*.sh; do sh -n "$f" || exit 1; done; for f in *.sh scripts/*.sh tools/*.sh tests/*.sh; do bash -n "$f" || exit 1; done'
+step "Shell-Syntax" sh -c 'for f in device/leuchtfeuer/*.sh device/leuchtfeuer/services/*.sh targets/*/*.sh targets/*/services/*.sh targets/*/modules/*/services/*.sh targets/*/modules/*/bin/*; do sh -n "$f" || exit 1; done; for f in *.sh scripts/*.sh tools/*.sh tests/*.sh; do bash -n "$f" || exit 1; done'
 if command -v shellcheck >/dev/null; then
-  step "shellcheck (Gerät, POSIX sh)" shellcheck -s sh -S warning -e SC3043 device/leuchtfeuer/*.sh device/leuchtfeuer/services/*.sh targets/*/target.sh targets/*/boot.sh targets/*/setup.sh targets/*/services/*.sh
+  step "shellcheck (Gerät, POSIX sh)" shellcheck -s sh -S warning -e SC3043 device/leuchtfeuer/*.sh device/leuchtfeuer/services/*.sh targets/*/target.sh targets/*/boot.sh targets/*/setup.sh targets/*/services/*.sh targets/*/modules/*/services/*.sh targets/*/modules/*/bin/*
 fi
 step "Weboberfläche (Syntax)" sh -c "node --check src/leuchtfeuerd/web/app.js && node --check src/leuchtfeuerd/web/roomeq.js && node --check src/leuchtfeuerd/web/login.js"
 step "Raum einmessen (Auswertung)" node tests/roomeq_test.js

@@ -1,0 +1,52 @@
+#!/bin/sh
+# Tidal Connect (Modul, armhf): startet tidal_connect_application mit den Bibliotheken des Moduls (tidal/lib) und des
+# Systems (32-Bit-ARM; auf arm64 per Multiarch). Ton: eine Pipe in die Tonkette des Systems (aplay ->
+# "leuchtfeuer_tidal"), weil ein 32-Bit-Prozess die Plugins einer 64-Bit-Tonkette nicht laden kann.
+#   tidal-connect <Name>      starten (vom Dienst services/tidal-connect.sh)
+#   tidal-connect --check     prüfen, ob alles da ist, sonst sagen, was fehlt
+D=${LEUCHTFEUER_DIR:-/opt/leuchtfeuer}; T=$D/tidal; R=${LEUCHTFEUER_RUN:-/run/leuchtfeuer}
+LD=/lib/ld-linux-armhf.so.3
+PKGS="libc6 libstdc++6 libasound2 libportaudio2 libavahi-client3 zlib1g libogg0"
+need(){
+  echo "Tidal Connect: $1" >&2
+  if [ "$(uname -m)" = aarch64 ]; then
+    echo "  64-Bit-System: sudo dpkg --add-architecture armhf && sudo apt update && sudo apt install $(echo $PKGS | sed 's/\([^ ]*\)/\1:armhf/g')" >&2
+  else
+    echo "  sudo apt install $PKGS" >&2
+  fi
+  exit 1
+}
+check(){
+  case $(uname -m) in armv7l|armv8l|aarch64) ;; *) echo "Tidal Connect: nur auf ARM-Geräten (Programm für armhf)" >&2; exit 1 ;; esac
+  [ -x $LD ] || need "32-Bit-ARM-Laufzeit fehlt ($LD)"
+  # ld.so meldet eine fehlende Bibliothek als "x => not found" oder bricht mit "error while loading shared libraries: x:" ab
+  # (die Warnungen "weak version ... not found" zu OpenSSL sind gewollt, siehe tools/elf-weak-verneed.py)
+  out=$($LD --library-path "$T/lib" --list "$T/bin/tidal_connect_application" 2>&1); rc=$?
+  missing=$(echo "$out" | sed -n -e 's/^[[:space:]]*\([^ ]*\) => not found.*/\1/p' \
+    -e 's/.*error while loading shared libraries: \([^:]*\):.*/\1/p' | tr '\n' ' ')
+  [ -z "$missing" ] || need "Bibliotheken fehlen: $missing"
+  [ $rc = 0 ] || { echo "Tidal Connect: Programm lässt sich nicht laden: $(echo "$out" | tail -1)" >&2; exit 1; }
+  command -v aplay >/dev/null || need "aplay fehlt (alsa-utils)"
+  pidof avahi-daemon >/dev/null || echo "Tidal Connect: avahi-daemon läuft nicht – die App findet den Lautsprecher dann nicht (sudo apt install avahi-daemon)" >&2
+}
+if [ "${1:-}" = --check ]; then check; echo "Tidal Connect: bereit"; exit 0; fi
+check
+NAME=${1:-Leuchtfeuer}
+IF=${WIFI_IFACE:-$(ip route 2>/dev/null | awk '/^default/{print $5; exit}')}
+ACP=${ALSA_CONFIG_PATH:-/usr/share/alsa/alsa.conf:$D/asound-music.conf}
+mkdir -p "$R"
+cat > "$R/tidal-alsa.conf" <<CONF
+# von tidal-connect erzeugt: Tidal spielt in eine Pipe, aplay des Systems gibt sie an die Tonkette weiter
+pcm.!default { type plug slave { pcm "lf_tidal_pipe" format S16_LE rate 44100 channels 2 } }
+pcm.lf_tidal_pipe { type file slave.pcm "null" format "raw"
+  file "|exec env -u LD_LIBRARY_PATH ALSA_CONFIG_PATH=$ACP $(command -v aplay) -q -D leuchtfeuer_tidal -t raw -f S16_LE -r 44100 -c 2" }
+CONF
+export LD_LIBRARY_PATH=$T/lib ALSA_CONFIG_PATH=/usr/share/alsa/alsa.conf:$R/tidal-alsa.conf PA_ALSA_PLUGHW=1
+unset ALSA_CONFIG
+cd "$T" || exit 1
+exec ./bin/tidal_connect_application \
+  --tc-certificate-path "$T/cert/IfiAudio_ZenStream.dat" \
+  --netif-for-deviceid "${IF:-eth0}" -f "$NAME" --model-name "$NAME" \
+  --codec-mpegh true --codec-mqa false --enable-mqa-passthrough false \
+  --disable-app-security false --disable-web-security false \
+  --playback-device default --log-level 3 --enable-websocket-log 0

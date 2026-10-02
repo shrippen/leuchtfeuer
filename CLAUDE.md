@@ -14,6 +14,25 @@ Lautsprecher zum Smartspeaker macht.
   - stabiles Bluetooth
 - **Nicht** Cortana wiederherstellen.
 
+## Grundsatz: platzsparend und modular
+
+- Zielplattform sind Smartspeaker, und die haben wenig Speicherplatz (Invoke: 123 MB `/data`). Alles muss möglichst
+  **wenig Platz** brauchen.
+- Vieles ist **optional bzw. modular**: Empfänger, Bündel (z. B. Tidal Connect) und Zusätze kommen nur aufs Gerät, wenn
+  sie gewollt sind, und lassen sich nachrüsten und wieder entfernen. Bibliotheken des Systems mitnutzen statt sie doppelt
+  mitzubringen; ein eigenes Bündel nur, wenn es nicht anders geht, und dann als getrenntes Modul.
+- Die **Weboberfläche** (leuchtfeuerd) ist immer dabei.
+
+## Grundsatz: aktuelle Software, hoher Sicherheitsstand
+
+- Die Geräte hängen dauerhaft im Netz und dürfen **nicht in einem Botnetz enden**. Deshalb möglichst **aktuelle,
+  gepflegte Software** verwenden, vor allem für TLS, HTTP, Netzwerk und Medien-Parser – auch wenn eine ältere Version
+  kleiner wäre. Platzsparen darf nie auf Kosten bekannter Sicherheitslücken gehen.
+- Was das heißt, ist je Zielgerät verschieden (Invoke: alter Kernel und alte glibc, nicht ersetzbar; Raspberry Pi:
+  Updates über die Distribution). Bibliotheken des Systems mitnutzen, wo sie aktuell sind.
+- Wo eine alte Version unvermeidbar ist (proprietäres Programm mit alter ABI), die neueste Fassung dieser Linie nehmen,
+  die Angriffsfläche klein halten (optional, standardmäßig aus, Firewall, nur LAN) und das Risiko in der Doku nennen.
+
 ## Zielgerät Harman Kardon Invoke
 
 Marvell BG2CD, Google-Cast-Linux, am Service-USB dieses Rechners.

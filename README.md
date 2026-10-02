@@ -29,7 +29,7 @@ After the install the device shows up under its name in:
 | **Google Cast** (audio) | own receiver emulation (`src/castrecv`) | only for senders that do not verify the device with Google: Music Assistant, Home Assistant, VLC, pychromecast. **Not** YouTube / Spotify-Cast / Chrome tab |
 | **Snapcast** (optional) | [snapclient](https://github.com/badaix/snapcast) | multiroom in sync with other Snapcast speakers; off by default, needs your snapserver |
 | **Bluetooth A2DP sink** | BlueZ + bluez-alsa + own agent (`src/btagent`) | pairing window from the web interface, Home Assistant or a button; remembers pairings, phone volume stays in sync |
-| **Tidal Connect** (Invoke only, optional) | proprietary iFi binary | **not licensed for this device**, can be revoked – opt-in, see [INVOKE.md](docs/INVOKE.md#risks) |
+| **Tidal Connect** (optional, ARM only) | proprietary iFi binary | **not licensed for your device**, can be revoked – opt-in, never in a package: Invoke see [INVOKE.md](docs/INVOKE.md#risks), others as a module, see [INSTALL.md](docs/INSTALL.md) |
 
 The sound can also go to another sound card (HDMI, USB) or a **Bluetooth speaker** (Settings > Output).
 

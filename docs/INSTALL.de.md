@@ -60,7 +60,30 @@ sudo apt install alsa-utils librespot shairport-sync gmediarender snapclient
 | Cast (für Music Assistant, Home Assistant, VLC) | `castrecv`, im Paket enthalten | |
 | Bluetooth A2DP | `bluetoothd` und bluez-alsa des Systems (`sudo apt install bluez bluez-alsa-utils`) | unter Einstellungen > Dienste einschalten; Leuchtfeuer ergänzt seinen Agenten |
 
-Tidal Connect gibt es nur auf dem Invoke.
+### Tidal Connect (optionales Modul, nur ARM)
+
+Tidal Connect nutzt das proprietäre `tidal_connect_application` von iFi audio mit iFis Gerätezertifikat (aus
+[TonyTromp/tidal-connect-docker](https://github.com/TonyTromp/tidal-connect-docker)). Das ist **für dein Gerät nicht
+lizenziert**, Tidal kann es jederzeit sperren. Deshalb ist es nie in einem Paket: du baust es selbst als Modul und rüstest
+es nur auf Wunsch nach. Das Programm gibt es nur für 32-Bit-ARM, es läuft also auf einem Raspberry Pi und ähnlichen
+Platinen (auch auf 64-Bit-Systemen per Multiarch), nicht auf x86.
+
+```sh
+tools/build-tidal-bundle.sh generic && tools/make-tidal-module.sh      # -> dist/leuchtfeuer-tidal-<version>-armhf.tar.gz
+# auf dem Gerät:
+sudo sh /opt/leuchtfeuer/setup.sh --module leuchtfeuer-tidal-*-armhf.tar.gz
+sudo sh /opt/leuchtfeuer/setup.sh --remove-module tidal                # wieder entfernen
+```
+
+Das Modul (gepackt etwa 3,4 MB) bringt nur mit, was aktuellen Systemen fehlt; der Rest kommt vom System. Fehlt etwas,
+nennt `setup.sh` die `apt install`-Zeile (auf 64 Bit mit `:armhf`): `libstdc++6 libasound2 libportaudio2 libavahi-client3
+zlib1g libogg0`, dazu `alsa-utils` und `avahi-daemon`. Danach erscheint der Lautsprecher unter seinem Namen in der
+Tidal-App; Tidal spielt wie jede andere Quelle in die Tonkette von Leuchtfeuer.
+
+Das Programm ist von 2019 und erwartet alte Schnittstellen. Damit es so sicher wie möglich läuft, ersetzt das Modul, was
+geht: HTTPS läuft über eine aktuelle curl mit mbedTLS, sein eigenes TLS über OpenSSL 1.0.2u aus den
+Debian-Sicherheitsupdates (SSLv3 bleibt aus), FFmpeg 3.4.13 ist ohne Netzwerk und TLS gebaut. Das Programm selbst lässt
+sich nicht aktualisieren; es lauscht im Netz auf Port 2019/tcp.
 
 ## 4. Erster Start
 

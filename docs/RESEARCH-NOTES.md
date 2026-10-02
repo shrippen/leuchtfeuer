@@ -239,11 +239,16 @@ Alle als Dienste unter `/data/leuchtfeuer/services/*.sh` (Quelle `device/leuchtf
   Verbunden, client_id = WLAN-MAC. Angebot auf 48 kHz/24 bit begrenzt.
 - **Tidal Connect** (auf ausdrücklichen Wunsch des Nutzers; iFi-Binary 1.1.3 mit
   iFi-Zertifikat `IfiAudio_ZenStream.dat`, nicht für das Gerät lizenziert, kann gesperrt
-  werden): `tools/build-tidal-bundle.sh` -> `/data/leuchtfeuer/tidal/` (~11 MB). Läuft mit der
-  glibc 2.23 des Geräts (braucht nur ≥ 2.9); mitgeliefert: FFmpeg 3.4 minimal
-  (`tools/build-ffmpeg34.sh`, Sonamen 57/57/55/2, alle 35 benötigten Symbole vorhanden),
-  libstdc++ 6.0.22 (GLIBCXX_3.4.22), portaudio/FLAC++/avahi aus stretch, libssl 1.0.1t +
-  libcurl3 7.38 aus jessie (Debian-Symbolversionen OPENSSL_1.0.x/CURL_OPENSSL_3).
+  werden): `tools/build-tidal-bundle.sh` -> `/data/leuchtfeuer/tidal/` (~8,4 MB; für andere ARM-Geräte
+  `tools/build-tidal-bundle.sh generic` + `tools/make-tidal-module.sh`, ~6,8 MB). Läuft mit der
+  glibc 2.23 des Geräts (braucht nur ≥ 2.9); mitgeliefert: FFmpeg 3.4.13 ohne Netzwerk/TLS
+  (`tools/build-ffmpeg34.sh`, Sonamen 57/57/55/2), libstdc++ 6.0.22 (GLIBCXX_3.4.22), portaudio/FLAC++/avahi aus stretch.
+  TLS: curl 8.x mit statischem mbedTLS 3.6 (`tools/build-curl-tidal.sh`, Versionsname per `libcurl.vers` auf
+  CURL_OPENSSL_3; das Programm reicht curl keine OpenSSL-Objekte), eigenes TLS über OpenSSL 1.0.2u (stretch-security):
+  patchelf stellt 1.0.0 -> 1.0.2 um und löst die Symbolversionen, `tools/elf-weak-verneed.py` markiert die
+  Versionsanforderungen als schwach (ld.so warnt dann nur „weak version … not found“), `device/src/leuchtfeuer-ssl3compat.c`
+  leitet die SSLv3-Methoden auf SSLv23 um. mbedTLS ist mit `MBEDTLS_PLATFORM_DEV_RANDOM="/dev/urandom"` gebaut: ohne
+  getrandom (Kernel 3.8) blockierte es sonst beim Start in `random_read` auf /dev/random (entropy_avail ~20).
   Dienste `tidal-1-dbus` (dbus-daemon des Geräts, eigene Konfig), `tidal-2-avahi` (avahi
   0.6.32 stretch; LD_PRELOAD-Shim `device/src/avahi-user-shim.c` liefert Benutzer „avahi“),
   `tidal-3-connect` (`--netif-for-deviceid wlan0` nötig, sonst ioctl-Fehler). Websocket
