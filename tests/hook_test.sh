@@ -138,6 +138,11 @@ check "nach 3 unruhigen Starts bleibt er aus" '[ ! -e $T/r/leuchtfeuer-watchdog.
 echo 'WATCHDOG="off"' > $T/d/config
 watchdog_ctl
 
+# Invoke: dnsmasq fragt die Nameserver der Reihe nach (lokale Namen), genau einmal ergänzt
+printf 'port=0\ndhcp-script=/data/leuchtfeuer/boot.sh\n' > $T/dnsmasq.conf
+LEUCHTFEUER_DNSMASQ=$T/dnsmasq.conf dns_strict; LEUCHTFEUER_DNSMASQ=$T/dnsmasq.conf dns_strict
+check "dnsmasq: strict-order genau einmal" '[ "$(grep -c "^strict-order" $T/dnsmasq.conf)" = 1 ] && grep -q "^port=0" $T/dnsmasq.conf'
+
 # Zielgerät generic: keine Invoke-Regeln, Firewall standardmäßig aus (eine alte Kette wird entfernt), FIREWALL=on schaltet ein
 cp "$ROOT/targets/generic/target.sh" $T/d/target.sh
 : > $T/d/config

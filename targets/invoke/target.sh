@@ -86,9 +86,21 @@ target_fw_rules(){
   for p in 67 53 48301; do echo "-i p2p0 -p udp --dport $p -j RETURN"; done
 }
 
+# dnsmasq des Herstellers fragt den Router und 8.8.8.8. Für lokale Namen (z. B. ploetze.lan) antwortet 8.8.8.8 mit
+# NXDOMAIN, und dnsmasq nimmt mitunter diese Antwort: der Name ist dann nur per IPv6 (oder gar nicht) auflösbar und
+# Sendspin, UPnP-Server usw. sind unerreichbar. strict-order fragt die Server der Reihe nach (Router zuerst); gilt ab
+# dem nächsten Start von dnsmasq. Die Deinstallation stellt dnsmasq.conf.orig wieder her.
+dns_strict(){
+  f=${LEUCHTFEUER_DNSMASQ:-/data/dnsmasq.conf}
+  [ -f "$f" ] && ! grep -q '^strict-order' "$f" || return 0
+  printf '\n# Leuchtfeuer: Nameserver der Reihe nach (Router zuerst), damit lokale Namen aufgelöst werden\nstrict-order\n' >> "$f" &&
+    log "dnsmasq: strict-order ergänzt (gilt ab dem nächsten Start)"
+}
+
 target_init(){
   podium_trim
   ca_bundle
+  dns_strict
 }
 
 target_tick(){
