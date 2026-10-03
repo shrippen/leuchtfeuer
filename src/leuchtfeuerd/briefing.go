@@ -571,7 +571,12 @@ func (b *briefing) tts(ctx context.Context, set BriefingSettings, ha HASettings,
 		}
 		out, err := b.haPost(ctx, ha, "/api/tts_get_url", map[string]any{"engine_id": ha.TTSEngine, "message": text, "language": set.Lang})
 		if err != nil {
-			return "", err
+			// Viele Entitäten kennen nur Sprachen mit Region ("de-DE", z. B. Pico TTS) und antworten auf "de" mit 500;
+			// dann ohne Angabe, also in der Sprache der Entität
+			var err2 error
+			if out, err2 = b.haPost(ctx, ha, "/api/tts_get_url", map[string]any{"engine_id": ha.TTSEngine, "message": text}); err2 != nil {
+				return "", err
+			}
 		}
 		var r struct{ URL, Path string }
 		if err := json.Unmarshal(out, &r); err != nil {

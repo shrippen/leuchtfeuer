@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -223,5 +224,31 @@ func TestSayTimeAndRSSDate(t *testing.T) {
 	}
 	if weatherText(95, "de") != "Gewitter" || weatherText(1234, "de") != "" {
 		t.Fatal("Wettertext")
+	}
+}
+
+// Entitäten wie Pico TTS kennen nur "de-DE" und antworten auf "de" mit 500: dann ohne Sprache noch einmal.
+func TestBriefingTTSLanguageFallback(t *testing.T) {
+	ta := newTestApp(t, "2026-10-05 07:00:00")
+	var langs []any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var v map[string]any
+		json.NewDecoder(r.Body).Decode(&v)
+		langs = append(langs, v["language"])
+		if _, ok := v["language"]; ok {
+			http.Error(w, "500: Internal Server Error", 500)
+			return
+		}
+		io.WriteString(w, `{"url":"http://172.27.0.3:8123/api/tts_proxy/x.mp3","path":"/api/tts_proxy/x.mp3"}`)
+	}))
+	defer srv.Close()
+	b := newBriefing(ta.app)
+	ha := HASettings{URL: srv.URL, Token: "t", TTSEngine: "tts.pico_tts_de_de"}
+	u, err := b.tts(context.Background(), BriefingSettings{Lang: "de", TTS: "ha"}, ha, "Hallo")
+	if err != nil || u != srv.URL+"/api/tts_proxy/x.mp3" {
+		t.Fatalf("%q %v", u, err)
+	}
+	if len(langs) != 2 || langs[0] != "de" || langs[1] != nil {
+		t.Fatalf("Anfragen: %v", langs)
 	}
 }

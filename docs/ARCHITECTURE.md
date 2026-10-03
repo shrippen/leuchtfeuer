@@ -138,10 +138,11 @@ interface shows "not connected" and switching back to the built-in output restor
 | `gmrender.sh` | gmrender-resurrect + libupnp (static), GStreamer of the device | 49494/tcp, 1900/udp | UUID derived from the Wi-Fi MAC |
 | `sendspin.sh` | sendspin-go 1.8.2 | outgoing 8927 | `Alsa.NoMMap = 1` patch (mmap on dmix/softvol spun a core); `SENDSPIN_SERVER` |
 | `castrecv.sh` | `src/castrecv` (Go) | 8009/tcp (TLS), 8008, 8443 | Cast receiver emulation, plays with `gst-launch-1.0` |
-| `tidal-1/2/3-*.sh` | iFi `tidal_connect_application` + bundled libs, avahi 0.6.32 (LD_PRELOAD shim for the missing `avahi` user), own `dbus-daemon` config | 2019/tcp | optional |
+| `tidal-2/3-*.sh` | iFi `tidal_connect_application` + bundled libs, avahi 0.6.32 (LD_PRELOAD shim for the missing `avahi` user) | 2019/tcp | optional |
 | `shairport.sh` | shairport-sync 3.3.9 (AirPlay 1, Apple ALAC decoder), tinysvcmdns | 5000/tcp, 6001-6011/udp | does not attenuate; volume, play begin/end and metadata pipe go to leuchtfeuerd |
 | `snapclient.sh` | snapclient 0.35 (static musl, file player) + `aplay -D leuchtfeuer_snapcast` | outgoing 1704 | off by default; `SNAPCAST_SERVER` |
 | `leuchtfeuerd.sh` | `src/leuchtfeuerd` | 80/tcp (443 with `WEB_TLS`, `on` or `acme`) | see below |
+| `dbus.sh` (Invoke) | system bus: `dbus-daemon` of the device with `dbus-system.conf` (the firmware has none) | – | always on (group `core`); needed by Bluetooth and Tidal |
 | `bluetooth-1..4-*.sh` | bluetoothd, `btagent`, bluealsa, bluealsa-aplay | – | see below |
 
 ## Bluetooth

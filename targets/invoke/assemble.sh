@@ -1,7 +1,7 @@
 # Teil von scripts/assemble.sh für den Invoke (Variablen S, d, t, TIDAL). Programme für ARMv7 aus ./build.sh.
 # shellcheck shell=bash
 mkdir -p "$S"/bluez/bin "$S"/bluez/lib
-cp "$t/boot.sh" "$t/podium.conf" "$t/ca-certificates.crt" "$S/"
+cp "$t/boot.sh" "$t/podium.conf" "$t/ca-certificates.crt" "$t/dbus-system.conf" "$S/"
 cp build/dropbear/dropbearmulti "$S/"
 cp build/librespot/librespot build/gmrender/gmediarender build/sendspin/sendspin-player build/castrecv/castrecv \
    build/btagent/btagent build/leuchtfeuerd/leuchtfeuerd build/shairport/shairport-sync build/snapclient/snapclient "$S/bin/"
@@ -19,6 +19,8 @@ for l in libssl.so.1.0.0 libcrypto.so.1.0.0 libgnutls-deb0.so.28 libnettle.so.4 
   libk5crypto.so.3 libkrb5.so.3 libkrb5support.so.0 libkeyutils.so.1 libcom_err.so.2 libldap_r-2.4.so.2 liblber-2.4.so.2 \
   libsasl2.so.2 librtmp.so.1 libssh2.so.1 libp11-kit.so.0 libtasn1.so.6 libavcodec.so.57.107.100 \
   libavformat.so.57.83.100 libavutil.so.55.78.100 libswresample.so.2.9.100; do echo "tidal/lib/$l"; done >> "$S/.remove"
+# D-Bus war bis Oktober 2026 Teil des Tidal-Moduls (jetzt services/dbus.sh, für Bluetooth auch ohne Tidal)
+printf '%s\n' services/tidal-1-dbus.sh tidal/dbus-system.conf >> "$S/.remove"
 if [ "$TIDAL" = 1 ]; then
   mkdir -p "$S/tidal"
   cp -a build/tidal/bin build/tidal/cert build/tidal/lib build/tidal/sbin "$S/tidal/"
@@ -29,7 +31,7 @@ if [ "$TIDAL" = 1 ]; then
   for l in $links; do cp --remove-destination "$(readlink -f "$l")" "$l"; done
   for f in $targets; do rm -f "$f"; done
   cp build/shim/avahi-user-shim.so "$S/tidal/lib/"
-  cp "$t/tidal/avahi-daemon.conf" "$t/tidal/dbus-system.conf" "$S/tidal/"
+  cp "$t/tidal/avahi-daemon.conf" "$S/tidal/"
   find "$S/tidal" -name '*.so*' -exec chmod 755 {} +
   chmod 755 "$S"/tidal/bin/* "$S"/tidal/sbin/*
 fi
