@@ -94,3 +94,7 @@ body:has(#savebar:not([hidden])) .app{padding-bottom:6rem}
 .rb .input{width:100%;min-width:0}
 /* Handy: Dienste-Kacheln in zwei Spalten statt zwölf einzeln untereinander */
 @media (max-width:640px){#c-svc{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Kachel-Seiten mit Skript-Verteilung (layoutGrids in app.js): Zeilen aus gleich breiten Spalten, jede Kachel in der kürzesten */
+.grid.mason{columns:auto}
+.mrow{display:flex;gap:1.2rem;align-items:flex-start;margin-bottom:1.2rem}
+.mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:1.2rem}
