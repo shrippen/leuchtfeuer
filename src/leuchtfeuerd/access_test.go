@@ -63,7 +63,8 @@ func TestAPITokensAndOrigin(t *testing.T) {
 		{"GET", "/api/tokens", full, 403},    // Zugangsverwaltung nur mit Sitzung
 		{"POST", "/api/ssh-keys", full, 403}, // dito
 		{"PUT", "/api/settings/device", full, 403},
-		{"GET", "/", full, 403}, // Seiten nicht mit Schlüssel
+		{"PUT", "/api/settings/https", full, 403}, // HTTPS und Zugangsdaten des DNS-Anbieters nur mit Sitzung
+		{"GET", "/", full, 403},                   // Seiten nicht mit Schlüssel
 		{"GET", "/api/status", "lf_" + strings.Repeat("0", 64), 401},
 		{"GET", "/metrics", "", 401},
 	}

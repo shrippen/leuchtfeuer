@@ -124,6 +124,10 @@ const STATES = { playing: ['playing', 'spielt'], paused: ['paused', 'pausiert'],
 const stateLabel = st => (STATES[st] ? T(...STATES[st]) : esc(st));
 const sw = (id, on, en, de) => `<button class="switch" role="switch" id="${id}" aria-checked="${!!on}" type="button"><span class="switch-track"></span><span class="switch-label">${T(en, de)}</span></button>`;
 const GLOSS = {
+  https: ['Own certificate: encrypted at once, the browser warns on the first visit. Let\'s Encrypt: a trusted certificate for a domain of yours, fetched over the DNS challenge - the speaker does not have to be reachable from the internet.', 'Eigenes Zertifikat: sofort verschlüsselt, der Browser warnt beim ersten Besuch. Let\'s Encrypt: ein vertrauenswürdiges Zertifikat für eine eigene Domain, abgeholt über die DNS-Challenge - der Lautsprecher muss dafür nicht aus dem Internet erreichbar sein.'],
+  acmedomain: ['A name in a domain you manage at the DNS provider, e.g. speaker.example.com. In your own network it must point to the speaker (router, Pi-hole or local DNS); a public entry is not needed.', 'Ein Name in einer Domain, die du beim DNS-Anbieter verwaltest, z. B. lautsprecher.example.de. Im eigenen Netz muss er auf den Lautsprecher zeigen (Router, Pi-hole oder eigener DNS); ein öffentlicher Eintrag ist nicht nötig.'],
+  acmealias: ['Optional. Keeps the access data on the speaker small: point _acme-challenge of your domain by CNAME to a name in another zone (e.g. a free deSEC zone) and enter that name here. The speaker then only needs a token for that zone, not for your domain - important with netcup, whose API key may change every zone of the account. The DNS provider above is then the one of that zone.', 'Optional. Hält die Zugangsdaten auf dem Lautsprecher klein: _acme-challenge deiner Domain per CNAME auf einen Namen in einer anderen Zone zeigen lassen (z. B. eine kostenlose deSEC-Zone) und diesen Namen hier eintragen. Der Lautsprecher braucht dann nur ein Token für diese Zone, nicht für deine Domain - wichtig bei netcup, dessen API-Schlüssel alle Zonen des Kontos ändern darf. Der DNS-Anbieter oben ist dann der dieser Zone.'],
+  staging: ['Let\'s Encrypt test service: browsers do not trust its certificates, but its limits are generous. Use it to check the settings, then switch it off.', 'Testdienst von Let\'s Encrypt: Browser vertrauen seinen Zertifikaten nicht, dafür sind die Grenzen großzügig. Zum Prüfen der Angaben, danach ausschalten.'],
   q: ['Q is the width of a filter: higher = narrower. Room modes need about 3 to 6.', 'Q ist die Breite eines Filters: höher = schmaler. Für Raummoden etwa 3 bis 6.'],
   db: ['Decibel: +6 dB is roughly twice as loud, −6 dB half as loud.', 'Dezibel: +6 dB ist etwa doppelt so laut, −6 dB halb so laut.'],
   duck: ['How much quieter the music gets meanwhile (in dB). 20 dB is clearly quieter, 40 dB almost silent.', 'Wie viel leiser die Musik solange wird (in dB). 20 dB ist deutlich leiser, 40 dB fast stumm.'],
@@ -1026,7 +1030,7 @@ function roomHTML() {
   const bands = draft.room || (draft.room = JSON.parse(JSON.stringify(e.room || [])));
   return `<div class="card" data-tier="yellow"><h3>${T('Room correction', 'Raumkorrektur')}</h3>
     <p>${T('Rooms boost single bass notes (room modes): they boom. Measure with your phone at the listening place; the speaker plays pink noise and the page suggests filters that only cut.', 'Räume verstärken einzelne Basstöne (Raummoden): es dröhnt. Miss mit dem Handy am Hörplatz; der Lautsprecher spielt rosa Rauschen, die Seite schlägt Filter vor, die nur absenken.')}</p>
-    ${window.isSecureContext ? '' : `<div class="callout callout-warn">${T('Measuring needs the microphone, and browsers allow it only over HTTPS: set WEB_TLS="on" (see README). Filters can still be entered by hand.', 'Messen braucht das Mikrofon, und Browser geben es nur über HTTPS frei: WEB_TLS="on" setzen (siehe README). Filter lassen sich auch von Hand eintragen.')}</div>`}
+    ${window.isSecureContext ? '' : `<div class="callout callout-warn">${T('Measuring needs the microphone, and browsers allow it only over HTTPS: switch it on under System > HTTPS. Filters can still be entered by hand.', 'Messen braucht das Mikrofon, und Browser geben es nur über HTTPS frei: unter System > HTTPS einschalten. Filter lassen sich auch von Hand eintragen.')}</div>`}
     ${sw('rq-on', e.roomOn, 'Room correction on', 'Raumkorrektur an')}
     <div class="list" id="rq-bands">${roomBandsHTML(bands)}</div>
     <div class="row"><button class="btn btn-outline btn-sm" id="rq-add" ${bands.length >= 6 ? 'disabled' : ''}>${ico('plus')}${T('Add filter', 'Filter hinzufügen')}</button>
@@ -1317,8 +1321,28 @@ function bindDevices() {
 
 // ---------------------------------------------------------------- System
 let tokensList = null, sshKeys = null, newToken = '', logES = null, logLines = [], logSvc = '', logFilter = '', logNames = [];
+const DNS_NAMES = { cloudflare: 'Cloudflare', hetzner: 'Hetzner (Hetzner Console)', desec: 'deSEC', netcup: 'netcup' };
+const DNS_HINTS = {
+  cloudflare: ['API token with the permission Zone > DNS > Edit, ideally limited to this zone (My Profile > API Tokens).', 'API-Token mit der Berechtigung Zone > DNS > Bearbeiten, am besten nur für diese Zone (Mein Profil > API-Token).'],
+  hetzner: ['API token of the project with the zone, permission read & write (Hetzner Console > project > Security > API tokens).', 'API-Token des Projekts mit der Zone, Berechtigung Lesen & Schreiben (Hetzner Console > Projekt > Sicherheit > API-Token).'],
+  desec: ['Token from deSEC (Token management), ideally limited to this domain.', 'Token aus deSEC (Token-Verwaltung), am besten nur für diese Domain.'],
+  netcup: ['Customer control panel > Master data > API: customer number, API key and API password. netcup takes up to 15 minutes to publish changes, so the first certificate needs some patience.', 'Kundencontrolpanel > Stammdaten > API: Kundennummer, API-Schlüssel und API-Passwort. netcup veröffentlicht Änderungen erst nach bis zu 15 Minuten, das erste Zertifikat braucht also etwas Geduld.'],
+};
+const cnameHint = (d, a) => d && a ? `${T('DNS record at your domain', 'Eintrag bei deiner Domain')}: _acme-challenge.${esc(d.trim())}. CNAME ${esc(a.trim().replace(/\.$/, ''))}.` : '';
+const dnsHint = p => DNS_HINTS[p] ? T(...DNS_HINTS[p]) : '';
+function httpsStatusHTML() {
+  const h = S.https || {};
+  if (!h.mode) return `<p class="mono small">${T('Off: the web interface uses HTTP only.', 'Aus: die Weboberfläche nutzt nur HTTP.')}</p>`;
+  if (h.mode === 'on') return `<p class="mono small">${T('On, own certificate.', 'An, eigenes Zertifikat.')}</p>`;
+  const until = h.notAfter ? new Date(h.notAfter).toLocaleDateString() : '';
+  const ok = h.notAfter ? `<p class="mono small">${T('Let\'s Encrypt certificate for', 'Let\'s-Encrypt-Zertifikat für')} ${esc(h.domain)}${h.issuer ? ' (' + esc(h.issuer) + ')' : ''}, ${T('valid until', 'gültig bis')} ${esc(until)}${h.staging ? ' · ' + T('test certificate', 'Test-Zertifikat') : ''}</p>` : '';
+  if (h.state === 'error') return ok + `<div class="callout callout-warn">${T('Let\'s Encrypt failed', 'Let\'s Encrypt gescheitert')}: ${esc(h.error)}${h.notAfter ? '' : ' ' + T('- the own certificate is used meanwhile.', '- bis dahin gilt das eigene Zertifikat.')}</div>`;
+  if (!h.notAfter) return `<p class="mono small">${T('Fetching the certificate from Let\'s Encrypt …', 'Zertifikat wird bei Let\'s Encrypt abgeholt …')}</p>`;
+  return ok;
+}
 function viewSystem() {
   const sl = CFG.settings.syslog || {};
+  const HS = CFG.https || {};
   return `<div class="grid">
   <div class="card" data-tier="yellow"><h3>${T('API keys', 'API-Schlüssel')}${hp('apikey')}</h3>
     <p>${T('For Home Assistant, scripts, other speakers and Prometheus: header "Authorization: Bearer <key>". "read" may only read (status, metrics). Keys cannot manage access. See docs/API.md.', 'Für Home Assistant, Skripte, andere Lautsprecher und Prometheus: Kopfzeile „Authorization: Bearer <Schlüssel>“. „lesen“ darf nur lesen (Status, Metriken). Schlüssel können den Zugang nicht verwalten. Siehe docs/API.md.')}</p>
@@ -1339,6 +1363,23 @@ function viewSystem() {
     <p>${T('At least 6 characters. Stored only as a salted hash. Changing it signs out every browser.', 'Mindestens 6 Zeichen. Wird nur als gesalzener Hash gespeichert. Ein Wechsel meldet alle Browser ab.')}</p>
     <div class="field"><label for="pw">${T('New password', 'Neues Passwort')}</label><input class="input" id="pw" type="password" autocomplete="new-password"></div>
     <div class="row"><button class="btn btn-accent btn-sm" id="pw-save">${ico('save')}${T('Change', 'Ändern')}</button><button class="btn btn-outline btn-sm" id="logout">${T('Sign out', 'Abmelden')}</button></div></div>
+  <div class="card" data-tier="cyan" data-nodirty><h3>HTTPS${hp('https')}</h3>
+    <div id="hs-st">${httpsStatusHTML()}</div>
+    ${seg('hs-mode', [['', 'Off', 'Aus'], ['on', 'Own certificate', 'Eigenes Zertifikat'], ['acme', 'Let\'s Encrypt', 'Let\'s Encrypt']], HS.mode || '')}
+    <div id="hs-on" class="stack ${HS.mode ? '' : 'hidden'}">${fld('hs-port', 'HTTPS port', 'HTTPS-Port', HS.port || 443, 'type="number" min="1" max="65535"')}</div>
+    <div id="hs-acme" class="stack ${HS.mode === 'acme' ? '' : 'hidden'}">
+      ${fld('hs-domain', 'Domain name', 'Domainname', HS.domain || '', 'placeholder="lautsprecher.example.de" autocomplete="off"', 'acmedomain')}
+      ${fld('hs-email', 'E-mail for Let\'s Encrypt (optional)', 'E-Mail für Let\'s Encrypt (optional)', HS.email || '', 'type="email" autocomplete="off"')}
+      <div class="field"><label for="hs-dns">${T('DNS provider', 'DNS-Anbieter')}</label><select class="select" id="hs-dns"><option value="">${tt('Choose …', 'Wählen …')}</option>${(CFG.dnsProviders || []).map(p => `<option value="${p}" ${p === HS.dns ? 'selected' : ''}>${esc(DNS_NAMES[p] || p)}</option>`).join('')}</select></div>
+      <p class="small" id="hs-dns-hint">${dnsHint(HS.dns)}</p>
+      <div id="hs-netcup" class="stack ${HS.dns === 'netcup' ? '' : 'hidden'}">${fld('hs-nc-cust', 'Customer number', 'Kundennummer', HS.netcupCustomer || '', 'inputmode="numeric" autocomplete="off"')}</div>
+      <div class="field"><label for="hs-token" id="hs-token-l">${HS.dns === 'netcup' ? T('API key', 'API-Schlüssel') : T('API token', 'API-Token')}</label><input class="input" id="hs-token" type="password" autocomplete="off" placeholder="${HS.tokenSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
+      <div class="field ${HS.dns === 'netcup' ? '' : 'hidden'}" id="hs-nc-pass-f"><label for="hs-nc-pass">${T('API password', 'API-Passwort')}</label><input class="input" id="hs-nc-pass" type="password" autocomplete="off" placeholder="${HS.netcupPasswordSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
+      ${fld('hs-alias', 'Challenge domain (CNAME target, optional)', 'Challenge-Domain (CNAME-Ziel, optional)', HS.alias || '', 'placeholder="lautsprecher.acme.dedyn.io" autocomplete="off"', 'acmealias')}
+      <p class="small mono" id="hs-cname">${cnameHint(HS.domain, HS.alias)}</p>
+      <div class="row">${sw('hs-staging', HS.staging, 'Test certificate (staging)', 'Test-Zertifikat (Staging)')}${hp('staging')}</div></div>
+    <p class="small">${T('Saving restarts the web interface; the page then opens at the new address.', 'Speichern startet die Weboberfläche neu; die Seite öffnet sich danach unter der neuen Adresse.')}</p>
+    <div class="row"><button class="btn btn-accent btn-sm" id="hs-save">${ico('save')}${T('Save and restart', 'Speichern und neu starten')}</button></div></div>
   <div class="card" data-tier="cyan"><h3>${T('Monitoring', 'Überwachung')}</h3>
     <p>${T('Prometheus metrics at /metrics (temperature, Wi-Fi, CPU, services, restarts, audio dropouts, volume …), with a "read" key:', 'Prometheus-Metriken unter /metrics (Temperatur, WLAN, CPU, Dienste, Neustarts, Tonaussetzer, Lautstärke …), mit einem Schlüssel „lesen“:')}</p>
     <div class="log log-code">scrape_configs:
@@ -1385,6 +1426,23 @@ function bindSystem() {
   $('#ssh-add').onclick = () => act(async () => { await api('/api/ssh-keys', 'POST', { key: $('#ssh-new').value }); $('#ssh-new').value = ''; await loadSystem(); }, tt('Key added, active within 30 s', 'Schlüssel eingetragen, gilt binnen 30 s'));
   $$('[data-sshdel]').forEach(b => b.onclick = () => { if (confirm(tt('Remove this SSH key?', 'Diesen SSH-Schlüssel entfernen?'))) act(async () => { await api('/api/ssh-keys/delete', 'POST', { fingerprint: b.dataset.sshdel }); await loadSystem(); }); });
   $('#pw-save').onclick = () => act(async () => { await api('/api/settings/device', 'PUT', { ...CFG.device, webPassword: $('#pw').value }); $('#pw').value = ''; }, tt('Password changed - sign in again', 'Passwort geändert - bitte neu anmelden'));
+  $('#hs-mode').addEventListener('change', () => { const m = segVal('hs-mode'); $('#hs-on').classList.toggle('hidden', !m); $('#hs-acme').classList.toggle('hidden', m !== 'acme'); });
+  $('#hs-dns').onchange = () => {
+    const p = $('#hs-dns').value, nc = p === 'netcup';
+    $('#hs-dns-hint').innerHTML = dnsHint(p); $('#hs-netcup').classList.toggle('hidden', !nc); $('#hs-nc-pass-f').classList.toggle('hidden', !nc);
+    $('#hs-token-l').textContent = nc ? tt('API key', 'API-Schlüssel') : tt('API token', 'API-Token');
+  };
+  const cn = () => { $('#hs-cname').innerHTML = cnameHint($('#hs-domain').value, $('#hs-alias').value); };
+  $('#hs-domain').oninput = cn; $('#hs-alias').oninput = cn;
+  $('#hs-save').onclick = () => act(async () => {
+    const mode = segVal('hs-mode'), port = +$('#hs-port').value || 443, domain = $('#hs-domain').value.trim();
+    await api('/api/settings/https', 'PUT', { mode, port, domain, email: $('#hs-email').value.trim(), dns: $('#hs-dns').value, alias: $('#hs-alias').value.trim(), staging: swVal('hs-staging'),
+      token: $('#hs-token').value, netcupCustomer: $('#hs-nc-cust').value.trim(), netcupPassword: $('#hs-nc-pass').value });
+    const host = mode === 'acme' ? domain : location.hostname;
+    const next = mode ? `https://${host}${port === 443 ? '' : ':' + port}/#/system` : `http://${location.hostname}${location.protocol === 'http:' && location.port ? ':' + location.port : ''}/#/system`;
+    toast(tt(`Restarting - opening ${next} in 20 s`, `Startet neu - öffne ${next} in 20 s`), 'ok');
+    setTimeout(() => { location.href = next; }, 20000);
+  });
   $('#logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); };
   saver('sl-save', async () => { await api('/api/settings/syslog', 'PUT', { enabled: swVal('sl-en'), host: $('#sl-host').value.trim(), port: +$('#sl-port').value || 514, proto: segVal('sl-proto') }); await loadCfg(); }, tt('Saved', 'Gespeichert'));
   $('#lg-svc').onchange = () => { logSvc = $('#lg-svc').value; startLog(); $('#lg-box').innerHTML = logBoxHTML(); };
@@ -1529,6 +1587,8 @@ function tick() {
       $$('[data-tcancel]', l).forEach(b => b.onclick = () => act(() => api('/api/timers/cancel', 'POST', { id: b.dataset.tcancel })));
     }
     const t = $('#spk-time'); if (t) t.textContent = fmtTime(S.now);
+  } else if (route === 'system') {
+    const h = $('#hs-st'); if (h) { const x = httpsStatusHTML(); if (h.innerHTML !== x) h.innerHTML = x; }
   } else if (route === 'settings') {
     const v = $('#v-st'); if (v) v.innerHTML = vizHTML();
     const sl = $('#svc-list'), sig = JSON.stringify(S.sys.services);

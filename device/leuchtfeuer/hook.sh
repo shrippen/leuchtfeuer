@@ -78,7 +78,7 @@ fw_rules(){
   echo "-p icmp -j RETURN"
   target_fw_rules
   echo "-p tcp --dport $(cfg WEB_PORT | grep -E '^[0-9]+$' || echo 80) -j RETURN"
-  [ "$(cfg WEB_TLS)" = on ] && echo "-p tcp --dport $(cfg WEB_TLS_PORT | grep -E '^[0-9]+$' || echo 443) -j RETURN"
+  case "$(cfg WEB_TLS)" in on|acme) echo "-p tcp --dport $(cfg WEB_TLS_PORT | grep -E '^[0-9]+$' || echo 443) -j RETURN" ;; esac
   for s in $D/services/*.sh; do
     [ -x "$s" ] && svc_on "$s" && svc_ready "$s" || continue
     head_val "$s" ports | tr ',' '\n' | while read -r proto port _; do

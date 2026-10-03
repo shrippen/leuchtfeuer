@@ -100,7 +100,7 @@ Weboberfläche gebraucht wird:
 |---|---|
 | `ALSA_CARD` | Soundkarte für Ausgabe und Lautstärke (Nummer oder Name aus `aplay -l`) |
 | `ALSA_OUTPUT` | `"pipewire"` oder `"pulse"`, wenn ein Sound-Server die Karte belegt (Desktop-Systeme) |
-| `WEB_PORT`, `WEB_TLS` | Port der Weboberfläche, HTTPS mit eigenem Zertifikat |
+| `WEB_PORT`, `WEB_TLS` | Port der Weboberfläche; HTTPS: `on` (eigenes Zertifikat) oder `acme` (Let's Encrypt, `ACME_*`, siehe `config.example`; auch System > HTTPS) |
 | `WIFI_IFACE` | Netzwerk-Schnittstelle (leer = die der Standardroute) |
 | `SERVICE_<NAME>` | welche Empfänger laufen (auch unter Einstellungen > Dienste) |
 | `SNAPCAST_SERVER`, `SENDSPIN_SERVER` | Server, wenn sie nicht von selbst gefunden werden |
