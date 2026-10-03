@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -99,6 +100,116 @@ type demoSpeaker struct {
 		Discovery string `json:"discovery"`
 	} `json:"mqtt"`
 	Services []string `json:"services_running"`
+
+	// Was die Oberfläche sonst noch zeigt (world: speaker)
+	DemoTime string `json:"demo_time"`
+	Config   struct {
+		BluetoothPairing string `json:"bluetooth_pairing"`
+		SendspinPort     int    `json:"sendspin_port"`
+		Airplay          string `json:"airplay"`
+		WebPassword      string `json:"web_password"`
+	} `json:"config"`
+	Briefing struct {
+		Place   string  `json:"place"`
+		Lat     float64 `json:"lat"`
+		Lon     float64 `json:"lon"`
+		TTS     string  `json:"tts"`
+		Then    string  `json:"then"`
+		Podcast int     `json:"podcast"`
+		Items   []struct {
+			Type string `json:"type"`
+			Name loc    `json:"name"`
+			URL  string `json:"url"`
+			Days int    `json:"days"`
+			Text loc    `json:"text"`
+		} `json:"items"`
+	} `json:"briefing"`
+	HA struct {
+		URL       string `json:"url"`
+		Token     string `json:"token"`
+		TTSEngine string `json:"tts_engine"`
+	} `json:"home_assistant"`
+	Voice struct {
+		Port   int    `json:"port"`
+		Mic    string `json:"mic"`
+		Mode   string `json:"mode"`
+		Area   loc    `json:"area"`
+		DuckDB int    `json:"duck_db"`
+		Heard  loc    `json:"heard"`
+		Answer loc    `json:"answer"`
+	} `json:"voice"`
+	Eq struct {
+		Version  int  `json:"version"`
+		Bass     int  `json:"bass"`
+		Loudness bool `json:"loudness"`
+		RoomOn   bool `json:"room_on"`
+		Room     []struct {
+			Hz float64 `json:"hz"`
+			DB float64 `json:"db"`
+			Q  float64 `json:"q"`
+		} `json:"room"`
+	} `json:"eq"`
+	SourceLimits map[string]struct {
+		Max    int `json:"max"`
+		TrimDB int `json:"trim_db"`
+		Start  int `json:"start"`
+	} `json:"source_limits"`
+	Syslog struct {
+		Host  string `json:"host"`
+		Port  int    `json:"port"`
+		Proto string `json:"proto"`
+	} `json:"syslog"`
+	System struct {
+		Load1      float64 `json:"load1"`
+		MemTotalMB int     `json:"mem_total_mb"`
+		MemFreeMB  int     `json:"mem_free_mb"`
+		DataFreeMB int     `json:"data_free_mb"`
+		DataSizeMB int     `json:"data_size_mb"`
+		ExtraHours int     `json:"uptime_extra_hours"`
+	} `json:"system"`
+	Clock struct {
+		OffsetMs      int64  `json:"offset_ms"`
+		CheckedMinAgo int    `json:"checked_min_ago"`
+		Server        string `json:"server"`
+		SyncHoursAgo  int    `json:"last_sync_hours_ago"`
+	} `json:"clock"`
+	HiddenGroups []string `json:"hidden_service_groups"`
+	AudioCards   []struct {
+		ID   string `json:"id"`
+		Name loc    `json:"name"`
+	} `json:"audio_cards"`
+	BTDevices []struct {
+		Addr      string `json:"addr"`
+		Name      string `json:"name"`
+		Paired    bool   `json:"paired"`
+		Connected bool   `json:"connected"`
+		RSSI      int    `json:"rssi"`
+	} `json:"bluetooth_devices"`
+	Peers []struct {
+		Name    loc    `json:"name"`
+		URL     string `json:"url"`
+		Online  bool   `json:"online"`
+		Volume  int    `json:"volume"`
+		TempC   int    `json:"temp_c"`
+		Playing string `json:"playing"`
+		Error   string `json:"error"`
+	} `json:"peers"`
+	FoundPeers []struct {
+		ID   string `json:"id"`
+		Name loc    `json:"name"`
+		URL  string `json:"url"`
+	} `json:"found_peers"`
+	Logs []struct {
+		Ago    int    `json:"ago_secs"`
+		Source string `json:"source"`
+		Text   loc    `json:"text"`
+	} `json:"logs"`
+	SSHKeys      []string           `json:"ssh_keys"`
+	VendorSounds map[string]float64 `json:"vendor_sounds"`
+	Tokens       []struct {
+		Name  string `json:"name"`
+		Scope string `json:"scope"`
+	} `json:"tokens"`
 }
 
 type demoVol struct {
@@ -190,14 +301,15 @@ func runDemo(listen string) {
 	if tz == nil {
 		tz = time.UTC
 	}
-	now, err := time.ParseInLocation("2006-01-02 15:04", day+" 18:20", tz)
+	now, err := time.ParseInLocation("2006-01-02 15:04", day+" "+sp.DemoTime, tz)
 	if err != nil {
 		log.Fatal(err)
 	}
 	dir, _ := os.MkdirTemp("", "leuchtfeuerd-demo")
 	cfgPath := dir + "/config"
-	os.WriteFile(cfgPath, []byte(fmt.Sprintf("DEVICE_NAME=%q\nDHCP_HOSTNAME=%q\nBLUETOOTH_PAIRING=\"button\"\nSENDSPIN_SERVER=\"%s:8927\"\nAIRPLAY=\"on\"\nWEB_PASSWORD=\"demo\"\n",
-		sp.Name, sp.Hostname, sp.MQTT.Host)), 0o600)
+	c := sp.Config
+	os.WriteFile(cfgPath, []byte(fmt.Sprintf("DEVICE_NAME=%q\nDHCP_HOSTNAME=%q\nBLUETOOTH_PAIRING=%q\nSENDSPIN_SERVER=\"%s:%d\"\nAIRPLAY=%q\nWEB_PASSWORD=%q\n",
+		sp.Name, sp.Hostname, c.BluetoothPairing, sp.MQTT.Host, c.SendspinPort, c.Airplay, c.WebPassword)), 0o600)
 	st := loadStore(dir + "/leuchtfeuerd.json")
 	st.Update(func(s *Settings) {
 		s.Timezone = world.Timezone
@@ -209,26 +321,28 @@ func runDemo(listen string) {
 			s.Alarms = append(s.Alarms, Alarm{ID: fmt.Sprintf("a%d", i+1), Name: a.Name.in(lang), Time: a.Time, Days: a.Days, Enabled: a.Enabled,
 				Source: a.Source, Volume: a.Volume, RampSecs: a.RampSecs, Snooze: a.Snooze, MaxMins: a.MaxMins})
 		}
-		de := lang == "de"
-		pick := func(en, d string) string {
-			if de {
-				return d
+		br := sp.Briefing
+		s.Briefing = BriefingSettings{Lang: lang, Place: br.Place, Lat: br.Lat, Lon: br.Lon, TTS: br.TTS, Then: br.Then}
+		for _, it := range br.Items {
+			item := BriefItem{Type: it.Type, On: true, Name: it.Name.in(lang), URL: it.URL, Days: it.Days, Text: it.Text.in(lang)}
+			if it.Type == "podcast" {
+				item.Name, item.URL = podcastPresets[br.Podcast].Name, podcastPresets[br.Podcast].URL
 			}
-			return en
+			s.Briefing.Items = append(s.Briefing.Items, item)
 		}
-		s.Briefing = BriefingSettings{Lang: lang, Place: "Hamburg", Lat: 53.55, Lon: 9.99, TTS: "ha", Then: "radio:0", Items: []BriefItem{
-			{Type: "greeting", On: true}, {Type: "weather", On: true}, {Type: "warnings", On: true},
-			{Type: "calendar", On: true, Name: pick("Studio", "Studio"), URL: "https://cloud.weber-studio.example/remote.php/dav/public-calendars/studio?export", Days: 0},
-			{Type: "calendar", On: true, Name: pick("Waste collection", "Müllabfuhr"), URL: "https://www.stadtreinigung.example/abfuhr.ics", Days: 1},
-			{Type: "ha", On: true, Text: pick("Travel time to the studio: {{ states('sensor.travel_time') }} minutes.", "Fahrzeit ins Studio: {{ states('sensor.fahrzeit') }} Minuten.")},
-			{Type: "podcast", On: true, Name: podcastPresets[0].Name, URL: podcastPresets[0].URL},
-		}}
 		s.SetupDone = true // der Assistent ist über #/setup erreichbar
-		s.HA = HASettings{URL: "http://homeassistant.local:8123", Token: "x", TTSEngine: "tts.piper"}
-		s.Voice = VoiceSettings{Enabled: true, Port: 10700, Mic: "leuchtfeuer_mic", Mode: "wake", Area: pick("Studio", "Studio"), DuckDB: 20}
-		s.Eq = EqSettings{Version: 1, Bass: 2, Loudness: true, RoomOn: true, Room: []PEQBand{{Hz: 52, DB: -6.4, Q: 4.6}, {Hz: 118, DB: -3.8, Q: 3.2}}}
-		s.Sources.Limits = map[string]SourceLimit{"bluetooth": {Max: 80, TrimDB: 4}, "radio": {Start: 25}}
-		s.Syslog = SyslogSettings{Enabled: true, Host: "192.168.178.20", Port: 514, Proto: "udp"}
+		s.HA = HASettings{URL: sp.HA.URL, Token: sp.HA.Token, TTSEngine: sp.HA.TTSEngine}
+		v := sp.Voice
+		s.Voice = VoiceSettings{Enabled: true, Port: v.Port, Mic: v.Mic, Mode: v.Mode, Area: v.Area.in(lang), DuckDB: v.DuckDB}
+		s.Eq = EqSettings{Version: sp.Eq.Version, Bass: sp.Eq.Bass, Loudness: sp.Eq.Loudness, RoomOn: sp.Eq.RoomOn}
+		for _, b := range sp.Eq.Room {
+			s.Eq.Room = append(s.Eq.Room, PEQBand{Hz: b.Hz, DB: b.DB, Q: b.Q})
+		}
+		s.Sources.Limits = map[string]SourceLimit{}
+		for src, l := range sp.SourceLimits {
+			s.Sources.Limits[src] = SourceLimit{Max: l.Max, TrimDB: l.TrimDB, Start: l.Start}
+		}
+		s.Syslog = SyslogSettings{Enabled: true, Host: sp.Syslog.Host, Port: sp.Syslog.Port, Proto: sp.Syslog.Proto}
 		s.Timers = nil
 		for i, t := range sp.Timers {
 			s.Timers = append(s.Timers, Timer{ID: fmt.Sprintf("t%d", i+1), Name: t.Name.in(lang), Total: t.Total,
@@ -245,7 +359,9 @@ func runDemo(listen string) {
 		running[n] = true
 	}
 	a.sysFn = func() sysStatus {
-		return sysStatus{TempC: float64(sp.TempC), UptimeSecs: sp.UpDays*86400 + 5*3600, Load1: 0.31, MemTotalMB: 462, MemFreeMB: 398, DataFreeMB: 68, DataSizeMB: 123}
+		y := sp.System
+		return sysStatus{TempC: float64(sp.TempC), UptimeSecs: sp.UpDays*86400 + y.ExtraHours*3600, Load1: y.Load1,
+			MemTotalMB: y.MemTotalMB, MemFreeMB: y.MemFreeMB, DataFreeMB: y.DataFreeMB, DataSizeMB: y.DataSizeMB}
 	}
 	// Dienste aus den Kopfzeilen im Repo wie auf dem Invoke: gemeinsame und gerätespezifische
 	// (demo/start.sh startet im Hauptverzeichnis)
@@ -262,7 +378,7 @@ func runDemo(listen string) {
 	a.svcFn = func() []serviceInfo {
 		var out []serviceInfo
 		for _, d := range serviceDefs() {
-			if d.Group == "tidal" || d.Group == "snapcast" {
+			if slices.Contains(sp.HiddenGroups, d.Group) {
 				continue
 			}
 			out = append(out, serviceInfo{serviceDef: d, Enabled: true, Running: running[d.Process] || (d.Group == "core")})
@@ -270,7 +386,9 @@ func runDemo(listen string) {
 		return out
 	}
 	a.clkFn = func() clockStatus {
-		return clockStatus{OffsetMs: 38, Checked: now.Add(-12 * time.Minute), Server: "pool.ntp.org", LastSync: now.Add(-3 * time.Hour), Synced: true}
+		k := sp.Clock
+		return clockStatus{OffsetMs: k.OffsetMs, Checked: now.Add(-time.Duration(k.CheckedMinAgo) * time.Minute), Server: k.Server,
+			LastSync: now.Add(-time.Duration(k.SyncHoursAgo) * time.Hour), Synced: true}
 	}
 	a.src.Update("radio", "playing", map[string]string{"title": sp.Playing.Title.in(lang)})
 	wr := sp.WifiRaw
@@ -282,15 +400,21 @@ func runDemo(listen string) {
 	a.btFn = func() btState { return btState{} }
 	// Ausgabe: zwei Soundkarten und zwei Bluetooth-Lautsprecher (einer gekoppelt)
 	a.out.cardsFile = filepath.Join(dir, "cards")
-	os.WriteFile(a.out.cardsFile, []byte(" 0 [wm8904         ]: wm8904 - HK Invoke DSP\n                      HK Invoke DSP\n 1 [HDMI           ]: HDMI - HDMI Ausgang\n                      HDMI Ausgang\n"), 0o644)
+	var cards strings.Builder
+	for i, c := range sp.AudioCards { // im Format von /proc/asound/cards
+		name := c.Name.in(lang)
+		fmt.Fprintf(&cards, "%2d [%-15s]: %s - %s\n                      %s\n", i, c.ID, c.ID, name, name)
+	}
+	os.WriteFile(a.out.cardsFile, []byte(cards.String()), 0o644)
 	a.out.confFile = func() string { return filepath.Join(dir, "output.conf") }
 	a.out.restart = func() {}
 	go func() {
 		for {
-			a.out.Report(btReport{Devices: []btDevice{
-				{Addr: "00:1A:7D:DA:71:13", Name: "JBL Flip 6", Paired: true, Connected: true},
-				{Addr: "F4:6D:04:12:34:56", Name: "Bose SoundLink", RSSI: -58},
-			}})
+			var devices []btDevice
+			for _, d := range sp.BTDevices {
+				devices = append(devices, btDevice{Addr: d.Addr, Name: d.Name, Paired: d.Paired, Connected: d.Connected, RSSI: d.RSSI})
+			}
+			a.out.Report(btReport{Devices: devices})
 			time.Sleep(5 * time.Second)
 		}
 	}()
@@ -304,46 +428,43 @@ func runDemo(listen string) {
 	// Sprachassistent: mit Home Assistant verbunden, letzte Frage
 	a.voice = newVoice(a)
 	a.voice.active, a.voice.state = &wyConn{}, "idle"
-	if lang == "de" {
-		a.voice.heard, a.voice.answer = "Wie warm ist es im Studio?", "Im Studio sind es 21,5 Grad."
-	} else {
-		a.voice.heard, a.voice.answer = "How warm is it in the studio?", "It is 21.5 degrees in the studio."
-	}
+	a.voice.heard, a.voice.answer = sp.Voice.Heard.in(lang), sp.Voice.Answer.in(lang)
 	// andere Lautsprecher
 	a.peers = newPeerHub(a)
-	st.Update(func(s *Settings) {
-		s.Peers = []Peer{{Name: "Küche", URL: "http://invoke-kueche.lan"}, {Name: "Lager", URL: "https://invoke-lager.lan"}}
-	})
-	a.peers.statusFn = func() []peerStatus {
-		return []peerStatus{
-			{Peer: Peer{Name: "Küche", URL: "http://invoke-kueche.lan"}, Online: true, Version: currentVersion(), Volume: 22, TempC: 61, Playing: "spotify: Nils Frahm – Says"},
-			{Peer: Peer{Name: "Lager", URL: "https://invoke-lager.lan"}, Error: "Lager: dial tcp 192.168.178.47:443: i/o timeout"},
+	var peers []Peer
+	var statuses []peerStatus
+	for _, p := range sp.Peers {
+		peer := Peer{Name: p.Name.in(lang), URL: p.URL}
+		peers = append(peers, peer)
+		st := peerStatus{Peer: peer, Online: p.Online, Volume: p.Volume, TempC: p.TempC, Playing: p.Playing}
+		if p.Online {
+			st.Version = currentVersion()
 		}
+		if p.Error != "" {
+			st.Error = peer.Name + ": " + p.Error
+		}
+		statuses = append(statuses, st)
 	}
-	a.peers.found = map[string]foundPeer{"aabbccddeeff": {Name: "Empfang", URL: "http://192.168.178.53", Version: currentVersion(), ID: "aabbccddeeff"}}
+	st.Update(func(s *Settings) { s.Peers = peers })
+	a.peers.statusFn = func() []peerStatus { return statuses }
+	a.peers.found = map[string]foundPeer{}
+	for _, f := range sp.FoundPeers {
+		a.peers.found[f.ID] = foundPeer{Name: f.Name.in(lang), URL: f.URL, Version: currentVersion(), ID: f.ID}
+	}
 	// Protokolle, Schlüssel
 	dataDir, logDir, hookLog = dir, dir+"/log", dir+"/hook.log"
 	os.MkdirAll(logDir, 0o755)
-	for _, n := range []string{"leuchtfeuerd", "librespot", "shairport", "bluetooth-4-aplay"} {
-		os.WriteFile(logDir+"/"+n+".log", nil, 0o644)
-	}
 	a.logs = newLogHub(nil)
-	for _, l := range []logLine{
-		{now.Add(-95 * time.Second), "hook", "Dienst librespot gestartet (pid 2817)"},
-		{now.Add(-80 * time.Second), "librespot", "[INFO librespot_playback::player] Loading <Says> with Spotify URI <spotify:track:1C1Z1Ry9Lo6pKyx1Rj5DnN>"},
-		{now.Add(-62 * time.Second), "leuchtfeuerd", "Quelle radio stumm (andere Quelle hat Vorrang)"},
-		{now.Add(-41 * time.Second), "bluetooth-4-aplay", "underrun!!! (at least 3.412 ms long)"},
-		{now.Add(-12 * time.Second), "leuchtfeuerd", "Webradio http://stream.example/radio: error, neuer Versuch in 2s"},
-		{now.Add(-9 * time.Second), "leuchtfeuerd", "Briefing für 06:45 vorbereitet (4 Abschnitte)"},
-	} {
-		a.logs.publish(l)
+	for _, l := range sp.Logs {
+		os.WriteFile(logDir+"/"+l.Source+".log", nil, 0o644)
+		a.logs.publish(logLine{now.Add(-time.Duration(l.Ago) * time.Second), l.Source, l.Text.in(lang)})
 	}
-	os.WriteFile(dir+"/authorized_keys", []byte(demoKeys), 0o600)
+	os.WriteFile(dir+"/authorized_keys", []byte(strings.Join(sp.SSHKeys, "\n")+"\n"), 0o600)
 	// Klänge: nachgebildete Hersteller-Klänge, ein eigener Weckton
 	sysRoot, _ := os.MkdirTemp("", "leuchtfeuer-demo-system") // nicht unter dem Datenverzeichnis: das überspringt die Suche
 	sys := sysRoot + "/usr/share/harman/prompts"
 	os.MkdirAll(sys, 0o755)
-	for n, secs := range map[string]float64{"power_on.wav": 2.4, "network_error.wav": 1.1, "bt_connected.wav": 0.8, "setup_mode.wav": 1.6} {
+	for n, secs := range sp.VendorSounds {
 		frames := make([]float64, int(16000*secs))
 		os.WriteFile(sys+"/"+n, pcmData{pcmFormat: pcmFormat{16000, 1, 16}, frames: [][]float64{frames}}.wav(), 0o644)
 	}
@@ -354,8 +475,9 @@ func runDemo(listen string) {
 	replaceTone("alarm", pcmData{pcmFormat: pcmFormat{48000, 2, 16}, frames: [][]float64{make([]float64, 48000*4), make([]float64, 48000*4)}}.wav())
 	a.sounds.ReplaceVendor(sys+"/power_on.wav", pcmData{pcmFormat: pcmFormat{48000, 2, 16}, frames: [][]float64{make([]float64, 48000*3), make([]float64, 48000*3)}}.wav())
 	w := &webServer{app: a, login: newLoginState(""), tokens: loadTokens(dir + "/tokens.json")}
-	w.tokens.Create("Home Assistant", "full")
-	w.tokens.Create("Prometheus", "read")
+	for _, t := range sp.Tokens {
+		w.tokens.Create(t.Name, t.Scope)
+	}
 	log.Printf("Demo (%s) auf %s", lang, listen)
 	w.Run(listen)
 }
@@ -369,7 +491,3 @@ func toStrings(v any) []string {
 	}
 	return out
 }
-
-// Beispielschlüssel im richtigen Format (Zufallsbytes, keine echten Schlüssel)
-const demoKeys = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLvR49qGA+o0okpI4l2wDksoS1Vptf26qrGl9IK/0uh anna@studio-mac\n" +
-	"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFcHtOPWPaWZCXPIgw0tkATbFTkDx1MQn982m5FMFiI7 backup@nas\n"

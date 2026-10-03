@@ -20,7 +20,8 @@
 #  - Protokolle: $D/log/<name>.log und hook.log werden ab 1 MiB gekürzt (die letzten 256 KiB -> .1); das geht auch
 #    bei laufenden Diensten, die Datei bleibt dieselbe.
 #  - Update-Rückfall: Nach einem Update ($D/update-pending) beobachtet der Hook 10 Minuten lang die Dienste;
-#    fällt einer wiederholt aus, stellt apply-update.sh den vorigen Stand wieder her.
+#    fällt einer wiederholt aus, stellt apply-update.sh den vorigen Stand wieder her. Nach bestandener Beobachtung wird
+#    die Rücknahme-Kopie (.prev) bei weniger als 60 MB freiem Platz verworfen.
 #  - Hardware-Watchdog (WATCHDOG="on" in config, falls /dev/watchdog da ist): "leuchtfeuerd -watchdog" setzt die Frist auf
 #    60 s und füttert ihn nur, solange dieser Hook läuft (Lebenszeichen $R/leuchtfeuer-hook.alive je Durchlauf). Hängt das
 #    System oder der Hook, startet das Gerät neu. Schutz vor einer Neustart-Schleife: Nach 3 Starts mit scharfem
@@ -214,7 +215,15 @@ update_watch(){
       return 0
     fi
   done
-  if [ $((now - t)) -gt 600 ]; then rm -f $D/update-pending; log "Update bestätigt (10 Minuten ohne Ausfall)"; fi
+  if [ $((now - t)) -gt 600 ]; then
+    rm -f $D/update-pending; log "Update bestätigt (10 Minuten ohne Ausfall)"
+    # Die Rücknahme-Kopie (.prev) hält die alten Binaries, auf dem Invoke rund 40 MB von 123 MB: bei knappem Platz
+    # nach bestandener Beobachtung verwerfen (dann entfällt nur der manuelle Rückfall)
+    free=$(df -k $D 2>/dev/null | tail -n 1 | awk '{print $(NF-2)}')
+    if [ -d $D/.prev ] && [ "${free:-999999}" -lt 61440 ] 2>/dev/null; then
+      rm -rf $D/.prev; log "Rücknahme-Kopie verworfen (wenig Platz: ${free} KB frei)"
+    fi
+  fi
 }
 
 # ---- Hardware-Watchdog ----

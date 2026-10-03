@@ -270,7 +270,8 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
 
 - **Update:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (or `./install.sh --prebuilt`). Before new files
   are put in place the old ones are saved to `/data/leuchtfeuer/.prev`; if a service then keeps failing within 10 minutes, the
-  speaker goes back to the previous version by itself (Settings > Update shows it, and has a button to roll back by hand).
+  speaker goes back to the previous version by itself (Settings > Update shows it, and has a button to roll back by hand). Once the 10 minutes pass, the backup is discarded when less than 60 MB are
+  free (the normal case on the Invoke, where it takes about 40 MB); the button has nothing to restore then.
 - **Update from the web interface:** Settings > Update checks the release page and installs a newer release. It needs the
   release signing key in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, set by `install.sh` from `docs/release-key.pub`): only
   packages signed with that key are accepted. Without internet on the speaker, upload the package and its `.sig` there.

@@ -281,7 +281,8 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
 - **Aktualisieren:** `git pull && ./build.sh && ./install.sh --ip <ip> --key <pub>` (oder `./install.sh --prebuilt`). Bevor
   neue Dateien an ihren Platz kommen, werden die alten nach `/data/leuchtfeuer/.prev` gesichert; fällt danach binnen 10 Minuten
   ein Dienst wiederholt aus, kehrt der Lautsprecher von selbst zur vorigen Version zurück (Einstellungen > Update zeigt das
-  und hat einen Knopf zum Zurücknehmen von Hand).
+  und hat einen Knopf zum Zurücknehmen von Hand). Nach bestandener Beobachtung wird die Sicherung verworfen, wenn weniger
+  als 60 MB frei sind (beim Invoke der Normalfall, sie belegt rund 40 MB); der Knopf entfällt dann.
 - **Update aus der Weboberfläche:** Einstellungen > Update prüft die Release-Seite und installiert ein neueres Release. Dafür
   braucht es den Signaturschlüssel der Releases in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, setzt `install.sh` aus
   `docs/release-key.pub`): nur damit signierte Pakete werden angenommen. Ohne Internet am Lautsprecher dort Paket und `.sig`
