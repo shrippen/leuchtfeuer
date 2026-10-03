@@ -438,7 +438,7 @@ function viewAlarms() {
   const A = draft.alarms || (draft.alarms = JSON.parse(JSON.stringify(CFG.settings.alarms)));
   const radios = CFG.settings.radio;
   const alarmCard = (a, i) => `<div class="card" data-tier="${a.enabled ? 'yellow' : ''}" data-ai="${i}">
-    <div class="row between"><input class="input time-in a-time" type="time" value="${esc(a.time)}">${sw('a-en-' + i, a.enabled, 'Enabled', 'Aktiv')}</div>
+    <div class="row between"><input class="input time-in a-time" type="time" aria-label="${tt('Time', 'Uhrzeit')}" value="${esc(a.time)}">${sw('a-en-' + i, a.enabled, 'Enabled', 'Aktiv')}</div>
     <div class="alarm">
       ${fld('a-name-' + i, 'Name', 'Name', a.name)}
       <div class="field"><label for="a-src-${i}">${T('Sound', 'Ton')}</label><select class="select a-src" id="a-src-${i}"><option value="tone">${tt('Beeps', 'Signalton')}</option>
@@ -468,7 +468,7 @@ function viewAlarms() {
       <div class="list" id="t-list">${timersHTML()}</div></div>
     <div class="card"><h3>${T('Time zone', 'Zeitzone')}</h3>
       <p>${T('Alarms, timers and the briefing use this time zone, whatever the system clock of the device is set to.', 'Wecker, Timer und Briefing nutzen diese Zeitzone, egal worauf die Systemuhr des Geräts eingestellt ist.')}</p>
-      <div class="row"><input class="input" id="tz" list="tzs" value="${esc(CFG.settings.timezone)}" style="max-width:16rem"><datalist id="tzs">${timeZones().map(z => `<option value="${z}">`).join('')}</datalist>
+      <div class="row"><input class="input" id="tz" list="tzs" aria-label="${tt('Time zone', 'Zeitzone')}" value="${esc(CFG.settings.timezone)}" style="max-width:16rem"><datalist id="tzs">${timeZones().map(z => `<option value="${z}">`).join('')}</datalist>
         <button class="btn btn-outline btn-sm" id="tz-save">${ico('save')}${T('Save', 'Speichern')}</button></div>
       ${browserTZ() && browserTZ() !== CFG.settings.timezone ? `<p class="small">${T('This browser uses', 'Dieser Browser nutzt')} <button type="button" class="chip is-filter" id="tz-mine">${esc(browserTZ())}</button></p>` : ''}
       <p class="mono small">${T('Speaker time', 'Zeit am Lautsprecher')}: <span id="spk-time">${fmtTime(S.now)}</span>${S.clock && S.clock.checked ? ` · ${T('deviation', 'Abweichung')} ${(S.clock.offsetMs / 1000).toFixed(1)} s` : ''}</p>
@@ -669,9 +669,9 @@ function viewButtons() {
   return `<div class="grid"><div class="card" data-tier="yellow"><h3>${T('Button mapping', 'Tastenbelegung')}</h3>
     <p>${T('The speaker reports button presses to this program. Press a button and watch the log on the right to learn its name and value, then assign an action. The volume knob and the Bluetooth button keep their own function (their presses are only logged and sent to Home Assistant).', 'Der Lautsprecher meldet Tastendrücke an dieses Programm. Drücke eine Taste und sieh rechts im Protokoll ihren Namen und Wert, dann ordne eine Aktion zu. Drehrad und Bluetooth-Knopf behalten ihre eigene Funktion (ihre Ereignisse werden nur protokolliert und an Home Assistant gesendet).')}</p>
     <div class="list">${rows.map((r, i) => `<div class="item" data-bi="${i}"><div class="stack">
-      <div class="row"><div class="field" style="width:9rem"><label>${T('Button', 'Taste')}</label><input class="input b-name" list="b-seen" value="${esc(r.b)}" autocomplete="off" placeholder="${tt('pick or press', 'wählen oder drücken')}"></div>
-      <div class="field" style="width:8rem"><label>${T('Press / value', 'Druck / Wert')}</label><input class="input b-press" list="b-press" value="${esc(r.p)}" autocomplete="off"></div></div>
-      <div class="field"><label>${T('Action', 'Aktion')}</label><select class="select b-act">${CFG.actions.map(a => `<option value="${a}" ${a === r.a ? 'selected' : ''}>${esc(actionLabel(a))}</option>`).join('')}</select></div></div>
+      <div class="row"><div class="field" style="width:9rem"><label for="b-name-${i}">${T('Button', 'Taste')}</label><input class="input b-name" id="b-name-${i}" list="b-seen" value="${esc(r.b)}" autocomplete="off" placeholder="${tt('pick or press', 'wählen oder drücken')}"></div>
+      <div class="field" style="width:8rem"><label for="b-press-${i}">${T('Press / value', 'Druck / Wert')}</label><input class="input b-press" id="b-press-${i}" list="b-press" value="${esc(r.p)}" autocomplete="off"></div></div>
+      <div class="field"><label for="b-act-${i}">${T('Action', 'Aktion')}</label><select class="select b-act" id="b-act-${i}">${CFG.actions.map(a => `<option value="${a}" ${a === r.a ? 'selected' : ''}>${esc(actionLabel(a))}</option>`).join('')}</select></div></div>
       <div class="stack"><button class="btn btn-outline btn-sm" data-learn="${i}">${learn && learn.i === i ? T('Press the button …', 'Taste drücken …') : ico('test') + T('Learn', 'Anlernen')}</button>
       <button class="btn btn-outline btn-sm" data-bdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div>`).join('')}</div>
     <datalist id="b-seen">${[...new Set([...(CFG.buttonNames || []), ...seen])].map(n => `<option value="${esc(n)}">`).join('')}</datalist><datalist id="b-press">${PRESSES.map(([v, en, de]) => `<option value="${v}" label="${esc(tt(en, de))}">`).join('')}</datalist>
@@ -784,15 +784,15 @@ function viewHA() {
     <p>${T('The Leuchtfeuer integration for Home Assistant (folder custom_components/leuchtfeuer, also via HACS) finds the speaker by itself and offers a real media player, buttons and sensors. It needs an API key (System > Access, scope "full").', 'Die Leuchtfeuer-Integration für Home Assistant (Ordner custom_components/leuchtfeuer, auch über HACS) findet den Lautsprecher von selbst und bietet einen echten Mediaplayer, Knöpfe und Sensoren. Sie braucht einen API-Schlüssel (System > Zugang, Umfang „voll“).')}</p>
     <p>${T('MQTT (below) keeps working in addition.', 'MQTT (unten) funktioniert weiterhin zusätzlich.')}</p>
     <div class="row"><a class="btn btn-outline btn-sm" href="#/system">${ico('key')}${T('Create API key', 'API-Schlüssel anlegen')}</a></div></div>
-  <div class="card" data-tier="cyan"><h3>${T('Voice assistant (Assist)', 'Sprachassistent (Assist)')}</h3>
-    <p>${T('The speaker becomes a voice satellite for Home Assistant (Wyoming protocol, port 10700). Home Assistant finds it in the Wyoming integration. Wake word, speech recognition and answers come from Home Assistant.', 'Der Lautsprecher wird ein Sprach-Satellit für Home Assistant (Wyoming-Protokoll, Port 10700). Home Assistant findet ihn in der Wyoming-Integration. Aktivierungswort, Spracherkennung und Antworten kommen von Home Assistant.')}${hp('wyoming')}</p>
+  <div class="card" data-tier="cyan"><h3>${T('Voice assistant (Assist)', 'Sprachassistent (Assist)')}${hp('wyoming')}</h3>
+    <p>${T('The speaker becomes a voice satellite for Home Assistant (Wyoming protocol, port 10700). Home Assistant finds it in the Wyoming integration. Wake word, speech recognition and answers come from Home Assistant.', 'Der Lautsprecher wird ein Sprach-Satellit für Home Assistant (Wyoming-Protokoll, Port 10700). Home Assistant findet ihn in der Wyoming-Integration. Aktivierungswort, Spracherkennung und Antworten kommen von Home Assistant.')}</p>
     <div id="vo-st">${voiceHTML(false)}</div>
     ${sw('vo-en', V.enabled, 'Enabled', 'Aktiv')}${sw('vo-mute', V.muted, 'Microphone off', 'Mikrofon aus')}
     <div class="field"><span class="field-label">${T('Listening', 'Zuhören')}</span>${seg('vo-mode', [['wake', 'Wake word (Home Assistant)', 'Aktivierungswort (Home Assistant)'], ['button', 'Only after a button press', 'Nur nach Tastendruck']], V.mode || 'wake')}</div>
     <div class="alarm">${micFieldHTML(V.mic || '')}
       ${fld('vo-area', 'Area (Home Assistant)', 'Bereich (Home Assistant)', V.area || '', 'list="ha-areas" autocomplete="off"', 'area')}
       ${fld('vo-duck', 'Lower music meanwhile (dB)', 'Musik solange absenken (dB)', V.duckDB ?? 20, 'type="number" min="0" max="40"', 'duck')}
-      <div class="field wide" data-nodirty><span class="field-label">${T('Microphone level', 'Mikrofonpegel')}</span><div class="row"><div class="progress-bar" style="flex:1" aria-hidden="true"><i id="mic-bar" style="width:0%"></i></div><span class="mono small" id="mic-db">–</span>
+      <div class="field wide" data-nodirty><span class="field-label">${T('Microphone level', 'Mikrofonpegel')}</span><div class="row"><div class="progress-bar" style="flex:1 1 6rem" aria-hidden="true"><i id="mic-bar" style="width:0%"></i></div><span class="mono small" id="mic-db">${T('not measured', 'nicht gemessen')}</span>
         <button type="button" class="btn btn-outline btn-sm" id="mic-chk">${ico('mic')}${micPoll ? T('Stop', 'Stopp') : T('Check level', 'Pegel prüfen')}</button></div></div>
       ${fld('vo-port', 'Port', 'Port', V.port || 10700, 'type="number" min="1024" max="65535"')}</div>
     <p class="small">${T('No echo cancellation: while it answers, the microphone sends silence. Map the action "Voice assistant: listen" to a button for push-to-talk.', 'Keine Echounterdrückung: Während der Antwort schickt das Mikrofon Stille. Für Drücken-und-Sprechen die Aktion „Sprachassistent: zuhören“ auf eine Taste legen.')}</p>
@@ -801,7 +801,7 @@ function viewHA() {
     <p>${T('So that the briefing can speak (text-to-speech) and read templates, the speaker needs the address of Home Assistant and a long-lived access token (profile > security; for templates of an administrator).', 'Damit das Briefing sprechen (Sprachausgabe) und Vorlagen lesen kann, braucht der Lautsprecher die Adresse von Home Assistant und ein langlebiges Zugriffstoken (Profil > Sicherheit; für Vorlagen von einem Administrator).')}</p>
     ${fld('ha-url', 'Address', 'Adresse', H.url || '', 'placeholder="http://homeassistant.local:8123"')}
     <div class="row"><button type="button" class="btn btn-outline btn-sm" id="ha-find" data-nodirty>${ico('search')}${T('Find Home Assistant', 'Home Assistant suchen')}</button></div><div id="ha-found"></div>
-    <div class="field"><label for="ha-tok">${T('Token (empty = keep)', 'Token (leer = behalten)')}${hp('token')}</label><input class="input" id="ha-tok" type="password" autocomplete="off"></div>
+    <div class="field"><label for="ha-tok">${T('Token', 'Token')}${hp('token')}</label><input class="input" id="ha-tok" type="password" autocomplete="off" placeholder="${tt('empty = keep', 'leer = behalten')}"></div>
     ${fld('ha-tts', 'Text-to-speech entity', 'Sprachausgabe-Entität', H.ttsEngine || '', 'list="ha-tts-list" autocomplete="off" placeholder="tts.piper"', 'tts')}
     <p class="small" id="ha-opt-st">${haOptsHTML()}</p>
     <datalist id="ha-tts-list">${(haOpts ? haOpts.tts : []).map(x => `<option value="${esc(x.id)}" label="${esc(x.name)}">`).join('')}</datalist>
@@ -813,8 +813,8 @@ function viewHA() {
     ${sw('m-en', m.enabled, 'Enabled', 'Aktiv')}
     <div class="row"><button type="button" class="btn btn-outline btn-sm" id="m-find" data-nodirty>${ico('search')}${T('Find broker', 'Broker suchen')}</button></div><div id="m-found"></div>
     <div class="alarm">${fld('m-host', 'Broker host', 'Broker-Adresse', m.host || ((H.url || '').match(/\/\/([^:/]+)/) || [])[1] || '', 'placeholder="homeassistant.local"', 'broker')}${fld('m-port', 'Port', 'Port', m.port, 'type="number"')}
-      ${fld('m-user', 'User', 'Benutzer', m.user)}<div class="field"><label for="m-pass">${T('Password (empty = keep)', 'Passwort (leer = behalten)')}</label><input class="input" id="m-pass" type="password" autocomplete="new-password"></div>
-      ${fld('m-disc', 'Discovery prefix (usually homeassistant)', 'Erkennungs-Präfix (meist homeassistant)', m.discovery, 'placeholder="homeassistant"', 'discovery')}</div>
+      ${fld('m-user', 'User', 'Benutzer', m.user)}<div class="field"><label for="m-pass">${T('Password', 'Passwort')}</label><input class="input" id="m-pass" type="password" autocomplete="new-password" placeholder="${tt('empty = keep', 'leer = behalten')}"></div>
+      ${fld('m-disc', 'Discovery prefix', 'Präfix', m.discovery, 'placeholder="homeassistant"', 'discovery')}</div>
     ${sw('m-tls', m.tls, 'Encrypted (TLS, port 8883)', 'Verschlüsselt (TLS, Port 8883)')}${sw('m-ins', m.insecure, 'Accept self-signed broker certificate', 'Selbst signiertes Broker-Zertifikat annehmen')}
     <p>${can('ring') ? T('Also offered: the light ring as a light (colour, brightness, effects), announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: der Leuchtring als Licht (Farbe, Helligkeit, Effekte), Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.') : T('Also offered: announcements (text entity: audio address or chime / bell / beep), sleep timer, now playing, briefing and voice buttons.', 'Außerdem: Durchsagen (Text-Entität: Audio-Adresse oder chime / bell / beep), Schlummertimer, „Läuft gerade“, Knöpfe für Briefing und Sprachassistent.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="m-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>`;
@@ -956,11 +956,11 @@ function viewSettings() {
     <div class="row">${sw('e-loud', e.loudness, 'Loudness', 'Loudness')}${hp('loudness')}</div><div class="row">${sw('e-night', e.night, 'Night mode', 'Nachtmodus')}${hp('night')}</div>
     <div class="row"><button class="btn btn-outline btn-sm" id="e-prev">${ico('play')}${T('Listen (quiet, 6 s)', 'Hörprobe (leise, 6 s)')}</button></div></div>
   ${roomHTML()}
-  <div class="card" data-tier="cyan"><h3>${T('Sources and volume', 'Quellen und Lautstärke')}</h3>
+  <div class="card" data-tier="cyan"><h3>${T('Sources and volume', 'Quellen und Lautstärke')}${hp('trim')}</h3>
     <div class="field"><span class="field-label">${T('When a second source starts', 'Wenn eine zweite Quelle beginnt')}</span>${seg('q-pol', [['last', 'The newest plays, the others pause', 'Die neueste spielt, die anderen pausieren'], ['mix', 'All play together', 'Alle spielen zusammen']], so.policy)}</div>
     <div class="alarm">${fld('q-max', 'Highest volume % (0 = no limit)', 'Höchste Lautstärke % (0 = keine Grenze)', so.max || 0, 'type="number" min="0" max="100"')}
       ${fld('q-duck', 'Lower music during announcements (dB)', 'Musik bei Durchsagen absenken (dB)', so.duckDB || 0, 'type="number" min="0" max="40"', 'duck')}</div>
-    <p>${T('Per source: highest volume, the volume it starts with (0 = no rule) and how much quieter it plays. When a source takes over, the others fade out instead of stopping hard.', 'Je Quelle: höchste Lautstärke, Lautstärke beim Start (0 = keine Regel) und wie viel leiser sie spielt. Übernimmt eine Quelle, blenden die anderen aus, statt hart zu verstummen.')}${hp('trim')}</p>
+    <p>${T('Per source: highest volume, the volume it starts with (0 = no rule) and how much quieter it plays. When a source takes over, the others fade out instead of stopping hard.', 'Je Quelle: höchste Lautstärke, Lautstärke beim Start (0 = keine Regel) und wie viel leiser sie spielt. Übernimmt eine Quelle, blenden die anderen aus, statt hart zu verstummen.')}</p>
     <div class="item" aria-hidden="true"><div class="t small mono muted">${T('Source', 'Quelle')}</div><div class="row small mono muted"><span style="width:3.9rem">${T('max %', 'max %')}</span><span style="width:3.9rem">${T('start %', 'Start %')}</span><span style="width:3.9rem">−dB</span></div></div>
     <div class="list">${CFG.sourceNames.map(n => `<div class="item"><div class="t">${srcName(n)}</div><div class="row">
       <label class="sr-only" for="q-lmax-${n}">${srcNameT(n)}: ${tt('highest volume %', 'höchste Lautstärke %')}</label><input class="input q-lmax" id="q-lmax-${n}" data-n="${n}" type="number" min="0" max="100" value="${(lim[n] || {}).max || 0}" style="width:3.9rem">
@@ -1013,11 +1013,13 @@ function viewSettings() {
 let roomCurves = [], roomNoise = null, roomSuggest = null, roomBusy = false;
 const eqBody = () => { const e = CFG.settings.eq || {}; return { bass: e.bass || 0, treble: e.treble || 0, loudness: !!e.loudness, night: !!e.night, roomOn: !!e.roomOn, room: e.room || [] }; };
 function roomBandsHTML(bands) {
-  return bands.map((b, i) => `<div class="item" data-rb="${i}"><div class="row">
-    <label class="sr-only" for="rb-hz-${i}">${tt('Filter', 'Filter')} ${i + 1}: Hz</label><input class="input rb-hz" id="rb-hz-${i}" type="number" min="20" max="20000" step="1" value="${b.hz}" style="width:4.9rem"><span class="small mono" aria-hidden="true">Hz</span>
-    <label class="sr-only" for="rb-db-${i}">${tt('Filter', 'Filter')} ${i + 1}: dB</label><input class="input rb-db" id="rb-db-${i}" type="number" min="-15" max="6" step="0.1" value="${b.db}" style="width:4.4rem"><span class="small mono" aria-hidden="true">dB</span>
-    <label class="sr-only" for="rb-q-${i}">${tt('Filter', 'Filter')} ${i + 1}: ${tt('Q (width)', 'Güte (Breite)')}</label><input class="input rb-q" id="rb-q-${i}" type="number" min="0.3" max="10" step="0.1" value="${b.q}" style="width:3.9rem"><span class="small mono" aria-hidden="true">Q</span>${i ? '' : hp('q', true)}</div>
-    <button class="btn btn-outline btn-sm" data-rbdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div>`).join('') || `<p class="small">${T('No filters.', 'Keine Filter.')}</p>`;
+  if (!bands.length) return `<p class="small">${T('No filters.', 'Keine Filter.')}</p>`;
+  return `<div class="rb rb-head small mono muted"><span aria-hidden="true">Hz</span><span aria-hidden="true">dB</span><span><span aria-hidden="true">Q</span>${hp('q', true)}</span><span></span></div>`
+    + bands.map((b, i) => `<div class="rb" data-rb="${i}">
+    <label class="sr-only" for="rb-hz-${i}">${tt('Filter', 'Filter')} ${i + 1}: Hz</label><input class="input rb-hz" id="rb-hz-${i}" type="number" min="20" max="20000" step="1" value="${b.hz}">
+    <label class="sr-only" for="rb-db-${i}">${tt('Filter', 'Filter')} ${i + 1}: dB</label><input class="input rb-db" id="rb-db-${i}" type="number" min="-15" max="6" step="0.1" value="${b.db}">
+    <label class="sr-only" for="rb-q-${i}">${tt('Filter', 'Filter')} ${i + 1}: ${tt('Q (width)', 'Güte (Breite)')}</label><input class="input rb-q" id="rb-q-${i}" type="number" min="0.3" max="10" step="0.1" value="${b.q}">
+    <button class="btn btn-outline btn-sm" data-rbdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div>`).join('');
 }
 function roomHTML() {
   const e = CFG.settings.eq || {};
@@ -1324,7 +1326,7 @@ function viewSystem() {
     <div class="list" id="tk-list">${tokensList ? tokensList.map(k => `<div class="item"><div><div class="t">${esc(k.name)} <span class="pill" data-state="${k.scope === 'full' ? 'pending' : 'applied'}">${k.scope === 'full' ? T('full', 'voll') : T('read', 'lesen')}</span></div>
       <div class="s">${T('created', 'angelegt')} ${new Date(k.created).toLocaleDateString()} · ${k.lastUsed && k.lastUsed > '0001-01-02' ? T('last used', 'zuletzt benutzt') + ' ' + new Date(k.lastUsed).toLocaleString() : T('never used', 'nie benutzt')}</div></div>
       <button class="btn btn-outline btn-sm" data-tkdel="${esc(k.id)}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div>`).join('') || `<p class="small">${T('No keys.', 'Keine Schlüssel.')}</p>` : `<p>${T('Loading …', 'Lädt …')}</p>`}</div>
-    <div class="row"><label class="sr-only" for="tk-name">${tt('Name of the key', 'Name des Schlüssels')}</label><input class="input" id="tk-name" placeholder="${tt('Name, e.g. Home Assistant', 'Name, z. B. Home Assistant')}" style="flex:1;min-width:9rem">
+    <div class="row"><label class="sr-only" for="tk-name">${tt('Name of the key', 'Name des Schlüssels')}</label><input class="input" id="tk-name" placeholder="${tt('Name, e.g. Home Assistant', 'Name, z. B. Home Assistant')}" style="flex:1 1 100%">
       ${seg('tk-scope', [['full', 'full', 'voll'], ['read', 'read', 'lesen']], 'full')}
       <button class="btn btn-accent btn-sm" id="tk-add">${ico('key')}${T('Create', 'Anlegen')}</button></div></div>
   <div class="card" data-tier="yellow"><h3>${T('SSH keys', 'SSH-Schlüssel')}</h3>
@@ -1339,7 +1341,7 @@ function viewSystem() {
     <div class="row"><button class="btn btn-accent btn-sm" id="pw-save">${ico('save')}${T('Change', 'Ändern')}</button><button class="btn btn-outline btn-sm" id="logout">${T('Sign out', 'Abmelden')}</button></div></div>
   <div class="card" data-tier="cyan"><h3>${T('Monitoring', 'Überwachung')}</h3>
     <p>${T('Prometheus metrics at /metrics (temperature, Wi-Fi, CPU, services, restarts, audio dropouts, volume …), with a "read" key:', 'Prometheus-Metriken unter /metrics (Temperatur, WLAN, CPU, Dienste, Neustarts, Tonaussetzer, Lautstärke …), mit einem Schlüssel „lesen“:')}</p>
-    <div class="log">scrape_configs:
+    <div class="log log-code">scrape_configs:
   - job_name: leuchtfeuer
     authorization: { credentials: lf_… }
     static_configs: [{ targets: ["${esc(location.host)}"] }]</div>
@@ -1349,7 +1351,7 @@ function viewSystem() {
     ${seg('sl-proto', [['udp', 'UDP', 'UDP'], ['tcp', 'TCP', 'TCP']], sl.proto || 'udp')}
     <div class="row"><button class="btn btn-accent btn-sm" id="sl-save">${ico('save')}${T('Save', 'Speichern')}</button></div></div></div>
   <div class="card" style="margin-top:1.2rem"><h3>${T('Live log', 'Protokoll live')}</h3>
-    <div class="row"><select class="select" id="lg-svc" style="max-width:14rem"><option value="">${tt('All services', 'Alle Dienste')}</option>${logNames.map(n => `<option ${n === logSvc ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+    <div class="row"><select class="select" id="lg-svc" aria-label="${tt('Service', 'Dienst')}" style="max-width:14rem"><option value="">${tt('All services', 'Alle Dienste')}</option>${logNames.map(n => `<option ${n === logSvc ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
       <label class="sr-only" for="lg-filter">${tt('Filter', 'Filter')}</label><input class="input" id="lg-filter" placeholder="${tt('Filter', 'Filter')}" value="${esc(logFilter)}" style="flex:1;min-width:8rem">
       <button class="btn btn-outline btn-sm" id="lg-clear">${T('Clear', 'Leeren')}</button></div>
     <div class="log" id="lg-box" style="max-height:28rem">${logBoxHTML()}</div></div>`;
