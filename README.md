@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo.svg" alt="Leuchtfeuer" width="96" height="96"></p>
+<p align="center"><img src="docs/icon.svg" alt="Leuchtfeuer" width="96" height="96"></p>
 
 # Leuchtfeuer
 
