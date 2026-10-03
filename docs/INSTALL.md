@@ -99,7 +99,7 @@ interface runs:
 |---|---|
 | `ALSA_CARD` | sound card for output and volume (number or name from `aplay -l`) |
 | `ALSA_OUTPUT` | set to `"pipewire"` or `"pulse"` when a sound server holds the card (desktop systems) |
-| `WEB_PORT`, `WEB_TLS` | port of the web interface, HTTPS with its own certificate |
+| `WEB_PORT`, `WEB_TLS` | port of the web interface; HTTPS: `on` (own certificate) or `acme` (Let's Encrypt, `ACME_*`, see `config.example`; also System > HTTPS) |
 | `WIFI_IFACE` | network interface (empty = the one of the default route) |
 | `SERVICE_<NAME>` | which receivers run (also in Settings > Services) |
 | `SNAPCAST_SERVER`, `SENDSPIN_SERVER` | servers when they are not found automatically |

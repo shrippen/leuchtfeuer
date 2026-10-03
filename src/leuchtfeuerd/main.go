@@ -124,7 +124,11 @@ func main() {
 	go a.brief.Run()
 	a.peers = newPeerHub(a)
 	webPort, _ := strconv.Atoi(strings.TrimPrefix(*listen, ":"))
-	tlsOn := cfg.Get("WEB_TLS", "") == "on"
+	https, err := newHTTPS(cfg, dataDir)
+	if err != nil {
+		log.Printf("HTTPS: %v - weiter nur mit HTTP", err)
+	}
+	tlsOn := https != nil
 	if tlsOn {
 		webPort, _ = strconv.Atoi(cfg.Get("WEB_TLS_PORT", "443"))
 	}
@@ -136,7 +140,7 @@ func main() {
 	a.voice.zc = a.peers.WyomingZeroconf
 	a.voice.Apply()
 	go a.voice.Run()
-	w := &webServer{app: a, login: newLoginState(hash), tokens: loadTokens(filepath.Join(dataDir, "tokens.json"))}
+	w := &webServer{app: a, login: newLoginState(hash), tokens: loadTokens(filepath.Join(dataDir, "tokens.json")), https: https}
 	w.login.load(*sessPath)
 	go w.login.janitor()
 	go func() {

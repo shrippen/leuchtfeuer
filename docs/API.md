@@ -58,6 +58,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"v
 | `update` | `{current, latest, available, keySet, busy, pending, rolledBack, message}` |
 | `voice` | voice assistant: `{enabled, connected, state: off\|idle\|listening\|thinking\|speaking, streaming, lastHeard, lastAnswer, error, muted}` |
 | `briefing` | a briefing is playing |
+| `https` | `{mode, domain, state: obtaining\|ok\|error, error, issuer, notAfter, staging}` (Let's Encrypt: state of the certificate) |
 | `holiday` | name of today's public holiday in the configured region |
 | `mqtt`, `viz`, `buttons`, `now`, `timezone`, `webDefaultPassword`, `demo` | further state for the web interface |
 
@@ -189,6 +190,7 @@ speakers.
 | `setup` | `{done: true}`: the setup assistant is finished or skipped |
 | `update` | `{url}` (release page, https) |
 | `device` | `{name, dhcpHostname, sendspinServer, bluetoothPairing, webPassword?}`. Session only. |
+| `https` | `{mode ""\|"on"\|"acme", port 443, domain, email, dns "cloudflare"\|"hetzner"\|"desec"\|"netcup", staging, token?, netcupCustomer, netcupPassword?}`. `GET /api/settings` returns it as `https` (secrets only as `tokenSet`, `netcupPasswordSet`) together with `dnsProviders`. Saving restarts the web interface. |
 
 Further helpers for the settings:
 

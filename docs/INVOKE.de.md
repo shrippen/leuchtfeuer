@@ -265,8 +265,15 @@ Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast
 - **Sichern und wiederherstellen** (Einstellungen): eine Datei mit Einstellungen, Kopplungen, Spotify-Anmeldung und
   SSH-Schlüsseln (enthält Geheimnisse); zurückgespielt ist alles wieder da, z. B. nach einem Zurücksetzen. Das
   *Diagnosepaket* (Status, Einstellungen ohne Geheimnisse, Protokolle) ist für Fehlerberichte.
-- **HTTPS:** `WEB_TLS="on"` in `/data/leuchtfeuer/config` schaltet die Weboberfläche auf HTTPS mit eigenem Zertifikat (der Browser
-  warnt einmal); HTTP leitet dann um. Auch MQTT kann TLS nutzen (Reiter Home Assistant).
+- **HTTPS:** System > HTTPS (oder `WEB_TLS` in `/data/leuchtfeuer/config`) schaltet die Weboberfläche auf HTTPS; HTTP leitet
+  dann um. *Eigenes Zertifikat* (`WEB_TLS="on"`) gilt sofort, der Browser warnt einmal. *Let's Encrypt* (`WEB_TLS="acme"`)
+  holt über die DNS-Challenge ein vertrauenswürdiges Zertifikat für einen Namen in der eigenen Domain (Cloudflare, Hetzner
+  Console, deSEC oder netcup): Der Lautsprecher muss dafür nicht aus dem Internet erreichbar sein, der Name muss aber im
+  eigenen Netz auf ihn zeigen (Router, Pi-hole, eigener DNS). Bis das Zertifikat da ist, und beim Aufruf über die
+  IP-Adresse, gilt das eigene Zertifikat; erneuert wird es etwa 30 Tage vor Ablauf von selbst. Die Zugangsdaten des
+  DNS-Anbieters stehen nur in der config (Rechte 600) und erscheinen weder in der Oberfläche noch im Diagnosepaket; ihnen
+  die kleinsten Rechte geben, die der Anbieter erlaubt (nur DNS, nur diese Zone). Auch MQTT kann TLS nutzen (Reiter
+  Home Assistant).
 - **Uhr:** Der Lautsprecher stellt seine Uhr nach dem Start und alle 6 h per NTP (`NTP_SERVER`); die Übersicht warnt, wenn
   sie mehr als 2 s falsch geht.
 

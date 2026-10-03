@@ -43,8 +43,15 @@ NTP_SERVER="pool.ntp.org"
 # Weboberfläche (Port 80, Anmeldeseite): Das Passwort steht hier nie im Klartext, sondern als gesalzener Hash
 # (WEB_PASSWORD_HASH). Setzen mit install.sh oder scripts/set-web-password.sh, oder in der Oberfläche (Einstellungen).
 # Port optional: WEB_PORT="80"
-# HTTPS mit eigenem Zertifikat (der Browser warnt beim ersten Mal): WEB_TLS="on", Port WEB_TLS_PORT="443".
-# Dann leitet HTTP auf HTTPS um.
+# HTTPS (auch in der Oberfläche unter System > HTTPS): HTTP leitet dann auf HTTPS um, Port WEB_TLS_PORT="443".
+#   WEB_TLS="on"    eigenes, selbst signiertes Zertifikat (der Browser warnt beim ersten Mal)
+#   WEB_TLS="acme"  Zertifikat von Let's Encrypt über die DNS-Challenge; der Lautsprecher muss nicht aus dem Internet
+#                   erreichbar sein, ACME_DOMAIN muss aber im eigenen Netz auf ihn zeigen (Router, Pi-hole, eigener DNS).
+#                   Bis das Zertifikat da ist, und beim Aufruf über die IP-Adresse, gilt das eigene Zertifikat.
+#     ACME_DOMAIN="lautsprecher.example.de"  ACME_EMAIL="" (optional)  ACME_STAGING="on" (Test-CA zum Ausprobieren)
+#     ACME_DNS="cloudflare" | "hetzner" (Hetzner Console) | "desec" | "netcup"
+#     ACME_DNS_TOKEN=""          API-Token (netcup: API-Schlüssel)
+#     ACME_NETCUP_CUSTOMER=""  ACME_NETCUP_PASSWORD=""   nur netcup
 WEB_TLS="off"
 
 # Updates aus der Weboberfläche: öffentlicher Ed25519-Schlüssel (Base64) des Release-Signierers. Leer = Updates nur mit

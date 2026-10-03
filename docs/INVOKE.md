@@ -255,8 +255,14 @@ keeps its own software volume on top). Logs are in `/data/leuchtfeuer/log/` on t
 - **Back up and restore** (Settings): one file with settings, pairings, Spotify login and SSH keys (contains secrets);
   restoring it brings everything back, e.g. after a factory reset. The *diagnostics package* (status, settings without
   secrets, logs) is meant for bug reports.
-- **HTTPS:** `WEB_TLS="on"` in `/data/leuchtfeuer/config` makes the web interface use HTTPS with its own certificate (the browser
-  warns once); HTTP then redirects. MQTT can use TLS too (Home Assistant tab).
+- **HTTPS:** System > HTTPS (or `WEB_TLS` in `/data/leuchtfeuer/config`) switches the web interface to HTTPS; HTTP then
+  redirects. *Own certificate* (`WEB_TLS="on"`) works at once, the browser warns once. *Let's Encrypt* (`WEB_TLS="acme"`)
+  fetches a trusted certificate for a name in your own domain over the DNS challenge (Cloudflare, Hetzner Console, deSEC or
+  netcup): the speaker does not have to be reachable from the internet, but the name must point to it in your own network
+  (router, Pi-hole, local DNS). Until the certificate is there, and when opened by IP address, the own certificate is used;
+  it renews itself about 30 days before it expires. The access data of the DNS provider is stored only in the config
+  (mode 600) and is never shown or put into the diagnostics package; give it the smallest rights the provider offers
+  (only DNS, only this zone). MQTT can use TLS too (Home Assistant tab).
 - **Clock:** the speaker sets its clock by NTP after start and every 6 h (`NTP_SERVER`); the Overview warns if it is off by
   more than 2 s.
 

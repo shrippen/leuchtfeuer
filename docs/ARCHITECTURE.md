@@ -141,7 +141,7 @@ interface shows "not connected" and switching back to the built-in output restor
 | `tidal-1/2/3-*.sh` | iFi `tidal_connect_application` + bundled libs, avahi 0.6.32 (LD_PRELOAD shim for the missing `avahi` user), own `dbus-daemon` config | 2019/tcp | optional |
 | `shairport.sh` | shairport-sync 3.3.9 (AirPlay 1, Apple ALAC decoder), tinysvcmdns | 5000/tcp, 6001-6011/udp | does not attenuate; volume, play begin/end and metadata pipe go to leuchtfeuerd |
 | `snapclient.sh` | snapclient 0.35 (static musl, file player) + `aplay -D leuchtfeuer_snapcast` | outgoing 1704 | off by default; `SNAPCAST_SERVER` |
-| `leuchtfeuerd.sh` | `src/leuchtfeuerd` | 80/tcp (443 with `WEB_TLS`) | see below |
+| `leuchtfeuerd.sh` | `src/leuchtfeuerd` | 80/tcp (443 with `WEB_TLS`, `on` or `acme`) | see below |
 | `bluetooth-1..4-*.sh` | bluetoothd, `btagent`, bluealsa, bluealsa-aplay | – | see below |
 
 ## Bluetooth
@@ -299,7 +299,11 @@ Outputs go to `build/` (not in git). `tools/build-generic.sh <arch>` builds the 
 - SSH: public-key only. adb (root shell without login on 5555) is stopped by the hook and filtered.
 - The firewall allows only the service ports; the vendor's WAMP router (9998/9999) is internal only.
 - The vendor cloud endpoints for OTA are blocked in `/etc/hosts` (StockRoot); Cortana/OTA/crash upload are not started.
-- The web interface can use HTTPS (`WEB_TLS="on"`, own certificate) and MQTT can use TLS. Sessions are stored only as
+- The web interface can use HTTPS: own certificate (`WEB_TLS="on"`, `tls.go`) or Let's Encrypt over the DNS challenge
+  (`WEB_TLS="acme"`, `https.go`: certmagic, the certificate core of Caddy, with libdns providers for Cloudflare, deSEC and
+  netcup; Hetzner Console in `dns_hetzner.go`, because libdns/hetzner/v2 would add about 4.5 MB). Certificates and the ACME
+  account live in `/data/leuchtfeuer/acme`; names other than `ACME_DOMAIN` (IP address, `.lan`) and the time before the
+  first certificate get the own certificate. MQTT can use TLS. Sessions are stored only as
   SHA-256 of the cookie value; expired sessions and old failed logins are cleared every 10 minutes.
 - Updates from the web interface need a valid Ed25519 signature (`UPDATE_PUBKEY`); without a key the feature is off.
 - Bluetooth pairing needs no PIN, but is only possible during the 2-minute window after a press on the speaker's

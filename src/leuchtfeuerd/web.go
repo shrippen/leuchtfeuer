@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
-	"crypto/tls"
 	"embed"
 	"encoding/hex"
 	"encoding/json"
@@ -25,6 +25,7 @@ type webServer struct {
 	app    *app
 	login  *loginState
 	tokens *tokenStore
+	https  *httpsMgr // nil: nur HTTP
 }
 
 func randomPassword() string {
@@ -85,6 +86,7 @@ type statusResp struct {
 	Holiday    string          `json:"holiday"` // heute Feiertag (Name) in der eingestellten Region
 	Voice      voiceStatus     `json:"voice"`
 	Briefing   bool            `json:"briefing"` // Briefing läuft
+	HTTPS      httpsStatus     `json:"https"`
 }
 
 type timerView struct {
@@ -110,6 +112,7 @@ func (w *webServer) status() statusResp {
 		Update: a.updateStatus(), Holiday: holidayName(set.Holidays, a.sch.Now()), Output: a.out.Status(),
 	}
 	s.Sys.Services = a.svcFn()
+	s.HTTPS = w.https.Status()
 	if a.voice != nil {
 		s.Voice = a.voice.Status()
 	} else {
@@ -173,6 +176,7 @@ func (w *webServer) settings() map[string]any {
 		"settings": set, "device": w.device(), "actions": actionNames, "holidayRegions": holidayRegions,
 		"sourceNames": sourceNames, "version": currentVersion(), "podcasts": podcastPresets, "copySections": copySections,
 		"services": serviceDefs(), "groups": serviceGroups(w.app.cfg), "buttonNames": hw.ButtonNames,
+		"https": readHTTPSSettings(w.app.cfg), "dnsProviders": dnsProviders,
 	}
 }
 
@@ -472,6 +476,24 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 			w.login.setHash(h)
 		}
 		return a.cfg.Set(kv)
+	case "https":
+		var v httpsSettings
+		if err := decode(r, &v); err != nil {
+			return err
+		}
+		kv, err := httpsConfig(v, readHTTPSSettings(a.cfg))
+		if err != nil {
+			return err
+		}
+		if err := a.cfg.Set(kv); err != nil {
+			return err
+		}
+		// die Weboberfläche startet mit der neuen Art neu (der Hook startet leuchtfeuerd binnen 30 s wieder)
+		if !demoMode {
+			log.Printf("HTTPS: Einstellung geändert (%q), Weboberfläche startet neu", kv["WEB_TLS"])
+			go func() { time.Sleep(time.Second); restartService("leuchtfeuerd") }()
+		}
+		return nil
 	}
 	return fmt.Errorf("unbekannter Bereich %q", section)
 }
@@ -1101,27 +1123,21 @@ func (w *webServer) events(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Run startet die Weboberfläche; mit WEB_TLS="on" zusätzlich HTTPS (HTTP leitet dann um).
+// Run startet die Weboberfläche; mit WEB_TLS="on" oder "acme" zusätzlich HTTPS (HTTP leitet dann um).
 func (w *webServer) Run(addr string) {
 	h := w.routes()
-	cfg := w.app.cfg
-	if cfg.Get("WEB_TLS", "") == "on" {
-		port := cfg.Get("WEB_TLS_PORT", "443")
-		host := hostName(cfg)
-		cert, err := ensureCert(dataDir, host)
-		if err == nil {
-			w.login.secure = true
-			go func() {
-				srv := &http.Server{Addr: addr, Handler: redirectHTTPS(port), ReadHeaderTimeout: 10 * time.Second}
-				log.Printf("HTTP auf %s leitet auf HTTPS um", addr)
-				log.Print(srv.ListenAndServe())
-			}()
-			srv := &http.Server{Addr: ":" + port, Handler: h, ReadHeaderTimeout: 10 * time.Second,
-				TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}}
-			log.Printf("Weboberfläche auf :%s (HTTPS)", port)
-			log.Fatal(srv.ListenAndServeTLS("", ""))
-		}
-		log.Printf("HTTPS: %v - weiter nur mit HTTP", err)
+	if w.https != nil {
+		port := w.app.cfg.Get("WEB_TLS_PORT", "443")
+		w.login.secure = true
+		go func() {
+			srv := &http.Server{Addr: addr, Handler: redirectHTTPS(port), ReadHeaderTimeout: 10 * time.Second}
+			log.Printf("HTTP auf %s leitet auf HTTPS um", addr)
+			log.Print(srv.ListenAndServe())
+		}()
+		w.https.Start(context.Background())
+		srv := &http.Server{Addr: ":" + port, Handler: h, ReadHeaderTimeout: 10 * time.Second, TLSConfig: w.https.TLSConfig()}
+		log.Printf("Weboberfläche auf :%s (HTTPS, %s)", port, map[string]string{"on": "eigenes Zertifikat", "acme": "Let's Encrypt"}[w.https.mode])
+		log.Fatal(srv.ListenAndServeTLS("", ""))
 	}
 	srv := &http.Server{Addr: addr, Handler: h, ReadHeaderTimeout: 10 * time.Second}
 	log.Printf("Weboberfläche auf %s ", addr)

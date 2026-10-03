@@ -60,6 +60,11 @@ WEB_TLS="on"' > $T/d/config
 r=$(fw_rules)
 check "SERVICE_* hat Vorrang, Snapcast an" 'echo "$r" | grep -q 5000 && echo "$r" | grep -q 1780'
 check "HTTPS-Port 443" 'echo "$r" | grep -q -- "-p tcp --dport 443 -j RETURN$"'
+echo 'WEB_TLS="acme"
+WEB_TLS_PORT="9443"' > $T/d/config
+check "HTTPS mit Let's Encrypt öffnet den eigenen Port" 'fw_rules | grep -q -- "-p tcp --dport 9443 -j RETURN$"'
+echo 'WEB_TLS=""' > $T/d/config
+check "HTTPS aus: kein HTTPS-Port" '! fw_rules | grep -q -- "^-p tcp --dport 443 -j RETURN$"'
 
 : > $T/ipt.log
 firewall
