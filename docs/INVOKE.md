@@ -258,8 +258,8 @@ keeps its own software volume on top). Logs are in `/data/leuchtfeuer/log/` on t
   secrets, logs) is meant for bug reports.
 - **HTTPS:** System > HTTPS (or `WEB_TLS` in `/data/leuchtfeuer/config`) switches the web interface to HTTPS; HTTP then
   redirects. *Own certificate* (`WEB_TLS="on"`) works at once, the browser warns once. *Let's Encrypt* (`WEB_TLS="acme"`)
-  fetches a trusted certificate for a name in your own domain over the DNS challenge (Cloudflare, Hetzner Console, deSEC or
-  netcup): the speaker does not have to be reachable from the internet, but the name must point to it in your own network
+  fetches a trusted certificate for a name in your own domain over the DNS challenge (Cloudflare, Hetzner Console, deSEC,
+  netcup, Gandi, Porkbun, Namecheap or ACME-DNS): the speaker does not have to be reachable from the internet, but the name must point to it in your own network
   (router, Pi-hole, local DNS). Until the certificate is there, and when opened by IP address, the own certificate is used;
   it renews itself about 30 days before it expires. The access data of the DNS provider is stored encrypted in the config
   (AES-256-GCM with a device key `secret.key` that is not part of the backup; after restoring on another device, enter it

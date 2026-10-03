@@ -28,20 +28,34 @@ func TestHTTPSConfigValidation(t *testing.T) {
 		t.Fatalf("Schlüssel falsch: %v", kv)
 	}
 	bad := map[string]httpsSettings{
-		"Art":           {Mode: "x", Port: 443},
-		"Port":          {Mode: "on", Port: 0},
-		"Domain":        {Mode: "acme", Port: 443, Domain: "lautsprecher", DNS: "cloudflare", Token: "t"},
-		"Domain-IP":     {Mode: "acme", Port: 443, Domain: "192.168.1.5", DNS: "cloudflare", Token: "t"},
-		"Anbieter":      {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "route53", Token: "t"},
-		"Token":         {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "desec"},
-		"netcup-Nr":     {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "netcup", Token: "k", NetcupPassword: "p"},
-		"netcup-Pass":   {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "netcup", Token: "k", NetcupCustomer: "1"},
-		"E-Mail":        {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "desec", Token: "t", Email: "kein at"},
-		"Zeilenumbruch": {Mode: "acme", Port: 443, Domain: "a.example.de\nX=1", DNS: "desec", Token: "t"},
+		"Art":            {Mode: "x", Port: 443},
+		"Port":           {Mode: "on", Port: 0},
+		"Domain":         {Mode: "acme", Port: 443, Domain: "lautsprecher", DNS: "cloudflare", Token: "t"},
+		"Domain-IP":      {Mode: "acme", Port: 443, Domain: "192.168.1.5", DNS: "cloudflare", Token: "t"},
+		"Anbieter":       {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "route53", Token: "t"},
+		"Token":          {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "desec"},
+		"netcup-Nr":      {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "netcup", Token: "k", NetcupPassword: "p"},
+		"netcup-Pass":    {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "netcup", Token: "k", NetcupCustomer: "1"},
+		"porkbun-Secret": {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "porkbun", Token: "k"},
+		"namecheap-User": {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "namecheap", Token: "k"},
+		"acmedns-http":   {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "acmedns", Token: "k", User: "u", Server: "http://x.example", Subdomain: "s"},
+		"acmedns-Sub":    {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "acmedns", Token: "k", User: "u", Server: "https://x.example"},
+		"E-Mail":         {Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "desec", Token: "t", Email: "kein at"},
+		"Zeilenumbruch":  {Mode: "acme", Port: 443, Domain: "a.example.de\nX=1", DNS: "desec", Token: "t"},
 	}
 	for name, v := range bad {
 		if _, err := httpsConfig(v, none); err == nil {
 			t.Errorf("%s: Fehler erwartet", name)
+		}
+	}
+	for _, v := range []httpsSettings{
+		{Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "gandi", Token: "t"},
+		{Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "porkbun", Token: "k", Secret: "s"},
+		{Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "namecheap", Token: "k", User: "u"},
+		{Mode: "acme", Port: 443, Domain: "a.example.de", DNS: "acmedns", Token: "k", User: "u", Server: "https://x.example", Subdomain: "s"},
+	} {
+		if _, err := httpsConfig(v, none); err != nil {
+			t.Errorf("%s: %v", v.DNS, err)
 		}
 	}
 	// leeres Token behält das gespeicherte, aber nur beim selben Anbieter
@@ -147,5 +161,30 @@ func TestHetznerDNS(t *testing.T) {
 	}
 	if _, err := (&hetznerDNS{Token: "falsch", BaseURL: srv.URL}).AppendRecords(ctx, "example.de.", []libdns.Record{rec}); err == nil || !strings.Contains(err.Error(), "unable to authenticate") {
 		t.Fatalf("falsches Token: %v", err)
+	}
+}
+
+func TestDNSProviderBuild(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config")
+	for dns, extra := range map[string]string{
+		"gandi":     "",
+		"porkbun":   "ACME_DNS_SECRET=\"s\"\n",
+		"namecheap": "ACME_DNS_USER=\"u\"\n",
+		"acmedns":   "ACME_DNS_USER=\"u\"\nACME_DNS_SERVER=\"https://x.example\"\nACME_DNS_SUBDOMAIN=\"s\"\n",
+	} {
+		os.WriteFile(cfgPath, []byte("ACME_DNS=\""+dns+"\"\nACME_DNS_TOKEN=\"t\"\n"+extra), 0o600)
+		c := &shellConfig{path: cfgPath}
+		migrateConfigSecrets(c, dir) // Geheimnisse wie im Betrieb verschlüsseln
+		if p, err := dnsProvider(&shellConfig{path: cfgPath}, dir); err != nil || p == nil {
+			t.Errorf("%s: %v", dns, err)
+		}
+		// ohne die Zusatzangaben muss es scheitern
+		if extra != "" {
+			os.WriteFile(cfgPath, []byte("ACME_DNS=\""+dns+"\"\nACME_DNS_TOKEN=\"t\"\n"), 0o600)
+			if _, err := dnsProvider(&shellConfig{path: cfgPath}, dir); err == nil {
+				t.Errorf("%s ohne Zusatzangaben: Fehler erwartet", dns)
+			}
+		}
 	}
 }

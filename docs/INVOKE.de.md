@@ -270,7 +270,7 @@ Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast
 - **HTTPS:** System > HTTPS (oder `WEB_TLS` in `/data/leuchtfeuer/config`) schaltet die Weboberfläche auf HTTPS; HTTP leitet
   dann um. *Eigenes Zertifikat* (`WEB_TLS="on"`) gilt sofort, der Browser warnt einmal. *Let's Encrypt* (`WEB_TLS="acme"`)
   holt über die DNS-Challenge ein vertrauenswürdiges Zertifikat für einen Namen in der eigenen Domain (Cloudflare, Hetzner
-  Console, deSEC oder netcup): Der Lautsprecher muss dafür nicht aus dem Internet erreichbar sein, der Name muss aber im
+  Console, deSEC, netcup, Gandi, Porkbun, Namecheap oder ACME-DNS): Der Lautsprecher muss dafür nicht aus dem Internet erreichbar sein, der Name muss aber im
   eigenen Netz auf ihn zeigen (Router, Pi-hole, eigener DNS). Bis das Zertifikat da ist, und beim Aufruf über die
   IP-Adresse, gilt das eigene Zertifikat; erneuert wird es etwa 30 Tage vor Ablauf von selbst. Die Zugangsdaten des
   DNS-Anbieters stehen verschlüsselt in der config (AES-256-GCM mit einem Geräteschlüssel `secret.key`, der nicht in die

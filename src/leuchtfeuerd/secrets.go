@@ -25,7 +25,7 @@ import (
 const secretPrefix = "enc:v1:"
 
 // secretConfigKeys: Schlüssel der config, die verschlüsselt abgelegt werden.
-var secretConfigKeys = []string{"ACME_DNS_TOKEN", "ACME_NETCUP_PASSWORD"}
+var secretConfigKeys = []string{"ACME_DNS_TOKEN", "ACME_NETCUP_PASSWORD", "ACME_DNS_SECRET"}
 
 var errSecretForeign = errors.New("mit einem anderen Geräteschlüssel verschlüsselt (Sicherung von einem anderen Gerät?) - bitte neu eintragen")
 

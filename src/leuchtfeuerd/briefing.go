@@ -660,11 +660,18 @@ func (b *briefing) Build(at time.Time, speak bool) []briefSegment {
 	if speak {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
+		// Ohne ausdrückliche Wahl die Sprachausgabe von Home Assistant nehmen, wenn sie eingerichtet ist
+		if set.TTS == "" && ha.URL != "" && ha.Token != "" && ha.TTSEngine != "" {
+			set.TTS = "ha"
+		}
 		for i := range out {
 			switch {
 			case out[i].Audio != "":
 				out[i].url = out[i].Audio
-			case out[i].Text != "" && set.TTS != "":
+			case out[i].Text != "" && set.TTS == "":
+				out[i].Error = "keine Sprachausgabe eingerichtet (Briefing: Sprachausgabe, oder Home Assistant mit TTS-Entität)"
+				log.Printf("Briefing: %s", out[i].Error)
+			case out[i].Text != "":
 				u, err := b.tts(ctx, set, ha, out[i].Text)
 				if err != nil {
 					out[i].Error = err.Error()
