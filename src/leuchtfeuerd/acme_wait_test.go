@@ -25,7 +25,9 @@ func (f *fakeDNS) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
 	m.SetReply(r)
 	q := r.Question[0]
-	hdr := func(t uint16) dns.RR_Header { return dns.RR_Header{Name: q.Name, Rrtype: t, Class: dns.ClassINET, Ttl: 60} }
+	hdr := func(t uint16) dns.RR_Header {
+		return dns.RR_Header{Name: q.Name, Rrtype: t, Class: dns.ClassINET, Ttl: 60}
+	}
 	switch {
 	case q.Qtype == dns.TypeNS && strings.EqualFold(q.Name, "example.de."):
 		m.Answer = []dns.RR{&dns.NS{Hdr: hdr(dns.TypeNS), Ns: "ns1.example.de."}, &dns.NS{Hdr: hdr(dns.TypeNS), Ns: "ns2.example.de."}}
@@ -42,6 +44,10 @@ func (f *fakeDNS) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 	w.WriteMsg(m)
 }
+
+// set und count greifen unter der Sperre zu: der Server antwortet nebenher in eigenen Goroutinen.
+func (f *fakeDNS) set(txt func(n int) []string) { f.mu.Lock(); f.txt = txt; f.mu.Unlock() }
+func (f *fakeDNS) count() int                   { f.mu.Lock(); defer f.mu.Unlock(); return f.n }
 
 func startFakeDNS(t *testing.T, f *fakeDNS) {
 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
@@ -71,11 +77,11 @@ func TestNSWaitNeedsAllNameservers(t *testing.T) {
 	if err := s.Wait(context.Background(), ch); err != nil {
 		t.Fatal(err)
 	}
-	if f.n < 4 {
-		t.Fatalf("nach der ersten Runde für verbreitet gehalten (%d Abfragen)", f.n)
+	if n := f.count(); n < 4 {
+		t.Fatalf("nach der ersten Runde für verbreitet gehalten (%d Abfragen)", n)
 	}
 	// nie überall: Zeitüberschreitung mit Fehler
-	f.txt = func(int) []string { return []string{"alt"} }
+	f.set(func(int) []string { return []string{"alt"} })
 	s.timeout = 300 * time.Millisecond
 	if err := s.Wait(context.Background(), ch); err == nil || !strings.Contains(err.Error(), "fehlt noch") {
 		t.Fatalf("Fehler erwartet, bekam %v", err)
