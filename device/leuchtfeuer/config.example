@@ -49,9 +49,12 @@ NTP_SERVER="pool.ntp.org"
 #                   erreichbar sein, ACME_DOMAIN muss aber im eigenen Netz auf ihn zeigen (Router, Pi-hole, eigener DNS).
 #                   Bis das Zertifikat da ist, und beim Aufruf über die IP-Adresse, gilt das eigene Zertifikat.
 #     ACME_DOMAIN="lautsprecher.example.de"  ACME_EMAIL="" (optional)  ACME_STAGING="on" (Test-CA zum Ausprobieren)
-#     ACME_DNS="cloudflare" | "hetzner" (Hetzner Console) | "desec" | "netcup"
+#     ACME_DNS="cloudflare" | "hetzner" (Hetzner Console) | "desec" | "netcup" | "gandi" | "porkbun" | "namecheap" | "acmedns"
 #     ACME_DNS_TOKEN=""          API-Token (netcup: API-Schlüssel)
 #     ACME_NETCUP_CUSTOMER=""  ACME_NETCUP_PASSWORD=""   nur netcup
+#     ACME_DNS_SECRET=""         nur Porkbun: geheimer API-Schlüssel (ACME_DNS_TOKEN = API-Schlüssel)
+#     ACME_DNS_USER=""           Namecheap: API-Benutzer; ACME-DNS: Benutzername (ACME_DNS_TOKEN = Passwort)
+#     ACME_DNS_SERVER="https://…"  ACME_DNS_SUBDOMAIN=""   nur ACME-DNS
 #     ACME_DNS_ALIAS=""          optional: CNAME-Ziel für _acme-challenge.<ACME_DOMAIN> in einer anderen Zone; der
 #                                TXT-Eintrag entsteht dann nur dort, Token/Anbieter oben gelten für diese Zone
 #   Token und Passwort werden verschlüsselt abgelegt (Geräteschlüssel secret.key, nicht in der Sicherung); hier von

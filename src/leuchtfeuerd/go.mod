@@ -19,6 +19,10 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
+	github.com/libdns/acmedns v0.5.0 // indirect
+	github.com/libdns/gandi v1.1.0 // indirect
+	github.com/libdns/namecheap v1.0.0 // indirect
+	github.com/libdns/porkbun v1.1.0 // indirect
 	github.com/mholt/acmez/v3 v3.1.7 // indirect
 	github.com/miekg/dns v1.1.73 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect

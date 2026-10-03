@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -13,10 +14,14 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/libdns/acmedns"
 	"github.com/libdns/cloudflare"
 	"github.com/libdns/desec"
+	"github.com/libdns/gandi"
 	"github.com/libdns/libdns"
+	"github.com/libdns/namecheap"
 	"github.com/libdns/netcup"
+	"github.com/libdns/porkbun"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +38,7 @@ import (
 // kleine Zone statt für die eigentliche Domain (wichtig bei netcup, dessen API-Schlüssel alle Zonen des Kontos ändern darf).
 
 // dnsProviders: unterstützte Anbieter (Schlüssel in ACME_DNS) mit ihren Feldern in der config.
-var dnsProviders = []string{"cloudflare", "hetzner", "desec", "netcup"}
+var dnsProviders = []string{"cloudflare", "hetzner", "desec", "netcup", "gandi", "porkbun", "namecheap", "acmedns"}
 
 var domainRe = regexp.MustCompile(`^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 
@@ -89,6 +94,29 @@ func dnsProvider(c *shellConfig, dir string) (certmagic.DNSProvider, error) {
 		if c.Get("ACME_NETCUP_CUSTOMER", "") == "" || pass == "" {
 			return nil, fmt.Errorf("netcup braucht Kundennummer, API-Schlüssel und API-Passwort")
 		}
+	case "gandi":
+		p = &gandi.Provider{BearerToken: tok}
+	case "porkbun":
+		sec, err := configSecret(c, dir, "ACME_DNS_SECRET")
+		if err != nil {
+			return nil, err
+		}
+		if sec == "" {
+			return nil, fmt.Errorf("Porkbun braucht API-Schlüssel und geheimen API-Schlüssel")
+		}
+		p = &porkbun.Provider{APIKey: tok, APISecretKey: sec}
+	case "namecheap":
+		user := c.Get("ACME_DNS_USER", "")
+		if user == "" {
+			return nil, fmt.Errorf("Namecheap braucht den API-Benutzer")
+		}
+		p = &namecheap.Provider{User: user, APIKey: tok}
+	case "acmedns":
+		user, server, sub := c.Get("ACME_DNS_USER", ""), c.Get("ACME_DNS_SERVER", ""), c.Get("ACME_DNS_SUBDOMAIN", "")
+		if user == "" || server == "" || sub == "" {
+			return nil, fmt.Errorf("ACME-DNS braucht Server, Benutzer, Passwort und Subdomain")
+		}
+		p = &acmedns.Provider{ServerURL: server, Username: user, Password: tok, Subdomain: sub}
 	default:
 		return nil, fmt.Errorf("DNS-Anbieter %q unbekannt", c.Get("ACME_DNS", ""))
 	}
@@ -269,9 +297,14 @@ type httpsSettings struct {
 	TokenSet       bool   `json:"tokenSet"`
 	NetcupCustomer string `json:"netcupCustomer"`
 	NetcupPassSet  bool   `json:"netcupPasswordSet"`
+	User           string `json:"user"`      // namecheap: API-Benutzer; acmedns: Benutzername
+	Server         string `json:"server"`    // acmedns: Adresse des Servers
+	Subdomain      string `json:"subdomain"` // acmedns
+	SecretSet      bool   `json:"secretSet"` // porkbun: geheimer API-Schlüssel
 	// nur beim Speichern; leer = behalten
 	Token          string `json:"token,omitempty"`
 	NetcupPassword string `json:"netcupPassword,omitempty"`
+	Secret         string `json:"secret,omitempty"`
 }
 
 func readHTTPSSettings(c *shellConfig) httpsSettings {
@@ -280,6 +313,7 @@ func readHTTPSSettings(c *shellConfig) httpsSettings {
 		Mode: c.Get("WEB_TLS", ""), Port: port, Domain: c.Get("ACME_DOMAIN", ""), Email: c.Get("ACME_EMAIL", ""),
 		DNS: c.Get("ACME_DNS", ""), Alias: c.Get("ACME_DNS_ALIAS", ""), Staging: c.Get("ACME_STAGING", "") == "on", TokenSet: c.Get("ACME_DNS_TOKEN", "") != "",
 		NetcupCustomer: c.Get("ACME_NETCUP_CUSTOMER", ""), NetcupPassSet: c.Get("ACME_NETCUP_PASSWORD", "") != "",
+		User: c.Get("ACME_DNS_USER", ""), Server: c.Get("ACME_DNS_SERVER", ""), Subdomain: c.Get("ACME_DNS_SUBDOMAIN", ""), SecretSet: c.Get("ACME_DNS_SECRET", "") != "",
 	}
 }
 
@@ -329,6 +363,31 @@ func httpsConfig(v httpsSettings, old httpsSettings) (map[string]string, error) 
 		kv["ACME_NETCUP_CUSTOMER"] = strings.TrimSpace(v.NetcupCustomer)
 		if v.NetcupPassword != "" {
 			kv["ACME_NETCUP_PASSWORD"] = v.NetcupPassword
+		}
+	}
+	switch v.DNS {
+	case "porkbun":
+		if v.Secret == "" && !(old.SecretSet && old.DNS == "porkbun") {
+			return nil, fmt.Errorf("Porkbun: geheimer API-Schlüssel fehlt")
+		}
+		if v.Secret != "" {
+			kv["ACME_DNS_SECRET"] = v.Secret
+		}
+	case "namecheap", "acmedns":
+		user := strings.TrimSpace(v.User)
+		if user == "" {
+			return nil, fmt.Errorf("%s: Benutzer fehlt", map[string]string{"namecheap": "Namecheap", "acmedns": "ACME-DNS"}[v.DNS])
+		}
+		kv["ACME_DNS_USER"] = user
+		if v.DNS == "acmedns" {
+			server, sub := strings.TrimSpace(v.Server), strings.TrimSpace(v.Subdomain)
+			if u, err := url.Parse(server); err != nil || u.Scheme != "https" || u.Host == "" {
+				return nil, fmt.Errorf("ACME-DNS: Server-Adresse muss mit https:// beginnen")
+			}
+			if sub == "" || strings.ContainsAny(sub, " \"'/") {
+				return nil, fmt.Errorf("ACME-DNS: Subdomain fehlt oder ungültig")
+			}
+			kv["ACME_DNS_SERVER"], kv["ACME_DNS_SUBDOMAIN"] = server, sub
 		}
 	}
 	alias := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(v.Alias), "."))

@@ -1321,14 +1321,20 @@ function bindDevices() {
 
 // ---------------------------------------------------------------- System
 let tokensList = null, sshKeys = null, newToken = '', logES = null, logLines = [], logSvc = '', logFilter = '', logNames = [];
-const DNS_NAMES = { cloudflare: 'Cloudflare', hetzner: 'Hetzner (Hetzner Console)', desec: 'deSEC', netcup: 'netcup' };
+const DNS_NAMES = { cloudflare: 'Cloudflare', hetzner: 'Hetzner (Hetzner Console)', desec: 'deSEC', netcup: 'netcup', gandi: 'Gandi', porkbun: 'Porkbun', namecheap: 'Namecheap', acmedns: 'ACME-DNS' };
 const DNS_HINTS = {
   cloudflare: ['API token with the permission Zone > DNS > Edit, ideally limited to this zone (My Profile > API Tokens).', 'API-Token mit der Berechtigung Zone > DNS > Bearbeiten, am besten nur für diese Zone (Mein Profil > API-Token).'],
   hetzner: ['API token of the project with the zone, permission read & write (Hetzner Console > project > Security > API tokens).', 'API-Token des Projekts mit der Zone, Berechtigung Lesen & Schreiben (Hetzner Console > Projekt > Sicherheit > API-Token).'],
   desec: ['Token from deSEC (Token management), ideally limited to this domain.', 'Token aus deSEC (Token-Verwaltung), am besten nur für diese Domain.'],
   netcup: ['Customer control panel > Master data > API: customer number, API key and API password. netcup takes up to 15 minutes to publish changes, so the first certificate needs some patience.', 'Kundencontrolpanel > Stammdaten > API: Kundennummer, API-Schlüssel und API-Passwort. netcup veröffentlicht Änderungen erst nach bis zu 15 Minuten, das erste Zertifikat braucht also etwas Geduld.'],
+  gandi: ['Personal Access Token from Gandi (Account > Security > Personal Access Tokens) with the permission to manage domain records.', 'Personal Access Token von Gandi (Konto > Sicherheit > Personal Access Tokens) mit der Berechtigung, Domain-Einträge zu verwalten.'],
+  porkbun: ['API key and secret API key (Account > API Access); switch on API access for the domain.', 'API-Schlüssel und geheimer API-Schlüssel (Konto > API-Zugang); den API-Zugang für die Domain einschalten.'],
+  namecheap: ['API user and API key (Profile > Tools > API Access). The public IP address of your network must be on the API allow list.', 'API-Benutzer und API-Schlüssel (Profil > Tools > API-Zugang). Die öffentliche IP-Adresse deines Netzes muss in der API-Freigabeliste stehen.'],
+  acmedns: ['Account from /register on your ACME-DNS server. Set _acme-challenge of your domain by CNAME to <subdomain>.<server domain>; the speaker only changes that one record.', 'Konto von /register auf deinem ACME-DNS-Server. _acme-challenge deiner Domain per CNAME auf <Subdomain>.<Server-Domain> setzen; der Lautsprecher ändert nur diesen einen Eintrag.'],
 };
 const cnameHint = (d, a) => d && a ? `${T('DNS record at your domain', 'Eintrag bei deiner Domain')}: _acme-challenge.${esc(d.trim())}. CNAME ${esc(a.trim().replace(/\.$/, ''))}.` : '';
+const DNS_TOKEN_LABEL = { netcup: ['API key', 'API-Schlüssel'], porkbun: ['API key', 'API-Schlüssel'], namecheap: ['API key', 'API-Schlüssel'], acmedns: ['Password', 'Passwort'] };
+const dnsTokenLabel = p => T(...(DNS_TOKEN_LABEL[p] || ['API token', 'API-Token']));
 const dnsHint = p => DNS_HINTS[p] ? T(...DNS_HINTS[p]) : '';
 function httpsStatusHTML() {
   const h = S.https || {};
@@ -1373,7 +1379,10 @@ function viewSystem() {
       <div class="field"><label for="hs-dns">${T('DNS provider', 'DNS-Anbieter')}</label><select class="select" id="hs-dns"><option value="">${tt('Choose …', 'Wählen …')}</option>${(CFG.dnsProviders || []).map(p => `<option value="${p}" ${p === HS.dns ? 'selected' : ''}>${esc(DNS_NAMES[p] || p)}</option>`).join('')}</select></div>
       <p class="small" id="hs-dns-hint">${dnsHint(HS.dns)}</p>
       <div id="hs-netcup" class="stack ${HS.dns === 'netcup' ? '' : 'hidden'}">${fld('hs-nc-cust', 'Customer number', 'Kundennummer', HS.netcupCustomer || '', 'inputmode="numeric" autocomplete="off"')}</div>
-      <div class="field"><label for="hs-token" id="hs-token-l">${HS.dns === 'netcup' ? T('API key', 'API-Schlüssel') : T('API token', 'API-Token')}</label><input class="input" id="hs-token" type="password" autocomplete="off" placeholder="${HS.tokenSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
+      <div id="hs-user" class="stack ${['namecheap', 'acmedns'].includes(HS.dns) ? '' : 'hidden'}">${fld('hs-user-v', 'User', 'Benutzer', HS.user || '', 'autocomplete="off"')}</div>
+      <div id="hs-acmedns" class="stack ${HS.dns === 'acmedns' ? '' : 'hidden'}">${fld('hs-server', 'ACME-DNS server', 'ACME-DNS-Server', HS.server || '', 'placeholder="https://auth.example.org" autocomplete="off"')}${fld('hs-sub', 'Subdomain', 'Subdomain', HS.subdomain || '', 'autocomplete="off"')}</div>
+      <div class="field"><label for="hs-token" id="hs-token-l">${dnsTokenLabel(HS.dns)}</label><input class="input" id="hs-token" type="password" autocomplete="off" placeholder="${HS.tokenSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
+      <div class="field ${HS.dns === 'porkbun' ? '' : 'hidden'}" id="hs-secret-f"><label for="hs-secret">${T('Secret API key', 'Geheimer API-Schlüssel')}</label><input class="input" id="hs-secret" type="password" autocomplete="off" placeholder="${HS.secretSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
       <div class="field ${HS.dns === 'netcup' ? '' : 'hidden'}" id="hs-nc-pass-f"><label for="hs-nc-pass">${T('API password', 'API-Passwort')}</label><input class="input" id="hs-nc-pass" type="password" autocomplete="off" placeholder="${HS.netcupPasswordSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
       ${fld('hs-alias', 'Challenge domain (CNAME target, optional)', 'Challenge-Domain (CNAME-Ziel, optional)', HS.alias || '', 'placeholder="lautsprecher.acme.dedyn.io" autocomplete="off"', 'acmealias')}
       <p class="small mono" id="hs-cname">${cnameHint(HS.domain, HS.alias)}</p>
@@ -1430,14 +1439,17 @@ function bindSystem() {
   $('#hs-dns').onchange = () => {
     const p = $('#hs-dns').value, nc = p === 'netcup';
     $('#hs-dns-hint').innerHTML = dnsHint(p); $('#hs-netcup').classList.toggle('hidden', !nc); $('#hs-nc-pass-f').classList.toggle('hidden', !nc);
-    $('#hs-token-l').textContent = nc ? tt('API key', 'API-Schlüssel') : tt('API token', 'API-Token');
+    $('#hs-user').classList.toggle('hidden', !['namecheap', 'acmedns'].includes(p)); $('#hs-acmedns').classList.toggle('hidden', p !== 'acmedns');
+    $('#hs-secret-f').classList.toggle('hidden', p !== 'porkbun');
+    $('#hs-token-l').innerHTML = dnsTokenLabel(p);
   };
   const cn = () => { $('#hs-cname').innerHTML = cnameHint($('#hs-domain').value, $('#hs-alias').value); };
   $('#hs-domain').oninput = cn; $('#hs-alias').oninput = cn;
   $('#hs-save').onclick = () => act(async () => {
     const mode = segVal('hs-mode'), port = +$('#hs-port').value || 443, domain = $('#hs-domain').value.trim();
     await api('/api/settings/https', 'PUT', { mode, port, domain, email: $('#hs-email').value.trim(), dns: $('#hs-dns').value, alias: $('#hs-alias').value.trim(), staging: swVal('hs-staging'),
-      token: $('#hs-token').value, netcupCustomer: $('#hs-nc-cust').value.trim(), netcupPassword: $('#hs-nc-pass').value });
+      token: $('#hs-token').value, netcupCustomer: $('#hs-nc-cust').value.trim(), netcupPassword: $('#hs-nc-pass').value,
+      user: $('#hs-user-v').value.trim(), server: $('#hs-server').value.trim(), subdomain: $('#hs-sub').value.trim(), secret: $('#hs-secret').value });
     const host = mode === 'acme' ? domain : location.hostname;
     const next = mode ? `https://${host}${port === 443 ? '' : ':' + port}/#/system` : `http://${location.hostname}${location.protocol === 'http:' && location.port ? ':' + location.port : ''}/#/system`;
     toast(tt(`Restarting - opening ${next} in 20 s`, `Startet neu - öffne ${next} in 20 s`), 'ok');
