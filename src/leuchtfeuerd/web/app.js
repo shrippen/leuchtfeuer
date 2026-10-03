@@ -1690,4 +1690,40 @@ function renderBottomNav() {
 document.addEventListener('click', e => $$('details.help[open], #bnav details[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); }));
 window.addEventListener('hashchange', onHash);
 new MutationObserver(() => render()).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+// Kachel-Seiten: jede Kachel in die jeweils kürzeste Spalte. CSS-Spalten balancieren nur die Höhen und lassen eine Spalte
+// leer, sobald eine Kachel so hoch ist wie die übrigen zusammen (Briefing, Einstellungen). Spaltenzahl nach Breite (je 300 px).
+let laying = false, laidWidth = 0;
+function layoutGrids() {
+  const view = $('#view'); if (!view) return;
+  laying = true;
+  laidWidth = view.clientWidth;
+  const gap = 1.2 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  $$('.grid:not(.kpis)', view).forEach(g => {
+    const fit = Math.max(1, Math.floor((g.clientWidth + gap) / (300 + gap)));
+    const items = [];
+    [...g.children].forEach(c => c.classList.contains('mrow') ? c.querySelectorAll(':scope > .mcol > *').forEach(x => items.push(x)) : items.push(c));
+    const n = Math.min(fit, items.filter(x => !x.classList.contains('wide-card')).length || 1); // nie mehr Spalten als Kacheln
+    items.forEach((x, i) => { if (x.dataset.mi === undefined) x.dataset.mi = i; });
+    items.sort((a, b) => a.dataset.mi - b.dataset.mi);
+    g.replaceChildren();
+    g.classList.toggle('mason', n > 1);
+    if (n === 1) { g.append(...items); return; }
+    let cols = null;
+    items.forEach(x => {
+      if (x.classList.contains('wide-card')) { cols = null; g.append(x); return; }
+      if (!cols) {
+        const row = document.createElement('div'); row.className = 'mrow';
+        cols = Array.from({ length: n }, () => { const c = document.createElement('div'); c.className = 'mcol'; row.append(c); return c; });
+        g.append(row);
+      }
+      cols.reduce((a, b) => b.offsetHeight < a.offsetHeight ? b : a).append(x);
+    });
+  });
+  laying = false;
+}
+const gridObs = new MutationObserver(() => { if (laying) return; layoutGrids(); gridObs.takeRecords(); });
+if ($('#view')) {
+  gridObs.observe($('#view'), { childList: true, subtree: true });
+  new ResizeObserver(() => { if ($('#view').clientWidth !== laidWidth) requestAnimationFrame(layoutGrids); }).observe($('#view'));
+}
 start();
