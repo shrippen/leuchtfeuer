@@ -27,12 +27,18 @@ import (
 //         muss dafür nicht aus dem Internet erreichbar sein: certmagic legt einen TXT-Eintrag beim DNS-Anbieter an.
 //         Der Name (ACME_DOMAIN) muss im eigenen Netz auf den Lautsprecher zeigen (Router, Pi-hole, eigener DNS).
 //         Bis das Zertifikat da ist, und für Aufrufe über die IP-Adresse, gilt das eigene Zertifikat.
-// Zugangsdaten des DNS-Anbieters stehen nur in der config (Rechte 600), nie in der Oberfläche oder im Diagnosepaket.
+// Zugangsdaten des DNS-Anbieters stehen verschlüsselt in der config (secrets.go), nie in der Oberfläche oder im
+// Diagnosepaket. Optional CNAME-Umleitung (ACME_DNS_ALIAS): _acme-challenge.<ACME_DOMAIN> zeigt per CNAME auf einen Namen
+// in einer anderen Zone, und nur dort wird der TXT-Eintrag gesetzt. Dann braucht das Gerät nur ein Token für diese eine,
+// kleine Zone statt für die eigentliche Domain (wichtig bei netcup, dessen API-Schlüssel alle Zonen des Kontos ändern darf).
 
 // dnsProviders: unterstützte Anbieter (Schlüssel in ACME_DNS) mit ihren Feldern in der config.
 var dnsProviders = []string{"cloudflare", "hetzner", "desec", "netcup"}
 
 var domainRe = regexp.MustCompile(`^(?i)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
+
+// aliasRe: Ziel der CNAME-Umleitung; Namen wie _acme-challenge.x.example.org sind erlaubt.
+var aliasRe = regexp.MustCompile(`^(?i)(_?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 
 type httpsStatus struct {
 	Mode     string `json:"mode"`               // "" | on | acme
@@ -58,8 +64,11 @@ type httpsMgr struct {
 }
 
 // dnsProvider baut den libdns-Anbieter aus der config.
-func dnsProvider(c *shellConfig) (certmagic.DNSProvider, error) {
-	tok := c.Get("ACME_DNS_TOKEN", "")
+func dnsProvider(c *shellConfig, dir string) (certmagic.DNSProvider, error) {
+	tok, err := configSecret(c, dir, "ACME_DNS_TOKEN")
+	if err != nil {
+		return nil, err
+	}
 	var p interface {
 		libdns.RecordAppender
 		libdns.RecordDeleter
@@ -72,8 +81,12 @@ func dnsProvider(c *shellConfig) (certmagic.DNSProvider, error) {
 	case "desec":
 		p = &desec.Provider{Token: tok}
 	case "netcup":
-		p = &netcup.Provider{CustomerNumber: c.Get("ACME_NETCUP_CUSTOMER", ""), APIKey: tok, APIPassword: c.Get("ACME_NETCUP_PASSWORD", "")}
-		if c.Get("ACME_NETCUP_CUSTOMER", "") == "" || c.Get("ACME_NETCUP_PASSWORD", "") == "" {
+		pass, err := configSecret(c, dir, "ACME_NETCUP_PASSWORD")
+		if err != nil {
+			return nil, err
+		}
+		p = &netcup.Provider{CustomerNumber: c.Get("ACME_NETCUP_CUSTOMER", ""), APIKey: tok, APIPassword: pass}
+		if c.Get("ACME_NETCUP_CUSTOMER", "") == "" || pass == "" {
 			return nil, fmt.Errorf("netcup braucht Kundennummer, API-Schlüssel und API-Passwort")
 		}
 	default:
@@ -87,6 +100,7 @@ func dnsProvider(c *shellConfig) (certmagic.DNSProvider, error) {
 
 // newHTTPS liest WEB_TLS; nil, wenn HTTPS aus ist. Fehler beim eigenen Zertifikat schalten HTTPS ab (Aufrufer fällt auf HTTP zurück).
 func newHTTPS(c *shellConfig, dir string) (*httpsMgr, error) {
+	migrateConfigSecrets(c, dir)
 	mode := c.Get("WEB_TLS", "")
 	if mode != "on" && mode != "acme" {
 		return nil, nil
@@ -113,9 +127,13 @@ func (m *httpsMgr) setupACME(c *shellConfig, dir string) error {
 	if !domainRe.MatchString(m.domain) {
 		return fmt.Errorf("Name %q ist kein gültiger Domainname", m.domain)
 	}
-	prov, err := dnsProvider(c)
+	prov, err := dnsProvider(c, dir)
 	if err != nil {
 		return err
+	}
+	alias := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(c.Get("ACME_DNS_ALIAS", "")), "."))
+	if alias != "" && !aliasRe.MatchString(alias) {
+		return fmt.Errorf("Challenge-Domain %q ungültig", alias)
 	}
 	// netcup übernimmt Änderungen erst nach einigen Minuten in seine Nameserver
 	timeout := 3 * time.Minute
@@ -135,7 +153,7 @@ func (m *httpsMgr) setupACME(c *shellConfig, dir string) error {
 	m.magic.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(m.magic, certmagic.ACMEIssuer{
 		CA: ca, Email: strings.TrimSpace(c.Get("ACME_EMAIL", "")), Agreed: true,
 		DisableHTTPChallenge: true, DisableTLSALPNChallenge: true,
-		DNS01Solver: &certmagic.DNS01Solver{DNSManager: certmagic.DNSManager{DNSProvider: prov, PropagationTimeout: timeout}},
+		DNS01Solver: &certmagic.DNS01Solver{DNSManager: certmagic.DNSManager{DNSProvider: prov, PropagationTimeout: timeout, OverrideDomain: alias}},
 		Logger:      zap.NewNop(),
 	})}
 	return nil
@@ -246,6 +264,7 @@ type httpsSettings struct {
 	Domain         string `json:"domain"`
 	Email          string `json:"email"`
 	DNS            string `json:"dns"`
+	Alias          string `json:"alias"` // CNAME-Ziel für _acme-challenge (optional)
 	Staging        bool   `json:"staging"`
 	TokenSet       bool   `json:"tokenSet"`
 	NetcupCustomer string `json:"netcupCustomer"`
@@ -259,7 +278,7 @@ func readHTTPSSettings(c *shellConfig) httpsSettings {
 	port, _ := strconv.Atoi(c.Get("WEB_TLS_PORT", "443"))
 	return httpsSettings{
 		Mode: c.Get("WEB_TLS", ""), Port: port, Domain: c.Get("ACME_DOMAIN", ""), Email: c.Get("ACME_EMAIL", ""),
-		DNS: c.Get("ACME_DNS", ""), Staging: c.Get("ACME_STAGING", "") == "on", TokenSet: c.Get("ACME_DNS_TOKEN", "") != "",
+		DNS: c.Get("ACME_DNS", ""), Alias: c.Get("ACME_DNS_ALIAS", ""), Staging: c.Get("ACME_STAGING", "") == "on", TokenSet: c.Get("ACME_DNS_TOKEN", "") != "",
 		NetcupCustomer: c.Get("ACME_NETCUP_CUSTOMER", ""), NetcupPassSet: c.Get("ACME_NETCUP_PASSWORD", "") != "",
 	}
 }
@@ -312,6 +331,11 @@ func httpsConfig(v httpsSettings, old httpsSettings) (map[string]string, error) 
 			kv["ACME_NETCUP_PASSWORD"] = v.NetcupPassword
 		}
 	}
+	alias := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(v.Alias), "."))
+	if alias != "" && (!aliasRe.MatchString(alias) || alias == v.Domain || alias == "_acme-challenge."+v.Domain) {
+		return nil, fmt.Errorf("Challenge-Domain %q ungültig (das Ziel des CNAME, z. B. lautsprecher.acme.example.org)", v.Alias)
+	}
+	kv["ACME_DNS_ALIAS"] = alias
 	kv["ACME_DOMAIN"], kv["ACME_EMAIL"], kv["ACME_DNS"] = v.Domain, strings.TrimSpace(v.Email), v.DNS
 	kv["ACME_STAGING"] = map[bool]string{true: "on", false: ""}[v.Staging]
 	if v.Token != "" {

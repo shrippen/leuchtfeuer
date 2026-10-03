@@ -253,16 +253,20 @@ keeps its own software volume on top). Logs are in `/data/leuchtfeuer/log/` on t
   switched-off service is not started and its ports stay closed. A service that keeps crashing is restarted with growing
   pauses (30 s ... 30 min) and marked as failing.
 - **Back up and restore** (Settings): one file with settings, pairings, Spotify login and SSH keys (contains secrets);
-  restoring it brings everything back, e.g. after a factory reset. The *diagnostics package* (status, settings without
+  restoring it brings everything back, e.g. after a factory reset, except the access data for Let's Encrypt (stored
+  encrypted with a device key that stays on the speaker; enter it again after a reset or on another device). The *diagnostics package* (status, settings without
   secrets, logs) is meant for bug reports.
 - **HTTPS:** System > HTTPS (or `WEB_TLS` in `/data/leuchtfeuer/config`) switches the web interface to HTTPS; HTTP then
   redirects. *Own certificate* (`WEB_TLS="on"`) works at once, the browser warns once. *Let's Encrypt* (`WEB_TLS="acme"`)
   fetches a trusted certificate for a name in your own domain over the DNS challenge (Cloudflare, Hetzner Console, deSEC or
   netcup): the speaker does not have to be reachable from the internet, but the name must point to it in your own network
   (router, Pi-hole, local DNS). Until the certificate is there, and when opened by IP address, the own certificate is used;
-  it renews itself about 30 days before it expires. The access data of the DNS provider is stored only in the config
-  (mode 600) and is never shown or put into the diagnostics package; give it the smallest rights the provider offers
-  (only DNS, only this zone). MQTT can use TLS too (Home Assistant tab).
+  it renews itself about 30 days before it expires. The access data of the DNS provider is stored encrypted in the config
+  (AES-256-GCM with a device key `secret.key` that is not part of the backup; after restoring on another device, enter it
+  again) and is never shown or put into the diagnostics package. Against someone with root on the speaker this does not
+  help, so give the token the smallest rights the provider offers (only DNS, only this zone). With a *challenge domain*
+  (`ACME_DNS_ALIAS`) `_acme-challenge.<name>` points by CNAME to a name in another zone (e.g. a free deSEC zone), and the
+  speaker only needs a token for that zone; recommended with netcup, whose API key may change every zone of the account. MQTT can use TLS too (Home Assistant tab).
 - **Clock:** the speaker sets its clock by NTP after start and every 6 h (`NTP_SERVER`); the Overview warns if it is off by
   more than 2 s.
 

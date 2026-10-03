@@ -126,6 +126,7 @@ const sw = (id, on, en, de) => `<button class="switch" role="switch" id="${id}" 
 const GLOSS = {
   https: ['Own certificate: encrypted at once, the browser warns on the first visit. Let\'s Encrypt: a trusted certificate for a domain of yours, fetched over the DNS challenge - the speaker does not have to be reachable from the internet.', 'Eigenes Zertifikat: sofort verschlüsselt, der Browser warnt beim ersten Besuch. Let\'s Encrypt: ein vertrauenswürdiges Zertifikat für eine eigene Domain, abgeholt über die DNS-Challenge - der Lautsprecher muss dafür nicht aus dem Internet erreichbar sein.'],
   acmedomain: ['A name in a domain you manage at the DNS provider, e.g. speaker.example.com. In your own network it must point to the speaker (router, Pi-hole or local DNS); a public entry is not needed.', 'Ein Name in einer Domain, die du beim DNS-Anbieter verwaltest, z. B. lautsprecher.example.de. Im eigenen Netz muss er auf den Lautsprecher zeigen (Router, Pi-hole oder eigener DNS); ein öffentlicher Eintrag ist nicht nötig.'],
+  acmealias: ['Optional. Keeps the access data on the speaker small: point _acme-challenge of your domain by CNAME to a name in another zone (e.g. a free deSEC zone) and enter that name here. The speaker then only needs a token for that zone, not for your domain - important with netcup, whose API key may change every zone of the account. The DNS provider above is then the one of that zone.', 'Optional. Hält die Zugangsdaten auf dem Lautsprecher klein: _acme-challenge deiner Domain per CNAME auf einen Namen in einer anderen Zone zeigen lassen (z. B. eine kostenlose deSEC-Zone) und diesen Namen hier eintragen. Der Lautsprecher braucht dann nur ein Token für diese Zone, nicht für deine Domain - wichtig bei netcup, dessen API-Schlüssel alle Zonen des Kontos ändern darf. Der DNS-Anbieter oben ist dann der dieser Zone.'],
   staging: ['Let\'s Encrypt test service: browsers do not trust its certificates, but its limits are generous. Use it to check the settings, then switch it off.', 'Testdienst von Let\'s Encrypt: Browser vertrauen seinen Zertifikaten nicht, dafür sind die Grenzen großzügig. Zum Prüfen der Angaben, danach ausschalten.'],
   q: ['Q is the width of a filter: higher = narrower. Room modes need about 3 to 6.', 'Q ist die Breite eines Filters: höher = schmaler. Für Raummoden etwa 3 bis 6.'],
   db: ['Decibel: +6 dB is roughly twice as loud, −6 dB half as loud.', 'Dezibel: +6 dB ist etwa doppelt so laut, −6 dB halb so laut.'],
@@ -1327,6 +1328,7 @@ const DNS_HINTS = {
   desec: ['Token from deSEC (Token management), ideally limited to this domain.', 'Token aus deSEC (Token-Verwaltung), am besten nur für diese Domain.'],
   netcup: ['Customer control panel > Master data > API: customer number, API key and API password. netcup takes up to 15 minutes to publish changes, so the first certificate needs some patience.', 'Kundencontrolpanel > Stammdaten > API: Kundennummer, API-Schlüssel und API-Passwort. netcup veröffentlicht Änderungen erst nach bis zu 15 Minuten, das erste Zertifikat braucht also etwas Geduld.'],
 };
+const cnameHint = (d, a) => d && a ? `${T('DNS record at your domain', 'Eintrag bei deiner Domain')}: _acme-challenge.${esc(d.trim())}. CNAME ${esc(a.trim().replace(/\.$/, ''))}.` : '';
 const dnsHint = p => DNS_HINTS[p] ? T(...DNS_HINTS[p]) : '';
 function httpsStatusHTML() {
   const h = S.https || {};
@@ -1373,6 +1375,8 @@ function viewSystem() {
       <div id="hs-netcup" class="stack ${HS.dns === 'netcup' ? '' : 'hidden'}">${fld('hs-nc-cust', 'Customer number', 'Kundennummer', HS.netcupCustomer || '', 'inputmode="numeric" autocomplete="off"')}</div>
       <div class="field"><label for="hs-token" id="hs-token-l">${HS.dns === 'netcup' ? T('API key', 'API-Schlüssel') : T('API token', 'API-Token')}</label><input class="input" id="hs-token" type="password" autocomplete="off" placeholder="${HS.tokenSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
       <div class="field ${HS.dns === 'netcup' ? '' : 'hidden'}" id="hs-nc-pass-f"><label for="hs-nc-pass">${T('API password', 'API-Passwort')}</label><input class="input" id="hs-nc-pass" type="password" autocomplete="off" placeholder="${HS.netcupPasswordSet ? tt('empty = keep', 'leer = behalten') : ''}"></div>
+      ${fld('hs-alias', 'Challenge domain (CNAME target, optional)', 'Challenge-Domain (CNAME-Ziel, optional)', HS.alias || '', 'placeholder="lautsprecher.acme.dedyn.io" autocomplete="off"', 'acmealias')}
+      <p class="small mono" id="hs-cname">${cnameHint(HS.domain, HS.alias)}</p>
       <div class="row">${sw('hs-staging', HS.staging, 'Test certificate (staging)', 'Test-Zertifikat (Staging)')}${hp('staging')}</div></div>
     <p class="small">${T('Saving restarts the web interface; the page then opens at the new address.', 'Speichern startet die Weboberfläche neu; die Seite öffnet sich danach unter der neuen Adresse.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="hs-save">${ico('save')}${T('Save and restart', 'Speichern und neu starten')}</button></div></div>
@@ -1428,9 +1432,11 @@ function bindSystem() {
     $('#hs-dns-hint').innerHTML = dnsHint(p); $('#hs-netcup').classList.toggle('hidden', !nc); $('#hs-nc-pass-f').classList.toggle('hidden', !nc);
     $('#hs-token-l').textContent = nc ? tt('API key', 'API-Schlüssel') : tt('API token', 'API-Token');
   };
+  const cn = () => { $('#hs-cname').innerHTML = cnameHint($('#hs-domain').value, $('#hs-alias').value); };
+  $('#hs-domain').oninput = cn; $('#hs-alias').oninput = cn;
   $('#hs-save').onclick = () => act(async () => {
     const mode = segVal('hs-mode'), port = +$('#hs-port').value || 443, domain = $('#hs-domain').value.trim();
-    await api('/api/settings/https', 'PUT', { mode, port, domain, email: $('#hs-email').value.trim(), dns: $('#hs-dns').value, staging: swVal('hs-staging'),
+    await api('/api/settings/https', 'PUT', { mode, port, domain, email: $('#hs-email').value.trim(), dns: $('#hs-dns').value, alias: $('#hs-alias').value.trim(), staging: swVal('hs-staging'),
       token: $('#hs-token').value, netcupCustomer: $('#hs-nc-cust').value.trim(), netcupPassword: $('#hs-nc-pass').value });
     const host = mode === 'acme' ? domain : location.hostname;
     const next = mode ? `https://${host}${port === 443 ? '' : ':' + port}/#/system` : `http://${location.hostname}${location.protocol === 'http:' && location.port ? ':' + location.port : ''}/#/system`;

@@ -190,7 +190,7 @@ speakers.
 | `setup` | `{done: true}`: the setup assistant is finished or skipped |
 | `update` | `{url}` (release page, https) |
 | `device` | `{name, dhcpHostname, sendspinServer, bluetoothPairing, webPassword?}`. Session only. |
-| `https` | `{mode ""\|"on"\|"acme", port 443, domain, email, dns "cloudflare"\|"hetzner"\|"desec"\|"netcup", staging, token?, netcupCustomer, netcupPassword?}`. `GET /api/settings` returns it as `https` (secrets only as `tokenSet`, `netcupPasswordSet`) together with `dnsProviders`. Saving restarts the web interface. Session only. |
+| `https` | `{mode ""\|"on"\|"acme", port 443, domain, email, dns "cloudflare"\|"hetzner"\|"desec"\|"netcup", alias (CNAME target for the challenge, optional), staging, token?, netcupCustomer, netcupPassword?}`. `GET /api/settings` returns it as `https` (secrets only as `tokenSet`, `netcupPasswordSet`) together with `dnsProviders`. Saving restarts the web interface. Session only. |
 
 Further helpers for the settings:
 

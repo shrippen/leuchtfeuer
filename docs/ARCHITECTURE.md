@@ -303,7 +303,9 @@ Outputs go to `build/` (not in git). `tools/build-generic.sh <arch>` builds the 
   (`WEB_TLS="acme"`, `https.go`: certmagic, the certificate core of Caddy, with libdns providers for Cloudflare, deSEC and
   netcup; Hetzner Console in `dns_hetzner.go`, because libdns/hetzner/v2 would add about 4.5 MB). Certificates and the ACME
   account live in `/data/leuchtfeuer/acme`; names other than `ACME_DOMAIN` (IP address, `.lan`) and the time before the
-  first certificate get the own certificate. MQTT can use TLS. Sessions are stored only as
+  first certificate get the own certificate. The provider's token and password are stored encrypted in the config
+  (`secrets.go`: AES-256-GCM, key `secret.key` outside the backup, the config key as additional data); optional CNAME
+  delegation of `_acme-challenge` (`ACME_DNS_ALIAS`, certmagic `OverrideDomain`). MQTT can use TLS. Sessions are stored only as
   SHA-256 of the cookie value; expired sessions and old failed logins are cleared every 10 minutes.
 - Updates from the web interface need a valid Ed25519 signature (`UPDATE_PUBKEY`); without a key the feature is off.
 - Bluetooth pairing needs no PIN, but is only possible during the 2-minute window after a press on the speaker's

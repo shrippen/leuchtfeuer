@@ -263,7 +263,9 @@ Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast
   Ein ausgeschalteter Dienst startet nicht, seine Ports bleiben zu. Ein Dienst, der immer wieder abstürzt, wird mit
   wachsenden Pausen (30 s ... 30 Min.) neu gestartet und als fehlerhaft angezeigt.
 - **Sichern und wiederherstellen** (Einstellungen): eine Datei mit Einstellungen, Kopplungen, Spotify-Anmeldung und
-  SSH-Schlüsseln (enthält Geheimnisse); zurückgespielt ist alles wieder da, z. B. nach einem Zurücksetzen. Das
+  SSH-Schlüsseln (enthält Geheimnisse); zurückgespielt ist alles wieder da, z. B. nach einem Zurücksetzen, außer den
+  Zugangsdaten für Let's Encrypt (verschlüsselt mit einem Geräteschlüssel, der auf dem Lautsprecher bleibt; nach einem
+  Zurücksetzen oder auf einem anderen Gerät neu eintragen). Das
   *Diagnosepaket* (Status, Einstellungen ohne Geheimnisse, Protokolle) ist für Fehlerberichte.
 - **HTTPS:** System > HTTPS (oder `WEB_TLS` in `/data/leuchtfeuer/config`) schaltet die Weboberfläche auf HTTPS; HTTP leitet
   dann um. *Eigenes Zertifikat* (`WEB_TLS="on"`) gilt sofort, der Browser warnt einmal. *Let's Encrypt* (`WEB_TLS="acme"`)
@@ -271,8 +273,13 @@ Das Drehrad regelt alle Quellen; der Lautstärkeregler in Spotify, AirPlay, Cast
   Console, deSEC oder netcup): Der Lautsprecher muss dafür nicht aus dem Internet erreichbar sein, der Name muss aber im
   eigenen Netz auf ihn zeigen (Router, Pi-hole, eigener DNS). Bis das Zertifikat da ist, und beim Aufruf über die
   IP-Adresse, gilt das eigene Zertifikat; erneuert wird es etwa 30 Tage vor Ablauf von selbst. Die Zugangsdaten des
-  DNS-Anbieters stehen nur in der config (Rechte 600) und erscheinen weder in der Oberfläche noch im Diagnosepaket; ihnen
-  die kleinsten Rechte geben, die der Anbieter erlaubt (nur DNS, nur diese Zone). Auch MQTT kann TLS nutzen (Reiter
+  DNS-Anbieters stehen verschlüsselt in der config (AES-256-GCM mit einem Geräteschlüssel `secret.key`, der nicht in die
+  Sicherung kommt; nach dem Zurückspielen auf ein anderes Gerät neu eintragen) und erscheinen weder in der Oberfläche noch
+  im Diagnosepaket. Gegen jemanden mit Root auf dem Lautsprecher hilft das nicht, deshalb dem Token die kleinsten Rechte
+  geben, die der Anbieter erlaubt (nur DNS, nur diese Zone). Mit einer *Challenge-Domain* (`ACME_DNS_ALIAS`) zeigt
+  `_acme-challenge.<name>` per CNAME auf einen Namen in einer anderen Zone (z. B. eine kostenlose deSEC-Zone), und der
+  Lautsprecher braucht nur ein Token für diese Zone; empfohlen bei netcup, dessen API-Schlüssel alle Zonen des Kontos
+  ändern darf. Auch MQTT kann TLS nutzen (Reiter
   Home Assistant).
 - **Uhr:** Der Lautsprecher stellt seine Uhr nach dem Start und alle 6 h per NTP (`NTP_SERVER`); die Übersicht warnt, wenn
   sie mehr als 2 s falsch geht.

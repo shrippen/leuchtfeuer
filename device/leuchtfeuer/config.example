@@ -52,6 +52,10 @@ NTP_SERVER="pool.ntp.org"
 #     ACME_DNS="cloudflare" | "hetzner" (Hetzner Console) | "desec" | "netcup"
 #     ACME_DNS_TOKEN=""          API-Token (netcup: API-Schlüssel)
 #     ACME_NETCUP_CUSTOMER=""  ACME_NETCUP_PASSWORD=""   nur netcup
+#     ACME_DNS_ALIAS=""          optional: CNAME-Ziel für _acme-challenge.<ACME_DOMAIN> in einer anderen Zone; der
+#                                TXT-Eintrag entsteht dann nur dort, Token/Anbieter oben gelten für diese Zone
+#   Token und Passwort werden verschlüsselt abgelegt (Geräteschlüssel secret.key, nicht in der Sicherung); hier von
+#   Hand eingetragener Klartext wird beim nächsten Start von leuchtfeuerd verschlüsselt.
 WEB_TLS="off"
 
 # Updates aus der Weboberfläche: öffentlicher Ed25519-Schlüssel (Base64) des Release-Signierers. Leer = Updates nur mit

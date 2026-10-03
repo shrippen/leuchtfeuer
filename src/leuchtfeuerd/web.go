@@ -485,6 +485,9 @@ func (w *webServer) putSettings(section string, r *http.Request) error {
 		if err != nil {
 			return err
 		}
+		if err := sealConfigSecrets(dataDir, kv); err != nil {
+			return err
+		}
 		if err := a.cfg.Set(kv); err != nil {
 			return err
 		}
