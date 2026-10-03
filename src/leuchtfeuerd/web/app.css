@@ -4,7 +4,11 @@
 .tabs{margin-bottom:1.4rem;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
 /* zehn Reiter: eine Zeile (Kantes Anzeige-Balken setzt eine Zeile voraus), schmaler; auf dem Handy waagrecht scrollen */
 .tabs button{flex:none;padding:0 .85rem}
-.grid{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start}
+.grid.kpis{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));align-items:start}
+/* Kachel-Seiten: Spalten statt Zeilen. Im Zeilenraster macht die höchste Kachel die ganze Zeile hoch, und die nächste Kachel
+   derselben Spalte beginnt erst darunter (große Lücken). Jede Kachel bleibt ungeteilt und rückt in ihrer Spalte nach oben. */
+.grid:not(.kpis){display:block;columns:300px;column-gap:1.2rem}
+.grid:not(.kpis)>*{break-inside:avoid;margin-bottom:1.2rem}
 .grid.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.2rem 1.6rem;margin-bottom:1.4rem}
 .card{background:var(--bg-panel);border-top:4px solid var(--bg2);padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.8rem;min-width:0}
 .card[data-tier="yellow"]{border-top-color:var(--primary)}
@@ -30,6 +34,7 @@
 .time-in{font-family:var(--font-heading);font-weight:700;font-size:1.7rem;width:10rem;max-width:100%;padding-right:.4rem;letter-spacing:.04em}
 .vol{width:100%}
 .log{white-space:pre-wrap;word-break:break-all;background:var(--bg-hard);border:1px solid var(--bg2);padding:.7rem .9rem;font-family:var(--font-mono);font-size:.72rem;color:var(--fg2);max-height:22rem;overflow:auto}
+.log.log-code{white-space:pre;word-break:normal;overflow-x:auto}
 .hidden{display:none!important}
 .bar{height:6px;background:var(--bg-hard);border:1px solid var(--bg2)}
 .bar>i{display:block;height:100%;background:var(--primary)}
@@ -63,7 +68,7 @@ textarea.input.mono{font-family:var(--font-mono);font-size:.78rem}
 /* Quellen-Liste: Name nicht zerbrechen, Zahlenfelder knapp */
 .item .t{min-width:4.6rem}
 .item .row .input[type=number]{padding-left:.5rem;padding-right:.3rem}
-.grid>.wide-card{grid-column:1/-1}
+.grid>.wide-card{column-span:all}
 /* ---- Bedienbarkeit: Bausteine aus Kante 1.11 (.editbar als Speichern-Leiste, .bottom-nav, details.help, .ring-pick, .grip);
    hier nur Anordnung und Sichtbarkeit, keine eigenen Größen oder Varianten ---- */
 /* Die Speichern-Leiste ersetzt die Knöpfe der einzelnen Karten */
@@ -82,3 +87,10 @@ body:has(#savebar:not([hidden])) .app{padding-bottom:6rem}
   #c-play .range{display:none}
   .ring-pick{margin-inline:auto}
 }
+
+/* Raumkorrektur: Hz, dB und Q in einer Zeile mit Kopfzeile statt je Feld mit Einheit (brach in zwei Zeilen um) */
+.rb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:.5rem .7rem;align-items:center;padding:.35rem 0}
+.rb-head{padding-bottom:0}
+.rb .input{width:100%;min-width:0}
+/* Handy: Dienste-Kacheln in zwei Spalten statt zwölf einzeln untereinander */
+@media (max-width:640px){#c-svc{grid-template-columns:repeat(2,minmax(0,1fr))}}
