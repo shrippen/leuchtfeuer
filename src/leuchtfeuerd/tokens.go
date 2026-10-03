@@ -148,7 +148,7 @@ func bearer(r *http.Request) string {
 // Zugangsverwaltung nur mit angemeldeter Sitzung, nie mit einem API-Schlüssel.
 func sessionOnly(path string) bool {
 	return strings.HasPrefix(path, "/api/tokens") || strings.HasPrefix(path, "/api/ssh-keys") || strings.HasPrefix(path, "/api/peers") ||
-		path == "/api/settings/device" || path == "/api/restore" || path == "/api/backup"
+		path == "/api/settings/device" || path == "/api/settings/https" || path == "/api/restore" || path == "/api/backup"
 }
 
 // readOnlyOK: was ein Schlüssel mit Umfang "read" darf.

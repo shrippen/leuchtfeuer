@@ -101,8 +101,10 @@ func hzQuote(s string) string {
 	return strconv.Quote(s)
 }
 
-// wait fragt die Aktionen ab, bis sie fertig sind (Hetzner arbeitet Änderungen asynchron ab).
+// wait fragt die Aktionen ab, bis sie fertig sind (Hetzner arbeitet Änderungen asynchron ab), höchstens 2 Minuten.
 func (p *hetznerDNS) wait(ctx context.Context, a hzAction) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	for a.Status == "running" {
 		select {
 		case <-ctx.Done():
