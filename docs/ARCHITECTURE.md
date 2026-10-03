@@ -268,7 +268,8 @@ in 8 steps of 60 ms, linear in dB. Softvol has 256 steps over −51…0 dB, and 
 are first copied to `/data/leuchtfeuer/.prev` (new files are listed there), `podium.conf` and the CA bundle are overwritten in
 place (they are bind-mounted), then `update-pending` is written. The hook watches the services for 10 minutes: when one
 fails three times in a row, `apply-update.sh rollback` restores `.prev`, deletes the new files and restarts everything;
-`update-rolledback` tells the web interface why. `install.sh` (over SSH) and the web interface use the same script.
+`update-rolledback` tells the web interface why. Once the 10 minutes pass, the hook discards `.prev` when less than 60 MB
+are free (on the Invoke it holds about 40 MB of old binaries); only the manual rollback is lost then. `install.sh` (over SSH) and the web interface use the same script.
 
 The web interface can update itself from the release page (Gitea API, `Settings.Update.URL`) or from an uploaded package:
 `leuchtfeuer-<version>-<package>.tar.gz` (`invoke` or `generic-<arch>`; layout of the installation directory, from
