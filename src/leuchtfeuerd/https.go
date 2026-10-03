@@ -20,7 +20,6 @@ import (
 	"github.com/libdns/gandi"
 	"github.com/libdns/libdns"
 	"github.com/libdns/namecheap"
-	"github.com/libdns/netcup"
 	"github.com/libdns/porkbun"
 	"go.uber.org/zap"
 )
@@ -90,7 +89,7 @@ func dnsProvider(c *shellConfig, dir string) (certmagic.DNSProvider, error) {
 		if err != nil {
 			return nil, err
 		}
-		p = &netcup.Provider{CustomerNumber: c.Get("ACME_NETCUP_CUSTOMER", ""), APIKey: tok, APIPassword: pass}
+		p = &netcupDNS{Customer: c.Get("ACME_NETCUP_CUSTOMER", ""), Key: tok, Password: pass}
 		if c.Get("ACME_NETCUP_CUSTOMER", "") == "" || pass == "" {
 			return nil, fmt.Errorf("netcup braucht Kundennummer, API-Schlüssel und API-Passwort")
 		}
@@ -163,8 +162,8 @@ func (m *httpsMgr) setupACME(c *shellConfig, dir string) error {
 	if alias != "" && !aliasRe.MatchString(alias) {
 		return fmt.Errorf("Challenge-Domain %q ungültig", alias)
 	}
-	// netcup übernimmt Änderungen erst nach einigen Minuten in seine Nameserver
-	timeout := 3 * time.Minute
+	// bis alle Nameserver den Challenge-Eintrag kennen; netcup verteilt Änderungen erst nach bis zu 15 Minuten
+	timeout := 10 * time.Minute
 	if c.Get("ACME_DNS", "") == "netcup" {
 		timeout = 30 * time.Minute
 	}
@@ -181,7 +180,7 @@ func (m *httpsMgr) setupACME(c *shellConfig, dir string) error {
 	m.magic.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(m.magic, certmagic.ACMEIssuer{
 		CA: ca, Email: strings.TrimSpace(c.Get("ACME_EMAIL", "")), Agreed: true,
 		DisableHTTPChallenge: true, DisableTLSALPNChallenge: true,
-		DNS01Solver: &certmagic.DNS01Solver{DNSManager: certmagic.DNSManager{DNSProvider: prov, PropagationTimeout: timeout, OverrideDomain: alias}},
+		DNS01Solver: newNSWaitSolver(prov, alias, timeout),
 		Logger:      zap.NewNop(),
 	})}
 	return nil

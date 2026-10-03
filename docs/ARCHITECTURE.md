@@ -301,7 +301,9 @@ Outputs go to `build/` (not in git). `tools/build-generic.sh <arch>` builds the 
 - The vendor cloud endpoints for OTA are blocked in `/etc/hosts` (StockRoot); Cortana/OTA/crash upload are not started.
 - The web interface can use HTTPS: own certificate (`WEB_TLS="on"`, `tls.go`) or Let's Encrypt over the DNS challenge
   (`WEB_TLS="acme"`, `https.go`: certmagic, the certificate core of Caddy, with libdns providers for Cloudflare, deSEC,
-  netcup, Gandi, Porkbun, Namecheap and ACME-DNS (together about 110 KB); Hetzner Console in `dns_hetzner.go`, because libdns/hetzner/v2 would add about 4.5 MB). Certificates and the ACME
+  Gandi, Porkbun, Namecheap and ACME-DNS (together about 110 KB); netcup in `dns_netcup.go` (replaces leftover challenge
+  records in the same update); `acme_wait.go` waits until every authoritative nameserver returns the challenge value,
+  asked over public resolvers, because netcup publishes changes to its servers minutes apart; Hetzner Console in `dns_hetzner.go`, because libdns/hetzner/v2 would add about 4.5 MB). Certificates and the ACME
   account live in `/data/leuchtfeuer/acme`; names other than `ACME_DOMAIN` (IP address, `.lan`) and the time before the
   first certificate get the own certificate. The provider's token and password are stored encrypted in the config
   (`secrets.go`: AES-256-GCM, key `secret.key` outside the backup, the config key as additional data); optional CNAME

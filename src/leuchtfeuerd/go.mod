@@ -6,10 +6,15 @@ require (
 	github.com/caddyserver/certmagic v0.25.6
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/libdns/acmedns v0.5.0
 	github.com/libdns/cloudflare v0.2.2
 	github.com/libdns/desec v1.1.1
+	github.com/libdns/gandi v1.1.0
 	github.com/libdns/libdns v1.1.1
-	github.com/libdns/netcup v1.0.0
+	github.com/libdns/namecheap v1.0.0
+	github.com/libdns/porkbun v1.1.0
+	github.com/mholt/acmez/v3 v3.1.7
+	github.com/miekg/dns v1.1.73
 	go.uber.org/zap v1.28.0
 	leuchtfeuer/wamp v0.0.0
 )
@@ -19,12 +24,6 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
-	github.com/libdns/acmedns v0.5.0 // indirect
-	github.com/libdns/gandi v1.1.0 // indirect
-	github.com/libdns/namecheap v1.0.0 // indirect
-	github.com/libdns/porkbun v1.1.0 // indirect
-	github.com/mholt/acmez/v3 v3.1.7 // indirect
-	github.com/miekg/dns v1.1.73 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
