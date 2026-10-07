@@ -51,7 +51,7 @@
     {
       "name": "buttons",
       "url": "{base}/#/buttons",
-      "wait": ".b-act",
+      "wait": "#b-list",
       "settle": 400
     },
     {
