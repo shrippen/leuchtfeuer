@@ -667,17 +667,28 @@ function evListHTML() {
   return S.buttons.slice().reverse().map(e => `<div class="item"><div><div class="t mono">${esc(e.name)} <span class="muted">/ ${esc(e.value)}</span></div><div class="s">${new Date(e.time).toLocaleTimeString()} ${e.action ? '→ ' + esc(actionLabel(e.action)) : ''}</div></div></div>`).join('') || `<p>${T('No events yet. Press a button on the speaker.', 'Noch keine Ereignisse. Drücke eine Taste am Lautsprecher.')}</p>`;
 }
 const PRESSES = [['short', 'short press', 'kurz'], ['double', 'double press', 'doppelt'], ['triple', 'triple press', 'dreifach'], ['long', 'long press', 'lang'], ['0', 'value 0 (e.g. switch off)', 'Wert 0 (z. B. Schalter aus)'], ['1', 'value 1 (e.g. switch on)', 'Wert 1 (z. B. Schalter an)']];
+const pressLabel = p => { const x = PRESSES.find(([v]) => v === p); return x ? tt(x[1], x[2]) : p; };
+// Gespeicherte Belegungen stehen als Liste da (Taste · Druckart → Aktion); erst „Bearbeiten“ oder eine neue Belegung
+// zeigt die Eingabefelder. edit ist nur ein Merker der Ansicht und wird nicht gespeichert.
 function viewButtons() {
-  const rows = draft.buttons || (draft.buttons = Object.entries(CFG.settings.buttons).flatMap(([b, m]) => Object.entries(m).map(([p, a]) => ({ b, p, a }))));
+  const order = p => { const i = PRESSES.findIndex(([v]) => v === p); return i < 0 ? 99 : i; };
+  const rows = draft.buttons || (draft.buttons = Object.entries(CFG.settings.buttons).flatMap(([b, m]) => Object.entries(m).map(([p, a]) => ({ b, p, a })))
+    .sort((x, y) => x.b.localeCompare(y.b) || order(x.p) - order(y.p)));
   const seen = [...new Set(S.buttons.map(e => e.name))];
-  return `<div class="grid"><div class="card" data-tier="yellow"><h3>${T('Button mapping', 'Tastenbelegung')}</h3>
-    <p>${T('The speaker reports button presses to this program. Press a button and watch the log on the right to learn its name and value, then assign an action. The volume knob and the Bluetooth button keep their own function (their presses are only logged and sent to Home Assistant).', 'Der Lautsprecher meldet Tastendrücke an dieses Programm. Drücke eine Taste und sieh rechts im Protokoll ihren Namen und Wert, dann ordne eine Aktion zu. Drehrad und Bluetooth-Knopf behalten ihre eigene Funktion (ihre Ereignisse werden nur protokolliert und an Home Assistant gesendet).')}</p>
-    <div class="list">${rows.map((r, i) => `<div class="item" data-bi="${i}"><div class="stack">
+  const showRow = (r, i) => `<div class="item" data-bi="${i}"><div><div class="t"><span class="mono">${esc(r.b)}</span> <span class="muted">· ${esc(pressLabel(r.p))}</span></div>
+      <div class="s">→ ${esc(actionLabel(r.a))}</div></div>
+      <div class="row"><button class="btn btn-outline btn-sm" data-bedit="${i}">${T('Edit', 'Bearbeiten')}</button>
+      <button class="btn btn-outline btn-sm" data-bdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div>`;
+  const editRow = (r, i) => `<div class="item" data-bi="${i}" data-bform><div class="stack">
       <div class="row"><div class="field" style="width:9rem"><label for="b-name-${i}">${T('Button', 'Taste')}</label><input class="input b-name" id="b-name-${i}" list="b-seen" value="${esc(r.b)}" autocomplete="off" placeholder="${tt('pick or press', 'wählen oder drücken')}"></div>
       <div class="field" style="width:8rem"><label for="b-press-${i}">${T('Press / value', 'Druck / Wert')}</label><input class="input b-press" id="b-press-${i}" list="b-press" value="${esc(r.p)}" autocomplete="off"></div></div>
       <div class="field"><label for="b-act-${i}">${T('Action', 'Aktion')}</label><select class="select b-act" id="b-act-${i}">${CFG.actions.map(a => `<option value="${a}" ${a === r.a ? 'selected' : ''}>${esc(actionLabel(a))}</option>`).join('')}</select></div></div>
       <div class="stack"><button class="btn btn-outline btn-sm" data-learn="${i}">${learn && learn.i === i ? T('Press the button …', 'Taste drücken …') : ico('test') + T('Learn', 'Anlernen')}</button>
-      <button class="btn btn-outline btn-sm" data-bdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div>`).join('')}</div>
+      <button class="btn btn-outline btn-sm" data-bdel="${i}" aria-label="${tt('Delete', 'Löschen')}">${ico('trash')}</button></div></div>`;
+  return `<div class="grid"><div class="card" data-tier="yellow"><h3>${T('Button mapping', 'Tastenbelegung')}</h3>
+    <p>${T('The speaker reports button presses to this program. Press a button and watch the log on the right to learn its name and value, then assign an action. The volume knob and the Bluetooth button keep their own function (their presses are only logged and sent to Home Assistant).', 'Der Lautsprecher meldet Tastendrücke an dieses Programm. Drücke eine Taste und sieh rechts im Protokoll ihren Namen und Wert, dann ordne eine Aktion zu. Drehrad und Bluetooth-Knopf behalten ihre eigene Funktion (ihre Ereignisse werden nur protokolliert und an Home Assistant gesendet).')}</p>
+    ${rows.length ? `<div class="list" id="b-list">${rows.map((r, i) => r.edit ? editRow(r, i) : showRow(r, i)).join('')}</div>`
+      : `<div class="empty"><p>${T('No button is mapped yet.', 'Noch keine Taste belegt.')}</p></div>`}
     <datalist id="b-seen">${[...new Set([...(CFG.buttonNames || []), ...seen])].map(n => `<option value="${esc(n)}">`).join('')}</datalist><datalist id="b-press">${PRESSES.map(([v, en, de]) => `<option value="${v}" label="${esc(tt(en, de))}">`).join('')}</datalist>
     <p class="small">${T('"double" and "triple" are counted by this program: once one of them is mapped, a short press waits a moment for more.', '„double“ und „triple“ zählt dieses Programm selbst: Ist eins davon belegt, wartet ein kurzer Druck einen Moment auf weitere.')}</p>
     <div class="row"><button class="btn btn-accent btn-sm" id="b-learn-new" data-for="b-save">${ico('test')}${T('Press a button to map it', 'Taste drücken und belegen')}</button><button class="btn btn-outline btn-sm" id="b-add">${ico('plus')}${T('Add mapping', 'Belegung hinzufügen')}</button>
@@ -699,18 +710,22 @@ function learnTick() {
   toast(tt(`Learned: ${e.name} / ${e.value}`, `Angelernt: ${e.name} / ${e.value}`), 'ok');
 }
 function collectButtons() {
-  return $$('#view [data-bi]').map(it => ({ b: $('.b-name', it).value.trim(), p: $('.b-press', it).value.trim() || 'short', a: $('.b-act', it).value }));
+  return (draft.buttons || []).map((r, i) => {
+    const it = $(`#view [data-bi="${i}"][data-bform]`);
+    return it ? { b: $('.b-name', it).value.trim(), p: $('.b-press', it).value.trim() || 'short', a: $('.b-act', it).value, edit: true } : r;
+  });
 }
 function bindButtons() {
   const keep = () => { draft.buttons = collectButtons(); };
-  $('#b-add').onclick = () => { keep(); draft.buttons.push({ b: '', p: 'short', a: 'none' }); render(); };
+  $('#b-add').onclick = () => { keep(); draft.buttons.push({ b: '', p: 'short', a: 'none', edit: true }); render(); };
+  $$('[data-bedit]').forEach(b => b.onclick = () => { keep(); draft.buttons[+b.dataset.bedit].edit = true; render(); });
   saver('b-save', async () => {
     keep(); const o = {}; draft.buttons.filter(r => r.b).forEach(r => { (o[r.b] = o[r.b] || {})[r.p] = r.a; });
     await api('/api/settings/buttons', 'PUT', o); delete draft.buttons; await loadCfg();
   }, tt('Saved', 'Gespeichert'));
   $$('[data-bdel]').forEach(b => b.onclick = () => { keep(); removeWithUndo(draft.buttons, +b.dataset.bdel, tt('Mapping', 'Belegung'), 'b-save'); });
   $$('[data-learn]').forEach(b => b.onclick = () => { keep(); learn = { i: +b.dataset.learn, since: Date.now() }; render(); });
-  $('#b-learn-new').onclick = () => { keep(); draft.buttons.push({ b: '', p: 'short', a: 'none' }); learn = { i: draft.buttons.length - 1, since: Date.now() }; markDirtyIds(['b-save']); render(); };
+  $('#b-learn-new').onclick = () => { keep(); draft.buttons.push({ b: '', p: 'short', a: 'none', edit: true }); learn = { i: draft.buttons.length - 1, since: Date.now() }; markDirtyIds(['b-save']); render(); };
 }
 
 function wifiLiveHTML() {
