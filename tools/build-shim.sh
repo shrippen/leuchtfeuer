@@ -4,9 +4,10 @@
 #   tools/build-shim.sh   -> build/shim/avahi-user-shim.so
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 mkdir -p "$here/build/shim"
 docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf -f "$here/tools/docker/xenial-armhf.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$here/device/src:/src:ro" -v "$here/build/shim:/out" invoke-xenial-armhf \
+drun -v "$here/device/src:/src:ro" -v "$here/build/shim:/out" invoke-xenial-armhf \
   arm-linux-gnueabihf-gcc -shared -fPIC -O2 -o /out/avahi-user-shim.so /src/avahi-user-shim.c -ldl
 file "$here/build/shim/avahi-user-shim.so"

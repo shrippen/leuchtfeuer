@@ -7,9 +7,10 @@
 #   tools/build-ffmpeg34.sh   -> build/ffmpeg34/lib/*.so.*
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 out=$here/build/ffmpeg34
 mkdir -p "$out"
-docker run --rm -v "$out:/out" invoke-xenial-armhf bash -euc '
+drun -v "$out:/out" invoke-xenial-armhf bash -euc '
   cd /tmp && wget -q https://ffmpeg.org/releases/ffmpeg-3.4.13.tar.xz && sha256sum ffmpeg-3.4.13.tar.xz > /out/source.sha256
   tar xJf ffmpeg-3.4.13.tar.xz && cd ffmpeg-3.4.13
   ./configure --enable-cross-compile --cross-prefix=arm-linux-gnueabihf- --arch=arm --cpu=cortex-a9 --target-os=linux \

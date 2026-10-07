@@ -6,12 +6,13 @@
 #   tools/build-librespot.sh [tag]   -> build/librespot/librespot
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 tag=${1:-v0.8.0}
 out=$here/build/librespot
 mkdir -p "$out" "$here/build/cargo-cache"
 docker image inspect invoke-rust-armv7 >/dev/null 2>&1 || \
   docker build -q -t invoke-rust-armv7 -f "$here/tools/docker/rust-armv7.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -v "$here/build/cargo-cache:/usr/local/cargo/registry" -v "$here/tools/patches:/patches:ro" \
+drun -v "$out:/out" -v "$here/build/cargo-cache:/usr/local/cargo/registry" -v "$here/tools/patches:/patches:ro" \
   -e TAG="$tag" invoke-rust-armv7 bash -euc '
   cd /tmp && git clone -q --depth 1 --branch "$TAG" https://github.com/librespot-org/librespot.git && cd librespot
   git rev-parse HEAD > /out/source.commit

@@ -27,6 +27,7 @@
 # Braucht: docker, curl, patchelf >= 0.12 (--clear-symbol-version).
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 target=${1:-invoke}
 case $target in invoke) out=$here/build/tidal ;; generic) out=$here/build/tidal-generic ;;
   *) echo "Zielgerät: invoke | generic" >&2; exit 2 ;; esac
@@ -46,7 +47,7 @@ chmod 755 "$out/bin/tidal_connect_application"
 
 fetch(){ # fetch <image> <sources.list-Zeilen> <pakete...>
   local img=$1 src=$2; shift 2
-  docker run --rm -v "$out/debs:/debs" "$img" bash -c "
+  drun -v "$out/debs:/debs" "$img" bash -c "
     printf '%b' '$src' > /etc/apt/sources.list; rm -f /etc/apt/sources.list.d/*
     dpkg --add-architecture armhf; apt-get -o Acquire::Check-Valid-Until=false update >/dev/null 2>&1
     cd /debs; for p in $*; do apt-get -o Acquire::Check-Valid-Until=false download -q \$p:armhf >/dev/null 2>&1 || { echo \"fehlt: \$p\" >&2; exit 1; }; done"
@@ -74,13 +75,13 @@ done
 for f in "$here"/build/ffmpeg34/lib/*.so.*.*; do b=$(basename "$f"); cp "$f" "$out/lib/${b%.*.*}"; done
 cp "$here/build/curl-tidal/libcurl.so.4" "$out/lib/"
 # SSLv3-Ausgleich gegen die mitgelieferte libssl 1.0.2 bauen
-docker run --rm --user "$(id -u):$(id -g)" -v "$here/device/src:/src:ro" -v "$out/lib:/lib-out" invoke-xenial-armhf \
+drun --user "$(id -u):$(id -g)" -v "$here/device/src:/src:ro" -v "$out/lib:/lib-out" invoke-xenial-armhf \
   arm-linux-gnueabihf-gcc -shared -fPIC -O2 -Wall -Wextra -Werror -o /lib-out/libleuchtfeuer-ssl3compat.so \
   /src/leuchtfeuer-ssl3compat.c /lib-out/libssl.so.1.0.2
 # Programm auf OpenSSL 1.0.2 umstellen: Namen ersetzen, Versionsbindung lösen, Ausgleich anhängen
 bin=$out/bin/tidal_connect_application
 # Symboltabellen braucht zur Laufzeit niemand (~0,9 MB)
-docker run --rm --user "$(id -u):$(id -g)" -v "$out/bin:/b" invoke-xenial-armhf arm-linux-gnueabihf-strip /b/tidal_connect_application
+drun --user "$(id -u):$(id -g)" -v "$out/bin:/b" invoke-xenial-armhf arm-linux-gnueabihf-strip /b/tidal_connect_application
 args=()
 for s in $(readelf --dyn-syms -W "$bin" | awk '$7=="UND"{print $8}' | grep '@OPENSSL' | sed 's/@.*//' | sort -u); do
   args+=(--clear-symbol-version "$s")

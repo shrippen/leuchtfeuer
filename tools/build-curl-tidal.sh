@@ -11,6 +11,7 @@
 # Release-Prüfsumme kontrollieren).
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 out=$here/build/curl-tidal
 CURL_VER=8.22.0
 CURL_SHA=f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7   # GPG-Signatur Daniel Stenberg geprüft
@@ -19,7 +20,7 @@ MBED_SHA=a7e8bcbec0e6f761b4af24f25677626b35f762f68eef79c08677a363212d11f6   # = 
 mkdir -p "$out"
 docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf -f "$here/tools/docker/xenial-armhf.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -e CURL_VER=$CURL_VER -e CURL_SHA=$CURL_SHA -e MBED_VER=$MBED_VER -e MBED_SHA=$MBED_SHA \
+drun -v "$out:/out" -e CURL_VER=$CURL_VER -e CURL_SHA=$CURL_SHA -e MBED_VER=$MBED_VER -e MBED_SHA=$MBED_SHA \
   invoke-xenial-armhf bash -euc '
   H=arm-linux-gnueabihf; M=/tmp/mbed; cd /tmp
   wget -q https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-$MBED_VER/mbedtls-$MBED_VER.tar.bz2
