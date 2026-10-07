@@ -4,11 +4,12 @@
 #   tools/build-gmrender.sh   -> build/gmrender/gmediarender
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 out=$here/build/gmrender
 mkdir -p "$out"
 docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf -f "$here/tools/docker/xenial-armhf.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" invoke-xenial-armhf bash -euc '
+drun -v "$out:/out" invoke-xenial-armhf bash -euc '
   H=arm-linux-gnueabihf; P=/opt/upnp
   export PKG_CONFIG_LIBDIR=/usr/lib/$H/pkgconfig:/usr/share/pkgconfig:$P/lib/pkgconfig
   cd /tmp

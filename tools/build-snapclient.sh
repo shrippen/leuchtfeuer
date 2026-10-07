@@ -9,6 +9,7 @@
 # Prüfsumme zusammen anpassen und die Herkunft erneut kontrollieren.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 tag=${1:-v0.35.0}
 out=$here/build/snapclient
 FLAC_VER=1.5.0
@@ -20,7 +21,7 @@ SSL_SHA=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 mkdir -p "$out"
 docker image inspect invoke-armv7-musl >/dev/null 2>&1 || \
   docker build -q -t invoke-armv7-musl -f "$here/tools/docker/armv7-musl.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -e TAG="$tag" \
+drun -v "$out:/out" -e TAG="$tag" \
   -e FLAC_VER=$FLAC_VER -e FLAC_SHA=$FLAC_SHA -e ALSA_VER=$ALSA_VER -e ALSA_SHA=$ALSA_SHA \
   -e SSL_VER=$SSL_VER -e SSL_SHA=$SSL_SHA invoke-armv7-musl bash -euc '
   apk add --no-cache -q cmake git boost-dev xz >/dev/null

@@ -4,12 +4,13 @@
 #   tools/build-dropbear.sh [tag]   -> build/dropbear/dropbearmulti
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 tag=${1:-DROPBEAR_2026.94}
 out=$here/build/dropbear
 mkdir -p "$out"
 docker image inspect invoke-armv7-musl >/dev/null 2>&1 || \
   docker build -q -t invoke-armv7-musl -f "$here/tools/docker/armv7-musl.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -e TAG="$tag" invoke-armv7-musl sh -euc '
+drun -v "$out:/out" -e TAG="$tag" invoke-armv7-musl sh -euc '
   cd /tmp
   wget -q -O db.tar.gz "https://github.com/mkj/dropbear/archive/refs/tags/$TAG.tar.gz"
   sha256sum db.tar.gz > /out/source.sha256

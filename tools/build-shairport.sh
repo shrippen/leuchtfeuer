@@ -12,6 +12,7 @@
 # Die Prüfsumme von mbedTLS entspricht der des GitHub-Releases. Bei neuen Versionen beide zusammen anpassen.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 tag=${1:-4.3.7}
 out=$here/build/shairport
 MBED_VER=3.6.7
@@ -21,10 +22,10 @@ docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf -f "$here/tools/docker/xenial-armhf.Dockerfile" "$here/tools/docker"
 # das bt-Image bringt popt/libconfig-Header: bei Änderung der Dockerfile neu bauen
 docker image inspect invoke-xenial-armhf-bt >/dev/null 2>&1 && \
-  ! docker run --rm invoke-xenial-armhf-bt test -e /usr/include/popt.h 2>/dev/null && docker rmi invoke-xenial-armhf-bt >/dev/null
+  ! drun invoke-xenial-armhf-bt test -e /usr/include/popt.h 2>/dev/null && docker rmi invoke-xenial-armhf-bt >/dev/null
 docker image inspect invoke-xenial-armhf-bt >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf-bt -f "$here/tools/docker/xenial-armhf-bt.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -e TAG="$tag" -e MBED_VER=$MBED_VER -e MBED_SHA=$MBED_SHA invoke-xenial-armhf-bt bash -euc '
+drun -v "$out:/out" -e TAG="$tag" -e MBED_VER=$MBED_VER -e MBED_SHA=$MBED_SHA invoke-xenial-armhf-bt bash -euc '
   H=arm-linux-gnueabihf; M=/opt/mbed
   export PKG_CONFIG_LIBDIR=/usr/lib/$H/pkgconfig:/usr/share/pkgconfig
   cd /tmp

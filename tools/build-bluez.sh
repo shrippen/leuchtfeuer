@@ -14,6 +14,7 @@
 # "generic" kommt bluez-alsa ohnehin aus der Distribution und ist dort aktuell.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 out=$here/build/bluez
 BLUEZ_VER=5.87
 BLUEZ_SHA=26bdcf2cebd7310c6f598850606b037ef0c515fe6608ebc54d22c50c4c32b35f
@@ -23,7 +24,7 @@ docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf -f "$here/tools/docker/xenial-armhf.Dockerfile" "$here/tools/docker"
 docker image inspect invoke-xenial-armhf-bt >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf-bt -f "$here/tools/docker/xenial-armhf-bt.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$out:/out" -e BLUEZ_VER=$BLUEZ_VER -e BLUEZ_SHA=$BLUEZ_SHA -e BA_TAG=$BA_TAG \
+drun -v "$out:/out" -e BLUEZ_VER=$BLUEZ_VER -e BLUEZ_SHA=$BLUEZ_SHA -e BA_TAG=$BA_TAG \
   invoke-xenial-armhf-bt bash -euc '
   H=arm-linux-gnueabihf; P=/opt/bt; R=/data/leuchtfeuer/bluez
   export PKG_CONFIG_LIBDIR=/usr/lib/$H/pkgconfig:/usr/share/pkgconfig:$P/lib/pkgconfig
@@ -76,5 +77,5 @@ PC
 '
 # libsbc.so.1 (Xenial) zur Laufzeit auf dem Gerät: bluealsa bindet sie dynamisch
 mkdir -p "$out/lib"
-docker run --rm -v "$out/lib:/out" invoke-xenial-armhf-bt cp -L /usr/lib/arm-linux-gnueabihf/libsbc.so.1 /out/libsbc.so.1
+drun -v "$out/lib:/out" invoke-xenial-armhf-bt cp -L /usr/lib/arm-linux-gnueabihf/libsbc.so.1 /out/libsbc.so.1
 ls -l "$out"; cat "$out/needed.txt"

@@ -6,6 +6,7 @@
 # von xiph). Bei neuen Versionen Version und Prüfsumme zusammen anpassen und die Herkunft erneut kontrollieren.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 tag=${1:-v1.8.2}
 out=$here/build/sendspin
 GO_VER=1.27.1
@@ -13,7 +14,7 @@ GO_SHA=63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445
 OPUS_VER=1.6.1
 OPUS_SHA=6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1
 mkdir -p "$out" "$here/build/go-cache"
-docker run --rm -v "$out:/out" -v "$here/build/go-cache:/root/go" -e TAG="$tag" \
+drun -v "$out:/out" -v "$here/build/go-cache:/root/go" -e TAG="$tag" \
   -e GO_VER=$GO_VER -e GO_SHA=$GO_SHA -e OPUS_VER=$OPUS_VER -e OPUS_SHA=$OPUS_SHA invoke-xenial-armhf bash -euc '
   cd /tmp && wget -q https://go.dev/dl/go$GO_VER.linux-amd64.tar.gz
   echo "$GO_SHA  go$GO_VER.linux-amd64.tar.gz" | sha256sum -c --quiet

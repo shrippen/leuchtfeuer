@@ -6,10 +6,11 @@
 #   tools/build-viztap.sh   -> build/viztap/leuchtfeuer-viz-tap.so, build/viztap/leuchtfeuer-eq.so
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
+. "$here/tools/docker-run.sh"
 mkdir -p "$here/build/viztap"
 docker image inspect invoke-xenial-armhf >/dev/null 2>&1 || \
   docker build -q -t invoke-xenial-armhf -f "$here/tools/docker/xenial-armhf.Dockerfile" "$here/tools/docker"
-docker run --rm -v "$here/device/src:/src:ro" -v "$here/build/viztap:/out" invoke-xenial-armhf bash -euc '
+drun -v "$here/device/src:/src:ro" -v "$here/build/viztap:/out" invoke-xenial-armhf bash -euc '
   arm-linux-gnueabihf-gcc -shared -fPIC -O2 -Wall -Wextra -o /out/leuchtfeuer-viz-tap.so /src/leuchtfeuer-viz-tap.c
   arm-linux-gnueabihf-gcc -shared -fPIC -O2 -mfpu=neon -Wall -Wextra -o /out/leuchtfeuer-eq.so /src/leuchtfeuer-eq.c -lm
 '
