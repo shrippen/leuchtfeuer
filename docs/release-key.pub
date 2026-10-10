@@ -1,2 +1,3 @@
-# Öffentlicher Ed25519-Schlüssel (Base64) der signierten Releases, eine Zeile. Leer = es gibt noch keinen.
+# Öffentlicher Ed25519-Schlüssel (Base64) der signierten Releases, eine Zeile.
 # Erzeugen: (cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key) und die Ausgabe hier eintragen.
+dtQQVKO7sjNFsOkvv/4LPvCdDJ3xEcSXTEJZ/EIu6NE=
