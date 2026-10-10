@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// Updates aus der Oberfläche: Die Release-Seite (Gitea) bietet je Version ein Paket leuchtfeuer-<Version>-<Paket>.tar.gz (Paket je Zielgerät: invoke, generic-arm64 ...)
+// Updates aus der Oberfläche: Die Release-Seite (GitHub) bietet je Version ein Paket leuchtfeuer-<Version>-<Paket>.tar.gz (Paket je Zielgerät: invoke, generic-arm64 ...)
 // (Aufbau wie /data/leuchtfeuer) und eine Signatur .sig an. leuchtfeuerd lädt beides, prüft die Ed25519-Signatur gegen den
 // Schlüssel UPDATE_PUBKEY aus der Shell-Konfiguration (ohne Schlüssel kein Update aus der Oberfläche), packt nach
 // /data/leuchtfeuer/.stage-web aus (nur Programme, Dienste und Systemdateien, nie Einstellungen oder Schlüssel) und übergibt an
@@ -31,10 +31,10 @@ import (
 // Signatur: Ed25519 über die Zeichenkette "leuchtfeuer-release:" + SHA-256 (hex) des Pakets, Base64.
 
 type UpdateSettings struct {
-	URL string `json:"url"` // Release-API (Gitea .../releases/latest); leer = Standard
+	URL string `json:"url"` // Release-API (GitHub .../releases/latest); leer = Standard
 }
 
-const defaultUpdateURL = "https://git.arianw.de/api/v1/repos/shrippen/leuchtfeuer/releases/latest"
+const defaultUpdateURL = "https://api.github.com/repos/shrippen/leuchtfeuer/releases/latest"
 
 type updateInfo struct {
 	Current    string `json:"current"`

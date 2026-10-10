@@ -204,7 +204,7 @@ Fragen: `--ip`, `--key`, `--config`, `--tidal`/`--no-tidal`, `--no-reboot`, `--d
 aktualisiert den Lautsprecher; nur geänderte Dateien werden übertragen, und deine Einstellungen auf dem Lautsprecher
 bleiben, außer du wählst neue. Separat bauen: `./build.sh [--no-tidal] [--force]`.
 
-**Ohne Bauen:** `./install.sh --prebuilt [TAG]` nimmt das Release-Paket von Gitea (neuestes Release oder der angegebene Tag),
+**Ohne Bauen:** `./install.sh --prebuilt [TAG]` nimmt das Release-Paket von GitHub (neuestes Release oder der angegebene Tag),
 statt zu bauen: kein Docker, wenige Minuten. Es wird gegen seine `.sha256` geprüft und, wenn `docs/release-key.pub` den
 Release-Schlüssel enthält und Go installiert ist, gegen seine Signatur. Tidal Connect ist nicht enthalten (proprietär, nicht
 unseres zum Weitergeben); wer es will, baut selbst.
@@ -303,7 +303,7 @@ Lautsprecher dann nicht per mDNS, obwohl Handys im WLAN ihn sehen. Auswege: die 
   hochladen.
 - **Releases (Betreuer):** einmal einen Schlüssel erzeugen mit `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
   den ausgegebenen öffentlichen Schlüssel in `docs/release-key.pub` eintragen, den geheimen als Secret
-  `LEUCHTFEUER_SIGNING_KEY` (und ein Gitea-Token als `RELEASE_TOKEN`) für `.gitea/workflows/release.yml` hinterlegen. Ein Tag
+  `LEUCHTFEUER_SIGNING_KEY` im GitHub-Repository für `.github/workflows/release.yml` hinterlegen. Ein Tag
   `v*` baut, signiert und veröffentlicht dann das Paket; von Hand: `./build.sh --no-tidal && tools/make-release.sh --key <datei>`.
 - **Tests ohne Lautsprecher:** `tests/run.sh` (läuft auch in der CI).
 - **Prüfen:** `scripts/verify-install.sh --ip <ip> --key <pub>` (prüft auch die Plugins der Tonkette, die Quellen-Regler und den Hersteller-Dienst `audio-ui`).
