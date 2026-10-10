@@ -12,10 +12,10 @@ Ein Hinweis, wenn es ein neueres Release gibt: das Gerätepaket wird mit `instal
 
 ## Release 1.0 veröffentlichen
 
-Stand: `main` und die Tags `v1.0.0` und `v1.0.1` liegen auf Gitea. Der Release-Lauf für `v1.0.1` (Run #52) baut und paketiert alles, scheitert aber im letzten Schritt, weil zwei Secrets im Repository fehlen. `v1.0.0` ist ein toter Tag (der Build brach damals an den Bind-Mounts ab, siehe `tools/docker-run.sh`) und hat kein Release.
+Stand: Releases baut und veröffentlicht nur noch GitHub (`.github/workflows/release.yml`, bei einem Tag `v*`); Gitea prüft nur und bekommt keine Release-Dateien. Bisher gibt es weder auf Gitea noch auf GitHub ein Release. Die Tags `v1.0.0` (Build brach an den Bind-Mounts ab, siehe `tools/docker-run.sh`) und `v1.0.1` (Run #52 scheiterte am fehlenden Gitea-Token) zeigen auf Commits ohne den GitHub-Workflow; ein Tag-Lauf nimmt den Workflow aus dem getaggten Commit, darum lassen sie sich nicht neu starten.
 
-- [ ] Secret `RELEASE_TOKEN` in Gitea anlegen (Repo > Einstellungen > Actions > Secrets): Gitea-Token mit Schreibrecht auf dieses Repository. Ohne ihn antwortet die API im Schritt „Release auf Gitea“ mit 404
-- [ ] Signaturschlüssel erzeugen: `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`; der private Schlüssel kommt als Secret `LEUCHTFEUER_SIGNING_KEY` (Inhalt, Base64) in Gitea und zusätzlich in eine Sicherung, der öffentliche in `docs/release-key.pub`. Ohne Schlüssel entstehen keine `.sig`-Dateien, und Updates aus der Weboberfläche und `install.sh --prebuilt` prüfen nichts
-- [ ] Release-Lauf für `v1.0.1` in Gitea (Actions) neu starten, danach prüfen: Release „Leuchtfeuer v1.0.1“ mit Paketen für `invoke` und `generic-amd64/-arm64/-armv7`, jeweils `.sha256` und `.sig`
-- [ ] Toten Tag `v1.0.0` auf Gitea (und im GitHub-Spiegel) entfernen, oder dort ein Release aus ihm anlegen
+- [ ] Signaturschlüssel erzeugen: `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`; den ausgegebenen öffentlichen Schlüssel per PR in `docs/release-key.pub` eintragen
+- [ ] Privaten Schlüssel als Secret auf GitHub hinterlegen: `gh secret set LEUCHTFEUER_SIGNING_KEY -R shrippen/leuchtfeuer < ~/.config/leuchtfeuer/release.key`, zusätzlich sichern (z. B. Passwortmanager); ohne ihn nehmen installierte Lautsprecher keine Updates mehr an. Ohne Schlüssel entstehen keine `.sig`-Dateien, und Updates aus der Weboberfläche und `install.sh --prebuilt` prüfen nichts
+- [ ] Neuen Tag `v1.0.2` auf `main` setzen und auf Gitea pushen (der Spiegel bringt ihn zu GitHub), danach prüfen: Release „Leuchtfeuer v1.0.2“ auf GitHub mit Paketen für `invoke` und `generic-amd64/-arm64/-armv7`, jeweils `.sha256` und `.sig`; auf Gitea nur Tag und Release-Notes
+- [ ] Tote Tags `v1.0.0` und `v1.0.1` auf Gitea entfernen (der Spiegel übernimmt das), oder sie bewusst ohne Release stehen lassen
 - [ ] Danach den Punkt „Nach jedem Release `build-versions.py`“ aus dem Abschnitt Update-Hinweis erledigen
