@@ -16,6 +16,6 @@ Stand: Releases baut und veröffentlicht nur noch GitHub (`.github/workflows/rel
 
 - [x] Signaturschlüssel erzeugen: `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`; den ausgegebenen öffentlichen Schlüssel per PR in `docs/release-key.pub` eintragen
 - [x] Privaten Schlüssel als Secret auf GitHub hinterlegen: `gh secret set LEUCHTFEUER_SIGNING_KEY -R shrippen/leuchtfeuer < ~/.config/leuchtfeuer/release.key`, zusätzlich sichern (z. B. Passwortmanager); ohne ihn nehmen installierte Lautsprecher keine Updates mehr an. Ohne Schlüssel entstehen keine `.sig`-Dateien, und Updates aus der Weboberfläche und `install.sh --prebuilt` prüfen nichts
-- [ ] Neuen Tag `v1.0.2` auf `main` setzen und auf Gitea pushen (der Spiegel bringt ihn zu GitHub), danach prüfen: Release „Leuchtfeuer v1.0.2“ auf GitHub mit Paketen für `invoke` und `generic-amd64/-arm64/-armv7`, jeweils `.sha256` und `.sig`; auf Gitea nur Tag und Release-Notes
+- [x] Neuen Tag `v1.0.2` auf `main` setzen und auf Gitea pushen (der Spiegel bringt ihn zu GitHub), danach prüfen: Release „Leuchtfeuer v1.0.2“ auf GitHub mit Paketen für `invoke` und `generic-amd64/-arm64/-armv7`, jeweils `.sha256` und `.sig`; auf Gitea nur Tag und Release-Notes
 - [ ] Tote Tags `v1.0.0` und `v1.0.1` auf Gitea entfernen (der Spiegel übernimmt das), oder sie bewusst ohne Release stehen lassen
-- [ ] Danach den Punkt „Nach jedem Release `build-versions.py`“ aus dem Abschnitt Update-Hinweis erledigen
+- [x] Danach den Punkt „Nach jedem Release `build-versions.py`“ aus dem Abschnitt Update-Hinweis erledigen
