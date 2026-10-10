@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
   pull_request:
+
+# Ein Runner arbeitet die Warteschlange der Reihe nach ab. Ein neuerer Push auf denselben
+# Branch oder PR ersetzt den älteren Lauf, statt sich dahinter einzureihen.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
