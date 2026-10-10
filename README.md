@@ -95,7 +95,7 @@ Everything is in **[docs/INVOKE.md](docs/INVOKE.md)**.
 - Tests without a device: `tests/run.sh` (Go with the race detector, shell, the sound plugin, the web interface, the Home
   Assistant integration; also run by the CI). On a device: `scripts/smoke.sh`.
 - Demo mode for screenshots (no device, demo data "Studio Weber"): `demo/start.sh`.
-- Releases: one package per target, signed (`tools/make-release.sh`, `.gitea/workflows/release.yml`).
+- Releases: one package per target, signed (`tools/make-release.sh`, `.github/workflows/release.yml`, on GitHub).
 
 ## Legal
 

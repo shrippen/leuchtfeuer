@@ -195,7 +195,7 @@ Messages are in English or German depending on `$LANG` (force with `LEUCHTFEUER_
 speaker; only changed files are transferred, and your settings on the speaker are kept unless you choose new ones.
 Build separately with `./build.sh [--no-tidal] [--force]`.
 
-**Without building:** `./install.sh --prebuilt [TAG]` takes the release package from Gitea (latest release or the given
+**Without building:** `./install.sh --prebuilt [TAG]` takes the release package from GitHub (latest release or the given
 tag) instead of building: no Docker, a few minutes. It is checked against its `.sha256` and, when
 `docs/release-key.pub` holds the release key and Go is installed, against its signature. The package does not contain
 Tidal Connect (proprietary, not ours to hand out); build it yourself if you want it.
@@ -286,8 +286,8 @@ the speaker via mDNS although phones on the Wi-Fi do. Workarounds: use the IP (C
   release signing key in `/data/leuchtfeuer/config` (`UPDATE_PUBKEY`, set by `install.sh` from `docs/release-key.pub`): only
   packages signed with that key are accepted. Without internet on the speaker, upload the package and its `.sig` there.
 - **Releases (maintainer):** create a key once with `(cd src/relsign && go run . keygen ~/.config/leuchtfeuer/release.key)`,
-  put the printed public key into `docs/release-key.pub`, store the private key as secret `LEUCHTFEUER_SIGNING_KEY` (and a
-  Gitea token as `RELEASE_TOKEN`) for `.gitea/workflows/release.yml`. A tag `v*` then builds, signs and publishes the
+  put the printed public key into `docs/release-key.pub`, store the private key as secret `LEUCHTFEUER_SIGNING_KEY` in the
+  GitHub repository for `.github/workflows/release.yml`. A tag `v*` then builds, signs and publishes the
   package; locally: `./build.sh --no-tidal && tools/make-release.sh --key <file>`.
 - **Tests without a speaker:** `tests/run.sh` (also run by the CI).
 - **Verify:** `scripts/verify-install.sh --ip <ip> --key <pub>` (also checks the audio chain plugins, the source controls and the vendor `audio-ui`).

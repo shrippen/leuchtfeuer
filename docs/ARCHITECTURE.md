@@ -272,12 +272,12 @@ fails three times in a row, `apply-update.sh rollback` restores `.prev`, deletes
 `update-rolledback` tells the web interface why. Once the 10 minutes pass, the hook discards `.prev` when less than 60 MB
 are free (on the Invoke it holds about 40 MB of old binaries); only the manual rollback is lost then. `install.sh` (over SSH) and the web interface use the same script.
 
-The web interface can update itself from the release page (Gitea API, `Settings.Update.URL`) or from an uploaded package:
+The web interface can update itself from the release page (GitHub API, `Settings.Update.URL`) or from an uploaded package:
 `leuchtfeuer-<version>-<package>.tar.gz` (`invoke` or `generic-<arch>`; layout of the installation directory, from
 `tools/make-release.sh --target …`) with an Ed25519 signature over
 `"leuchtfeuer-release:" + sha256(package)` (`src/relsign`). leuchtfeuerd accepts it only with a valid signature for `UPDATE_PUBKEY`
 and only files below `bin/`, `lib/`, `services/`, `bluez/{bin,lib}/` and the system scripts, never settings or keys.
-`.gitea/workflows/release.yml` builds, signs and publishes on a tag `v*`; `install.sh --prebuilt` installs such a package
+`.github/workflows/release.yml` (on GitHub only) builds, signs and publishes on a tag `v*`; `install.sh --prebuilt` installs such a package
 without building.
 
 ## Shared Go modules

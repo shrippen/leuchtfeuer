@@ -99,7 +99,7 @@ Schritt). Alles steht in **[INVOKE.de.md](INVOKE.de.md)**.
 - Tests ohne Gerät: `tests/run.sh` (Go mit Race-Detector, Shell, Klang-Plugin, Weboberfläche, Home-Assistant-Integration;
   läuft auch in der CI). Auf einem Gerät: `scripts/smoke.sh`.
 - Demo-Modus für Screenshots (ohne Gerät, Demodaten „Studio Weber“): `demo/start.sh`.
-- Releases: ein Paket je Zielgerät, signiert (`tools/make-release.sh`, `.gitea/workflows/release.yml`).
+- Releases: ein Paket je Zielgerät, signiert (`tools/make-release.sh`, `.github/workflows/release.yml`, auf GitHub).
 
 ## Rechtliches
 

@@ -1,14 +1,18 @@
 # Release bei einem Tag v*: alle Programme bauen (Docker, ohne Tidal), Pakete je Zielgerät zusammenstellen und
-# signieren (tools/make-release.sh: invoke, generic-amd64, generic-arm64, generic-armv7), Release auf Gitea anlegen
+# signieren (tools/make-release.sh: invoke, generic-amd64, generic-arm64, generic-armv7), Release auf GitHub anlegen
 # und Pakete, Prüfsummen und Signaturen anhängen.
-# Braucht einen Runner mit Docker und die Secrets LEUCHTFEUER_SIGNING_KEY (relsign keygen) und RELEASE_TOKEN
-# (Gitea-Token mit Schreibrecht auf das Repository).
+# Nur GitHub: GitHub ist der öffentliche Ausspielweg und hat als einziger Release-Dateien; Gitea prüft nur (Regel
+# „Gitea prüft, GitHub veröffentlicht“). install.sh --prebuilt und das Update aus der Weboberfläche laden von hier.
+# Braucht das Secret LEUCHTFEUER_SIGNING_KEY (relsign keygen) im GitHub-Repository.
 name: Release
 on:
   push:
     tags: ["v*"]
+permissions:
+  contents: write
 jobs:
   release:
+    if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -35,17 +39,11 @@ jobs:
             tools/build-generic.sh $a
             tools/make-release.sh --target generic --arch $a
           done
-      - name: Release auf Gitea
+      - name: Release auf GitHub
         env:
-          TOKEN: ${{ secrets.RELEASE_TOKEN }}
-          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -eu
-          id=$(curl -fsS -X POST -H "Authorization: token $TOKEN" -H 'Content-Type: application/json' \
-            -d "{\"tag_name\":\"$TAG\",\"name\":\"Leuchtfeuer $TAG\",\"body\":\"Pakete für Updates aus der Weboberfläche: invoke (install.sh --prebuilt, ohne Tidal) und generic-<arch> (beliebiges Linux, targets/generic/setup.sh).\"}" \
-            "$API/releases" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
-          for f in dist/*; do
-            curl -fsS -X POST -H "Authorization: token $TOKEN" -F "attachment=@$f" "$API/releases/$id/assets?name=$(basename "$f")" >/dev/null
-            echo "angehängt: $f"
-          done
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "Leuchtfeuer $TAG" \
+            --notes "Pakete für Updates aus der Weboberfläche: invoke (install.sh --prebuilt, ohne Tidal) und generic-<arch> (beliebiges Linux, targets/generic/setup.sh)."

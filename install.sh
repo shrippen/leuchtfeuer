@@ -22,7 +22,7 @@
 #                        random one is generated on first install and the existing one is kept on updates.
 #                        Change it later with scripts/set-web-password.sh.
 #   --tidal / --no-tidal install / skip Tidal Connect (proprietary iFi program, see README)
-#   --prebuilt [TAG]     use the release package from Gitea instead of building (no Docker needed; without Tidal).
+#   --prebuilt [TAG]     use the release package from GitHub instead of building (no Docker needed; without Tidal).
 #                        TAG = release tag, default the latest. The package is checked against its .sha256 and,
 #                        when docs/release-key.pub holds a key and Go is installed, against its signature.
 #   --no-reboot          do not reboot at the end
@@ -36,7 +36,7 @@ cd "$(dirname "$0")"
 . scripts/lib.sh
 
 IP=""; KEY=""; CONFIG=""; TIDAL=""; REBOOT=""; DRY=0; WEBPASS=${LEUCHTFEUER_WEB_PASSWORD:-}; PREBUILT=""
-RELEASES=${LEUCHTFEUER_RELEASES:-https://git.arianw.de/api/v1/repos/shrippen/leuchtfeuer/releases}
+RELEASES=${LEUCHTFEUER_RELEASES:-https://api.github.com/repos/shrippen/leuchtfeuer/releases}
 while [ $# -gt 0 ]; do
   case $1 in
     --ip) IP=$2; shift 2 ;;
