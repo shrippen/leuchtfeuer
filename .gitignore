@@ -22,3 +22,6 @@ __pycache__/
 .pytest_cache/
 src/btagent/btagent
 src/castrecv/castrecv
+
+# geheimer Signierschlüssel (relsign keygen), nie ins Repository
+release.key
