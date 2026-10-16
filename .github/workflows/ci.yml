@@ -1,0 +1,78 @@
+# Prüfungen ohne Lautsprecher bei jedem Push (tests/run.sh): Go vet/gofmt/Tests (mit Race-Detector),
+# Klang-Plugin, Hook, Update-Skript, Zielgerät generic (Ende zu Ende), Shell-Syntax und shellcheck, Weboberfläche.
+#
+# Öffentlicher Spiegel: Gitea pusht jeden Branch und Tag bei jedem Commit hierher. Dieser Workflow prüft und meldet
+# das Ergebnis an den Commit auf Gitea zurück, als Status "github / test"; dort liegen die Pull Requests. Auf GitHub
+# gibt es keine Pull Requests, darum läuft alles auf push.
+#
+# Braucht das Secret GITEA_TOKEN: ein Gitea-Token mit Schreibrecht auf das Repo (Commit-Status).
+name: CI
+on:
+  push:
+    branches: ["**"]
+
+# Keine Concurrency-Gruppe: Jeder Commit läuft zu Ende und behält seinen Status, ein neuerer Push bricht einen
+# älteren Lauf nicht ab.
+
+permissions:
+  contents: read
+
+env:
+  GITEA_STATUS: https://git.arianw.de/api/v1/repos/shrippen/leuchtfeuer/statuses/${{ github.sha }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      started: ${{ steps.start.outputs.t }}
+    steps:
+      # Ein fehlender Status ist kein Grund, die Prüfungen scheitern zu lassen.
+      - id: start
+        name: Report pending to Gitea
+        run: |
+          echo "t=$(date +%s)" >> "$GITHUB_OUTPUT"
+          curl -fsS -X POST "$GITEA_STATUS" \
+            -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"state\":\"pending\",\"context\":\"github / test\",\"description\":\"running\",\"target_url\":\"$RUN_URL\"}" \
+            || echo "::warning::Gitea status not reported"
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Werkzeuge
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck build-essential file curl
+      - name: tests/run.sh
+        run: tests/run.sh
+
+  # Läuft auch, wenn test scheiterte oder abgebrochen wurde, damit auf Gitea kein veraltetes "pending" stehen bleibt.
+  report:
+    needs: test
+    if: always()
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report result to Gitea
+        run: |
+          case "$RESULT" in
+            success) state=success ;;
+            failure) state=failure ;;
+            *) state=error ;;
+          esac
+          desc=$RESULT
+          if [ -n "$STARTED" ]; then desc="$RESULT in $(( ($(date +%s) - STARTED) / 60 )) min"; fi
+          curl -fsS -X POST "$GITEA_STATUS" \
+            -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"state\":\"$state\",\"context\":\"github / test\",\"description\":\"$desc\",\"target_url\":\"$RUN_URL\"}"
+        env:
+          RESULT: ${{ needs.test.result }}
+          STARTED: ${{ needs.test.outputs.started }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
