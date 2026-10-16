@@ -64,3 +64,7 @@ Marvell BG2CD, Google-Cast-Linux, am Service-USB dieses Rechners.
 - Here: the leuchtfeuerd web UI vendors `src/leuchtfeuerd/web/kante/` (`tools/sync-kante.sh`);
   never edit it. The landing page links `https://shrippen.github.io/v1/`.
 - Rule text: https://github.com/shrippen/Kante/blob/main/AGENT-RULE.md
+
+## Repository rule
+
+- PR-Agent (`.gitea/workflows/pr-agent.yml`) reviews every PR before it is merged. Wait for its comment on the PR's latest commit; after further pushes, ask for a new one with a `/review` comment. Fix or answer each finding in the PR, then merge. Without a review (the run skipped for lack of `PR_AGENT_LLM_KEY` or `PR_AGENT_MODEL`, or it failed), do not merge: ask the owner.
