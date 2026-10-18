@@ -67,4 +67,4 @@ Marvell BG2CD, Google-Cast-Linux, am Service-USB dieses Rechners.
 
 ## Repository rule
 
-- PR-Agent (`.gitea/workflows/pr-agent.yml`, where set up) runs only when the owner comments `/review` on a PR (owner, 18.10.2026). Sessions do not post `/review`, and no merge waits for it. If it has reviewed a PR, fix or answer its findings in the PR before the merge.
+- PR-Agent (`.gitea/workflows/pr-agent.yml`, where set up) runs only when the owner comments `/review` on a PR (owner, 18.10.2026). Sessions do not post `/review`. Without one no merge waits for PR-Agent; after the owner's `/review` the merge waits until that run has finished (its result, like its status, is not a CI check; a run that fails holds nothing, say so in the PR). Fix or answer its findings in the PR before the merge.
