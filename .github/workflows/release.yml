@@ -22,27 +22,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-      # Release-Notizen: der Abschnitt der Version aus CHANGELOG.md ("## [X.Y.Z]", "## X.Y.Z" oder
-      # "## vX.Y.Z", danach Leerzeichen oder Zeilenende), dahinter die Zeile zu den Paketen. Fehlt der
-      # Abschnitt oder ist er leer, bricht der Lauf ab, bevor gebaut wird.
+      # Release-Notizen: der Abschnitt der Version aus CHANGELOG.md ("## [X.Y.Z] — JJJJ-MM-TT", per
+      # scripts/release-notes.sh, Kopie von Kantes tools/release-notes.sh), dahinter die Zeile zu den Paketen.
+      # Fehlt der Abschnitt oder ist er leer, bricht der Lauf ab, bevor gebaut wird.
       - name: Notizen aus CHANGELOG.md
         env:
           TAG: ${{ github.ref_name }}
         run: |
           set -eu
           version="${TAG#v}"
-          awk -v v="$version" '
-            /^## / {
-              if (on) exit
-              h = substr($0, 4); sub(/^\[/, "", h); sub(/^v/, "", h)
-              if (substr(h, 1, length(v)) == v) {
-                rest = substr(h, length(v) + 1)
-                if (rest == "" || rest ~ /^[] ]/) { on = 1; next }
-              }
-            }
-            on
-          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
-          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || { echo "::error::CHANGELOG.md hat keine Notizen für $version (## [$version] — JJJJ-MM-TT)"; exit 1; }
+          scripts/release-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
           printf '\n---\n\nPakete für Updates aus der Weboberfläche: invoke (install.sh --prebuilt, ohne Tidal) und generic-<arch> (beliebiges Linux, targets/generic/setup.sh).\n' >> "$RUNNER_TEMP/notes.md"
       - name: Prüfungen
         run: |
