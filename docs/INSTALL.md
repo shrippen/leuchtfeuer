@@ -22,7 +22,7 @@ For the **Harman Kardon Invoke** there is a separate guide, because it needs a h
 On your computer or directly on the device:
 
 ```sh
-git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
+git clone https://github.com/shrippen/leuchtfeuer.git && cd leuchtfeuer
 tools/build-generic.sh arm64                         # amd64, arm64 or armv7; without an argument: this computer's architecture
 tools/make-release.sh --target generic --arch arm64  # -> dist/leuchtfeuer-<version>-generic-arm64.tar.gz
 ```

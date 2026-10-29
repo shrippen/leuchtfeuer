@@ -17,7 +17,7 @@ import (
 // all.api.radio-browser.info/json/servers; fällt einer aus, nimmt die Suche den nächsten. Beim Abspielen eines
 // gefundenen Senders meldet leuchtfeuerd den "Klick" (so wünscht es radio-browser, die Zahl hilft beim Sortieren).
 
-const radioBrowserUA = "Leuchtfeuer/1.0 (+https://git.arianw.de/shrippen/leuchtfeuer)"
+const radioBrowserUA = "Leuchtfeuer/1.0 (+https://github.com/shrippen/leuchtfeuer)"
 
 type radioStation struct {
 	UUID    string `json:"stationuuid"`

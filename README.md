@@ -78,7 +78,7 @@ controls, the sound plugin and the visualizer tap, which ends at the device's ou
 **Any Linux** (Raspberry Pi, mini PC), see [docs/INSTALL.md](docs/INSTALL.md):
 
 ```sh
-git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
+git clone https://github.com/shrippen/leuchtfeuer.git && cd leuchtfeuer
 tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64
 # on the device, with the package from dist/:
 mkdir lf && tar -xzf leuchtfeuer-*-generic-arm64.tar.gz -C lf && sudo sh lf/setup.sh --name Kitchen
