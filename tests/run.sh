@@ -31,6 +31,8 @@ fi
 step "Weboberfläche (Syntax)" sh -c "node --check src/leuchtfeuerd/web/app.js && node --check src/leuchtfeuerd/web/roomeq.js && node --check src/leuchtfeuerd/web/login.js"
 step "Raum einmessen (Auswertung)" node tests/roomeq_test.js
 step "Home-Assistant-Integration" sh tests/homeassistant/run.sh
+# HACS liest die Version aus manifest.json: sie muss die neueste Version in CHANGELOG.md sein.
+step "manifest.json-Version = CHANGELOG" sh -c 'm=$(sed -n "s/.*\"version\": *\"\([^\"]*\)\".*/\1/p" custom_components/leuchtfeuer/manifest.json); c=$(sed -n "s/^## \[\([0-9][0-9.]*\)\].*/\1/p" CHANGELOG.md | head -n1); [ -n "$m" ] && [ "$m" = "$c" ] || { echo "manifest.json $m, CHANGELOG.md $c"; exit 1; }'
 echo
 [ $fail = 0 ] && echo "Alles in Ordnung." || echo "Es gibt Fehler."
 exit $fail
