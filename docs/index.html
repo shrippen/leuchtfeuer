@@ -28,6 +28,7 @@
     <a href="#features"><span lang="en">Features</span><span lang="de">Funktionen</span></a>
     <a href="#devices"><span lang="en">Devices</span><span lang="de">Geräte</span></a>
     <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/INSTALL.md"><span lang="en">Install</span><span lang="de">Installation</span></a>
+    <a href="#changes"><span lang="en">Changes</span><span lang="de">Änderungen</span></a>
     <a class="nav-hl" href="https://git.arianw.de/shrippen/leuchtfeuer">Gitea</a>
     <div class="lang" role="group" aria-label="Language">
       <button type="button" data-lang="en" aria-pressed="true">EN</button>
@@ -143,6 +144,33 @@
   <ul lang="en"><li>A small computer with Linux, systemd and ALSA and a speaker on its sound card (Raspberry Pi, mini PC), or a Harman Kardon Invoke with a USB cable for its service port</li><li>To build: Go and a C compiler (Invoke: Docker); a Linux PC with ssh (Invoke: also adb)</li><li>A network; for Snapcast a snapserver, for Sendspin Music Assistant</li></ul>
   <ul lang="de"><li>Ein kleiner Rechner mit Linux, systemd und ALSA und einem Lautsprecher an der Soundkarte (Raspberry Pi, Mini-PC), oder ein Harman Kardon Invoke mit USB-Kabel für seinen Service-Port</li><li>Zum Bauen: Go und ein C-Compiler (Invoke: Docker); ein Linux-PC mit ssh (Invoke: auch adb)</li><li>Ein Netzwerk; für Snapcast ein snapserver, für Sendspin Music Assistant</li></ul>
 </section>
+<section class="section" id="changes">
+  <h2 lang="en">Changes</h2><h2 lang="de">Änderungen</h2>
+  <p lang="en">What each release brought, newest first. Every release adds an entry here and the same notes on the release page.</p><p lang="de">Was jede Version gebracht hat, die neueste zuerst. Jede Version bekommt hier einen Eintrag und dieselben Notizen auf der Release-Seite.</p>
+  <ol class="changelog">
+    <li class="release" id="v1.0.2">
+      <div class="release-head"><b class="release-version">1.0.2</b><time datetime="2026-10-10"><span lang="en">10 Oct 2026</span><span lang="de">10. Okt. 2026</span></time></div>
+      <div class="release-body">
+        <p class="release-lead"><span lang="en">The first published release of Leuchtfeuer 1.0: any small computer with a speaker, or the abandoned Harman Kardon Invoke, becomes a smart speaker without a cloud. Packages are signed and come from GitHub.</span><span lang="de">Das erste veröffentlichte Release von Leuchtfeuer 1.0: Jeder kleine Rechner mit Lautsprecher, oder der aufgegebene Harman Kardon Invoke, wird ein Smartspeaker ohne Cloud. Die Pakete sind signiert und kommen von GitHub.</span></p>
+        <div class="release-group" data-kind="new"><h3><span lang="en">New</span><span lang="de">Neu</span></h3><ul>
+          <li><span lang="en">Receivers: Spotify Connect, AirPlay, UPnP/DLNA, Cast, Sendspin (Music Assistant), Snapcast multiroom and Bluetooth, through one audio chain into the built-in sound card, HDMI, USB or a Bluetooth speaker.</span><span lang="de">Empfänger: Spotify Connect, AirPlay, UPnP/DLNA, Cast, Sendspin (Music Assistant), Snapcast-Multiroom und Bluetooth, über eine Audiokette in die eingebaute Soundkarte, HDMI, USB oder einen Bluetooth-Lautsprecher.</span></li>
+          <li><span lang="en">At home: a morning briefing with weather, appointments and news, alarms with a backup tone, web radio with station search, room correction measured with your phone, and a setup assistant for the first steps.</span><span lang="de">Zu Hause: ein Morgen-Briefing mit Wetter, Terminen und Nachrichten, Wecker mit Ersatzton, Webradio mit Sendersuche, eine mit dem Handy gemessene Raumkorrektur und ein Einrichtungsassistent für die ersten Schritte.</span></li>
+          <li><span lang="en">Home Assistant: the speaker registers itself over MQTT, and a custom integration adds a media player with volume, radio, timers, alarms, now playing and announcements over the music.</span><span lang="de">Home Assistant: Der Lautsprecher meldet sich per MQTT an, und eine eigene Integration bringt einen Mediaplayer mit Lautstärke, Radio, Timern, Weckern, aktuellem Titel und Durchsagen über der Musik.</span></li>
+          <li><span lang="en">Any Linux with systemd and ALSA (Raspberry Pi, mini PC) from one package and <code>setup.sh</code>; the Harman Kardon Invoke with its knob, buttons, light ring and microphones.</span><span lang="de">Jedes Linux mit systemd und ALSA (Raspberry Pi, Mini-PC) aus einem Paket und <code>setup.sh</code>; der Harman Kardon Invoke mit Drehknopf, Tasten, Lichtring und Mikrofonen.</span></li>
+          <li><span lang="en">A password-protected web interface, a firewall that opens only switched-on services, API keys, Prometheus metrics and a hardware watchdog.</span><span lang="de">Eine passwortgeschützte Weboberfläche, eine Firewall, die nur eingeschaltete Dienste öffnet, API-Schlüssel, Prometheus-Metriken und ein Hardware-Watchdog.</span></li>
+          <li><span lang="en">Signed packages: every package has an Ed25519 signature (<code>.sig</code>) next to its checksum (<code>.sha256</code>). Updates from the web interface and <code>install.sh --prebuilt</code> check it against the key in <code>docs/release-key.pub</code> and refuse foreign or altered packages; a failed update rolls back by itself.</span><span lang="de">Signierte Pakete: Jedes Paket hat eine Ed25519-Signatur (<code>.sig</code>) neben der Prüfsumme (<code>.sha256</code>). Updates aus der Weboberfläche und <code>install.sh --prebuilt</code> prüfen sie gegen den Schlüssel in <code>docs/release-key.pub</code> und lehnen fremde oder veränderte Pakete ab; ein gescheitertes Update rollt sich selbst zurück.</span></li>
+        </ul></div>
+        <div class="release-group" data-kind="improved"><h3><span lang="en">Improved</span><span lang="de">Verbessert</span></h3><ul>
+          <li><span lang="en">Packages come from GitHub: the release files (<code>invoke</code>, <code>generic-amd64</code>, <code>generic-arm64</code>, <code>generic-armv7</code>) are attached to the GitHub releases (https://github.com/shrippen/leuchtfeuer/releases), and <code>install.sh --prebuilt</code> and the update from the web interface load them from there.</span><span lang="de">Pakete kommen von GitHub: Die Release-Dateien (<code>invoke</code>, <code>generic-amd64</code>, <code>generic-arm64</code>, <code>generic-armv7</code>) hängen an den GitHub-Releases (https://github.com/shrippen/leuchtfeuer/releases), und <code>install.sh --prebuilt</code> und das Update aus der Weboberfläche laden sie von dort.</span></li>
+        </ul></div>
+        <div class="release-group" data-kind="note"><h3><span lang="en">Note</span><span lang="de">Hinweis</span></h3><ul>
+          <li><span lang="en">The tags <code>v1.0.0</code> and <code>v1.0.1</code> have no release; their builds failed on the runner back then. 1.0.2 contains their state.</span><span lang="de">Die Tags <code>v1.0.0</code> und <code>v1.0.1</code> haben kein Release; ihre Builds sind damals im Runner gescheitert. 1.0.2 enthält deren Stand.</span></li>
+          <li><span lang="en">On the Harman Kardon Invoke the installation flashes the speaker, which can brick it: back up the NAND first, as its guide describes.</span><span lang="de">Auf dem Harman Kardon Invoke flasht die Installation den Lautsprecher, was ihn unbrauchbar machen kann: zuerst den NAND sichern, wie es seine Anleitung beschreibt.</span></li>
+        </ul></div>
+      </div>
+    </li>
+  </ol>
+</section>
 </main>
 
 <footer class="foot">
@@ -156,7 +184,8 @@
       <div><h4><span lang="en">Project</span><span lang="de">Projekt</span></h4>
         <a href="#features"><span lang="en">Features</span><span lang="de">Funktionen</span></a>
         <a href="#devices"><span lang="en">Devices</span><span lang="de">Geräte</span></a>
-        <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/ARCHITECTURE.md"><span lang="en">Architecture</span><span lang="de">Aufbau</span></a></div>
+        <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/ARCHITECTURE.md"><span lang="en">Architecture</span><span lang="de">Aufbau</span></a>
+        <a href="#changes"><span lang="en">Changes</span><span lang="de">Änderungen</span></a></div>
       <div><h4><span lang="en">Guides</span><span lang="de">Anleitungen</span></h4>
         <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/INSTALL.md"><span lang="en">Any Linux</span><span lang="de">Jedes Linux</span></a>
         <a href="https://git.arianw.de/shrippen/leuchtfeuer/src/branch/main/docs/INVOKE.md">Harman Kardon Invoke</a>
@@ -165,7 +194,7 @@
         <a href="https://git.arianw.de/shrippen/leuchtfeuer">Gitea</a><a href="https://git.arianw.de/shrippen/leuchtfeuer/issues">Issues</a></div>
     </nav>
   </div>
-  <div class="foot-meta"><p>shrippen · Kante</p></div>
+  <div class="foot-meta"><p>shrippen · Kante · <a href="#changes">v1.0.2</a></p></div>
 </footer>
 
 </body>
