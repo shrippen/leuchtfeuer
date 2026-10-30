@@ -82,7 +82,7 @@ Einzelheiten: [ARCHITECTURE.md](ARCHITECTURE.md) (englisch).
 **Jedes Linux** (Raspberry Pi, Mini-PC), siehe [INSTALL.de.md](INSTALL.de.md):
 
 ```sh
-git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
+git clone https://github.com/shrippen/leuchtfeuer.git && cd leuchtfeuer
 tools/build-generic.sh arm64 && tools/make-release.sh --target generic --arch arm64
 # auf dem Gerät, mit dem Paket aus dist/:
 mkdir lf && tar -xzf leuchtfeuer-*-generic-arm64.tar.gz -C lf && sudo sh lf/setup.sh --name Küche

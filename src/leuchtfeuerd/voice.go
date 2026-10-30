@@ -221,7 +221,7 @@ func (v *voiceSat) info() map[string]any {
 	name := v.a.cfg.Get("DEVICE_NAME", hw.DefaultName)
 	return map[string]any{
 		"asr": []any{}, "tts": []any{}, "handle": []any{}, "intent": []any{}, "wake": []any{}, "mic": []any{}, "snd": []any{},
-		"satellite": map[string]any{"name": name, "description": "Leuchtfeuer " + name, "attribution": map[string]any{"name": "Leuchtfeuer", "url": "https://git.arianw.de/shrippen/leuchtfeuer"},
+		"satellite": map[string]any{"name": name, "description": "Leuchtfeuer " + name, "attribution": map[string]any{"name": "Leuchtfeuer", "url": "https://github.com/shrippen/leuchtfeuer"},
 			"installed": true, "version": v.a.version, "area": area},
 	}
 }

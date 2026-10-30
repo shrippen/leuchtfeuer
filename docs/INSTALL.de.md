@@ -23,7 +23,7 @@ Für den **Harman Kardon Invoke** gibt es eine eigene Anleitung, weil er vorher 
 Auf deinem Rechner oder direkt auf dem Gerät:
 
 ```sh
-git clone https://git.arianw.de/shrippen/leuchtfeuer.git && cd leuchtfeuer
+git clone https://github.com/shrippen/leuchtfeuer.git && cd leuchtfeuer
 tools/build-generic.sh arm64                         # amd64, arm64 oder armv7; ohne Angabe: Architektur dieses Rechners
 tools/make-release.sh --target generic --arch arm64  # -> dist/leuchtfeuer-<Version>-generic-arm64.tar.gz
 ```
