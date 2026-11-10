@@ -12,7 +12,7 @@ publish_output_progress = false
 enable_claude_adaptive_thinking = true
 reasoning_effort = "high"
 # The repository rules and the review guide go along as context.
-repo_context_files = ["CLAUDE.md", "REVIEW.md"]
+repo_context_files = ["CLAUDE.md", "RULES.md", "REVIEW.md"]
 
 [pr_reviewer]
 num_max_findings = 5
@@ -38,7 +38,7 @@ Report only findings that matter:
   or waste space on the device.
 - NAND: writes to mtd partitions without a full raw backup first.
 - Missing tests for new behaviour.
-- Breaches of the repository rules (CLAUDE.md).
+- Breaches of the repository rules (CLAUDE.md, RULES.md).
 
 Label each finding **Wichtig**, **Kleinigkeit** or **Bestand** as REVIEW.md
 defines them, at the start of its title.
