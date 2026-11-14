@@ -52,6 +52,8 @@ jobs:
           python-version: "3.13"
       - name: Werkzeuge
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck build-essential file curl
+      - name: Structure limits
+        run: pipx run tools/structure-check.py
       - name: tests/run.sh
         run: tests/run.sh
 
