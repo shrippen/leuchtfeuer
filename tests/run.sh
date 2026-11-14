@@ -1,5 +1,5 @@
 #!/bin/sh
-# Alle Prüfungen, die ohne Lautsprecher laufen (auch in der CI): Go (vet, gofmt, Tests mit Race-Detector),
+# Alle Prüfungen, die ohne Lautsprecher laufen (auch in der CI): Strukturgrenzen, Go (vet, gofmt, Tests mit Race-Detector),
 # Klang-Plugin, Hook, Update-Skript, Shell-Syntax (shellcheck, falls vorhanden) und die Weboberfläche (node --check).
 #   tests/run.sh
 set -u
@@ -7,6 +7,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 fail=0
 step(){ printf '\n== %s\n' "$1"; shift; "$@" || { echo "FEHLER: $*"; fail=1; }; }
+step "Strukturgrenzen" pipx run tools/structure-check.py
 for m in wamp lfbus leuchtfeuerd btagent castrecv relsign; do
   [ -d src/$m ] || continue
   step "go vet $m" sh -c "cd src/$m && go vet ./..."
