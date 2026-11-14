@@ -62,3 +62,5 @@ is published, so the owner confirms it in words.
 - CI runs on the GitHub mirror (`.github/workflows/ci.yml`: `tests/run.sh`) and reports back to Gitea as the commit status `github / test`.
 - The merge waits for: CI is green on the PR's latest commit: `github / test` from the GitHub mirror shows success there. No status there yet means wait, not merge; if it never comes, check the mirror or ask the owner. PR-Agent's status does not count here.
 - Everything else: `RULES.md` (Repository) and the skill `pr-review`.
+
+@ARCHITECTURE.md
