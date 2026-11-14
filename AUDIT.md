@@ -15,22 +15,22 @@ Dies ist das erste Audit, darum gibt es keinen Vergleich. Eine `ARCHITECTURE.md`
 
 ## Funde
 
-### 1. Die Liste der Aktionen für Tasten steht fünfmal von Hand im Repo, und der Weg von Home Assistant über MQTT führt fünf dieser Aktionen an der gemeinsamen Stelle vorbei aus
+### 1. Die Liste der Aktionen für Tasten steht neunmal von Hand im Repo, und MQTT ruft vier dieser Aktionen an der gemeinsamen Stelle vorbei auf
 Eine Aktion ist etwa „Wecker schlummern“ oder „Lieblingssender 3“. Wer eine neue Aktion einführt, ändert:
 - den Dienst an zwei Stellen: was die Aktion tut und die Liste der erlaubten Namen,
 - die Beschriftungen der Weboberfläche,
-- die Home-Assistant-Erweiterung an drei Stellen: Liste, Dienstbeschreibung, Übersetzungen,
+- die Home-Assistant-Erweiterung an fünf Stellen: Liste, Dienstbeschreibung und drei Übersetzungsdateien,
 - die Doku.
 
-Kein Test merkt, wenn eine Stelle fehlt. Fehlt der Name in der Home-Assistant-Liste, lehnt Home Assistant die Aktion ab, ohne dass jemand es bemerkt.
+Kein Test merkt, wenn eine Stelle fehlt. Fehlt der Name in der Home-Assistant-Liste, lehnt Home Assistant die Aktion mit einer Fehlermeldung ab.
 
-Dazu kommt MQTT, der Nachrichtenweg zu Home Assistant: Er führt Lautstärke, Sender, Wecker stoppen, Schlummern und Gong selbst aus, statt die gemeinsame Stelle zu rufen. Fehler verschluckt er dabei einmal, ein andermal schreibt er sie ins Protokoll. Ändert sich, was „Schlummern“ tut, muss man an beiden Stellen nachziehen.
+Dazu kommt MQTT, der Nachrichtenweg zu Home Assistant: Er ruft Wecker stoppen, Schlummern, Timer beenden und Gong selbst auf, statt die gemeinsame Stelle zu rufen. Beim Gong verwirft er den Fehler, den die gemeinsame Stelle zurückgibt. Eine Prüfung, die an der gemeinsamen Stelle hinzukommt, gilt für diese vier Befehle nicht.
 
-Vorschlag: Ein Test vergleicht die Namensliste des Dienstes mit der Liste der Home-Assistant-Erweiterung. MQTT ruft für diese Fälle die gemeinsame Stelle.
+Vorschlag: Ein Test vergleicht die Namensliste des Dienstes mit der Liste der Home-Assistant-Erweiterung. MQTT ruft für diese vier Befehle die gemeinsame Stelle.
 
 Aufwand klein. Risiko: Für die gemeinsame Stelle und die MQTT-Befehle gibt es keinen Test, er käme zuerst.
 
-Beleg: `src/leuchtfeuerd/app.go:284`, `src/leuchtfeuerd/app.go:357`, `src/leuchtfeuerd/web/app.js:661`, `custom_components/leuchtfeuer/const.py:23`, `custom_components/leuchtfeuer/services.yaml:37`, `custom_components/leuchtfeuer/strings.json:140`, `docs/API.md:136`, `src/leuchtfeuerd/mqtt.go:145`, `src/leuchtfeuerd/mqtt.go:156`, `src/leuchtfeuerd/mqtt.go:165`, `src/leuchtfeuerd/mqtt.go:171`.
+Beleg: `src/leuchtfeuerd/app.go:284`, `src/leuchtfeuerd/app.go:357`, `src/leuchtfeuerd/web/app.js:661`, `custom_components/leuchtfeuer/const.py:23`, `custom_components/leuchtfeuer/services.yaml:37`, `custom_components/leuchtfeuer/strings.json:140`, `custom_components/leuchtfeuer/translations/en.json:161`, `custom_components/leuchtfeuer/translations/de.json:161`, `docs/API.md:136`, `src/leuchtfeuerd/mqtt.go:165`, `src/leuchtfeuerd/mqtt.go:171`.
 
 ### 2. Scheitert das Speichern der Einstellungen, merkt es an sieben Stellen niemand
 Das Speichern schreibt die Einstellungsdatei und meldet einen Fehler zurück, etwa wenn der Speicher voll ist. Auf dem Invoke sind es nur 123 MB. Diese Stellen werten die Rückmeldung nicht aus:
@@ -69,12 +69,12 @@ Wer die Lautstärke ändert, muss diesen Sonderweg kennen. Auf anderen Geräten 
 
 Vorschlag: den Rückweg entfernen und die Verbindung nach dem Bus benennen. Das ändert das Verhalten bei ausgefallenem Dienst, also entscheidet der Eigentümer.
 
-Aufwand klein. Risiko: Für die Lautstärke gibt es keinen Test, nur für das Protokoll.
+Aufwand klein. Risiko: Für die Lautstärke gibt es keinen Test, nur für das Cast-Protokoll (die Sprache, in der Cast-Geräte miteinander reden).
 
 Beleg: `src/castrecv/main.go:46`, `src/castrecv/main.go:104`, `src/castrecv/main.go:119`, `src/castrecv/main.go:123`, `src/castrecv/link.go:17`, `docs/ARCHITECTURE.md:25`.
 
 ### 5. Die Regeln für gültige Einstellungen stehen in der Weboberfläche statt bei den Einstellungen, in einer Funktion von 320 Zeilen
-Was eine Einstellung erlaubt, prüft eine einzige Funktion des Webservers für alle 20 Bereiche: Sender, Wecker, Ton, Briefing, MQTT und weitere. Ihre Komplexität beträgt 114. Komplexität zählt die Verzweigungen; erlaubt sind 15.
+Was eine Einstellung erlaubt, prüft eine einzige Funktion des Webservers für alle 18 Bereiche: Sender, Wecker, Ton, Briefing, MQTT und weitere. Ihre Komplexität beträgt 114. Komplexität zählt die Verzweigungen; erlaubt sind 15.
 
 Andere Wege, die Einstellungen ändern, kennen diese Regeln nicht und wiederholen sie. Die Helligkeit des Leuchtrings (5 bis 100) steht viermal im Code. Die Hilfsfunktion, die einen Wert in Grenzen hält, gibt es zweimal mit gleichem Inhalt. Die Prüfung „Adresse beginnt mit http:// oder https://“ steht neunmal, jedes Mal leicht anders geschrieben.
 
@@ -99,8 +99,8 @@ Aufwand mittel. Risiko gering: Für beide Prüfungen gibt es Tests.
 
 Beleg: `src/leuchtfeuerd/https.go:40`, `src/leuchtfeuerd/https.go:71`, `src/leuchtfeuerd/https.go:320`, `src/leuchtfeuerd/web/app.js:1339`, `src/leuchtfeuerd/web/app.js:1351`, `src/leuchtfeuerd/web/app.js:1396`, `src/leuchtfeuerd/https_test.go:20`, `src/leuchtfeuerd/https_test.go:167`.
 
-### 7. Das Browserprogramm der Weboberfläche ist eine Datei für alle zwölf Seiten
-Alle Seiten der Weboberfläche stehen in einer Datei von 1756 Zeilen: Übersicht, Radio, Wecker, Einstellungen, System und weitere. Diese Datei hat sich in der Geschichte am häufigsten geändert. Sieben Einträge der Bestandsliste kommen aus ihr.
+### 7. Das Browserprogramm der Weboberfläche ist eine Datei für alle elf Seiten
+Alle Seiten der Weboberfläche stehen in einer Datei von 1756 Zeilen: Übersicht, Radio, Wecker, Einstellungen, System und weitere. Diese Datei hat sich in der Geschichte am häufigsten geändert. Acht Einträge der Bestandsliste kommen aus ihr: die Datei selbst und sieben Funktionen.
 
 Die laufende Aktualisierung aller Seiten steckt in einer Funktion mit einer Kette „wenn Seite X, dann …“. Ihre Komplexität ist 44, sie ist zehn Ebenen tief verschachtelt. Wer an einer Seite arbeitet, muss die ganze Datei durchsuchen und die zentrale Kette mit ändern.
 
