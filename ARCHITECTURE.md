@@ -19,7 +19,7 @@ Linux).
 |---|---|
 | `src/leuchtfeuerd/` | The service on the speaker, one Go program, one file per topic: alarms and timers (`sched`), sources, briefing with calendar, announcements, sound, light ring, voice satellite, other speakers, updates, backup, HTTPS, access. |
 | `src/leuchtfeuerd/web.go`, `mqtt.go`, `bus.go`, `events.go` | The ways in: the HTTP API with the web interface, Home Assistant over MQTT, the local bus for the own receivers, the events of foreign receivers. |
-| `src/leuchtfeuerd/app.go` | The core's state, the small interfaces it works against (volume, player, LED) and the one place that runs a named action (`Do`). |
+| `src/leuchtfeuerd/app.go` | The core's state, the small interfaces it works against (volume, player, LED) and `Do`, which maps the name of an action to the function of its topic. |
 | `src/leuchtfeuerd/store.go`, `cfg.go` | The settings: the service's own (JSON) and the shell configuration the hook shares. |
 | `src/leuchtfeuerd/target.go`, `target_<id>.go` | What a device provides: volume (required), and the extensions buttons, light ring, vendor sounds. The only Go files that know a device. |
 | `src/leuchtfeuerd/web/` | The web interface in the browser: `app.js` (the pages), `roomeq.js` (analysis of the room measurement), login. `kante/` is a synced copy of the design system, never edited here. |
@@ -30,7 +30,7 @@ Linux).
 | `targets/<id>/` | The device's part: its hook functions (`target.sh`), audio output, own services, packaging, optional modules (Tidal). |
 | `custom_components/leuchtfeuer/` | The Home Assistant integration (installed through HACS). |
 | `tools/`, `build.sh`, `scripts/` | Building each program (`build-*.sh`, Docker toolchains), the release package, Kante sync, the structure check (synced copy); assembling and checking an installation. The Invoke's tools for flashing and backup lie here too, beside the shared ones. |
-| `install.sh`, `uninstall.sh` | Installing on and removing from the Invoke over USB or network. An exception at the top level, where the guides point; `generic` has `targets/generic/setup.sh`. |
+| `install.sh`, `uninstall.sh` | Installing on and removing from the Invoke over the network. An exception at the top level, where the guides point; `generic` has `targets/generic/setup.sh`. |
 | `tests/` | Everything that runs without a speaker (`run.sh`); Go tests lie beside their file. |
 | `demo/`, `docs/` | The demo world for screenshots; guides, the API, the landing page. |
 
@@ -62,8 +62,9 @@ Linux).
   or the vendor software.
 - The web interface in the browser and the Home Assistant integration know the
   service through the HTTP API in `docs/API.md` only.
-- A way in translates and decides nothing: a named action runs through `Do`, whether
-  it comes from a button, the web interface, MQTT or Home Assistant.
+- A way in translates and decides nothing. What an action does stands once, in the
+  file of its topic (scheduler, player, announcements); `Do` maps a name to it. A way
+  in calls `Do` or that function, handles its error and adds no step of its own.
 - What a setting may be is checked beside the setting, one check per section; every
   way that changes it calls that check. A failed save is logged or reported.
 - A list both sides need (action names, the fields of a DNS provider) stands once in
@@ -86,7 +87,7 @@ Linux).
 |---|---|
 | A new device | `src/leuchtfeuerd/target_<id>.go`, `targets/<id>/`, `docs/TARGETS.md` |
 | A new receiver | Its start script in `device/leuchtfeuer/services/` (or `targets/<id>/services/`), `tools/build-<name>.sh` and `build.sh`, the packaging of each target (`targets/<id>/assemble.sh`, `targets/generic/setup.sh`, `install.sh`), its name in `mixer.go`, the audio chain; until they are derived, its labels in `web/app.js` and `custom_components/leuchtfeuer/` |
-| A new named action | `Do` and the list of names in `app.go`; `docs/API.md`; until they are derived, the labels in `web/app.js` and the lists in `custom_components/leuchtfeuer/` |
+| A new named action | Its function in the file of its topic, its name in `Do` and the list of names in `app.go`; `docs/API.md`; until they are derived, the labels in `web/app.js` and the lists in `custom_components/leuchtfeuer/` |
 | A new setting | `store.go` (field and default), its check, the page in `web/`, `docs/API.md` |
 | A new address of the API | `web.go`, `docs/API.md`; for Home Assistant also `custom_components/leuchtfeuer/api.py` |
 | A new source for the briefing | `briefing.go`, with a test; its editor in `web/app.js`, `docs/API.md` |
@@ -97,9 +98,9 @@ Linux).
 
 ## Known deviations
 
-- The action names stand nine times by hand, with no test; MQTT runs four actions
-  itself instead of through `Do` (`AUDIT.md`, finding 1). The web interface does the
-  same for alarm stop and snooze (not in `AUDIT.md`).
+- The action names stand nine times by hand, with no test; MQTT drops the
+  error of the chime (`AUDIT.md`, finding 1). `Do`, MQTT and the web interface each
+  publish the Bluetooth pairing event themselves (not in `AUDIT.md`).
 - The names of the sources stand in the service, twice in `web/app.js` and in the
   Home Assistant integration, with no test (not in `AUDIT.md`).
 - Shared code knows the Invoke in three places: `update.go` lists its files,
