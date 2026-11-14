@@ -19,7 +19,7 @@ Linux).
 |---|---|
 | `src/leuchtfeuerd/` | The service on the speaker, one Go program, one file per topic: alarms and timers (`sched`), sources, briefing with calendar, announcements, sound, light ring, voice satellite, other speakers, updates, backup, HTTPS, access. |
 | `src/leuchtfeuerd/web.go`, `mqtt.go`, `bus.go`, `events.go` | The ways in: the HTTP API with the web interface, Home Assistant over MQTT, the local bus for the own receivers, the events of foreign receivers. |
-| `src/leuchtfeuerd/app.go` | The core's state, the small interfaces it works against (volume, player, LED) web radio (play, stop), and `Do`, which gives actions a name and runs them through the functions of the topics. |
+| `src/leuchtfeuerd/app.go` | The core's state, the small interfaces it works against (volume, player, LED), web radio (play, stop), the device's buttons (multiple press, button to action), and `Do`, which gives actions a name and runs them through the functions of the topics. |
 | `src/leuchtfeuerd/store.go`, `cfg.go` | The settings: the service's own (JSON) and the shell configuration the hook shares. |
 | `src/leuchtfeuerd/target.go`, `target_<id>.go` | What a device provides: volume (required), and the extensions buttons, light ring, vendor sounds. The only Go files that know a device. |
 | `src/leuchtfeuerd/web/` | The web interface in the browser: `app.js` (the pages), `roomeq.js` (analysis of the room measurement), login. `kante/` is a synced copy of the design system, never edited here. |
