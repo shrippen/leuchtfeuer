@@ -29,7 +29,8 @@ Linux).
 | `device/src/` | The audio plug-ins in C: equalizer, the tap for the visualizer, two shims. |
 | `targets/<id>/` | The device's part: its hook functions (`target.sh`), audio output, own services, packaging, optional modules (Tidal). |
 | `custom_components/leuchtfeuer/` | The Home Assistant integration (installed through HACS). |
-| `tools/`, `build.sh`, `scripts/` | Building each program (`build-*.sh`, Docker toolchains), the release package, Kante sync, the structure check (synced copy); assembling, installing and checking an installation, the Invoke's flash backup. |
+| `tools/`, `build.sh`, `scripts/` | Building each program (`build-*.sh`, Docker toolchains), the release package, Kante sync, the structure check (synced copy); assembling and checking an installation. The Invoke's tools for flashing and backup lie here too, beside the shared ones. |
+| `install.sh`, `uninstall.sh` | Installing on and removing from the Invoke over USB or network. An exception at the top level, where the guides point; `generic` has `targets/generic/setup.sh`. |
 | `tests/` | Everything that runs without a speaker (`run.sh`); Go tests lie beside their file. |
 | `demo/`, `docs/` | The demo world for screenshots; guides, the API, the landing page. |
 
@@ -55,6 +56,7 @@ Linux).
 
 - The shared part knows no device. What one device needs stands in `target_<id>.go`
   and `targets/<id>/`; the rest asks the target what it has and shows only that.
+  The installer and the flash tools of the Invoke are the exception named above.
 - The own receivers talk to the service over the local bus only, so they run on every
   device unchanged. They set the device's volume through the bus, never at a mixer
   or the vendor software.
@@ -83,11 +85,11 @@ Linux).
 | Change | Touch |
 |---|---|
 | A new device | `src/leuchtfeuerd/target_<id>.go`, `targets/<id>/`, `docs/TARGETS.md` |
-| A new receiver | Its start script in `device/leuchtfeuer/services/` (or `targets/<id>/services/`), `tools/build-<name>.sh`, its source in `sources.go`, the audio chain |
+| A new receiver | Its start script in `device/leuchtfeuer/services/` (or `targets/<id>/services/`), `tools/build-<name>.sh` and `build.sh`, the packaging of each target (`targets/<id>/assemble.sh`, `targets/generic/setup.sh`, `install.sh`), its name in `mixer.go`, the audio chain; until they are derived, its labels in `web/app.js` and `custom_components/leuchtfeuer/` |
 | A new named action | `Do` and the list of names in `app.go`; `docs/API.md`; until they are derived, the labels in `web/app.js` and the lists in `custom_components/leuchtfeuer/` |
 | A new setting | `store.go` (field and default), its check, the page in `web/`, `docs/API.md` |
 | A new address of the API | `web.go`, `docs/API.md`; for Home Assistant also `custom_components/leuchtfeuer/api.py` |
-| A new source for the briefing | `briefing.go`, with a test |
+| A new source for the briefing | `briefing.go`, with a test; its editor in `web/app.js`, `docs/API.md` |
 | A new DNS provider for HTTPS | `https.go` (a file `dns_<name>.go` where no library has it), with a test |
 | Something only the Invoke has | `target_invoke.go`, `targets/invoke/` |
 | A design element that is missing | Kante, then `tools/sync-kante.sh`; never `web/kante/` here |
@@ -96,7 +98,13 @@ Linux).
 ## Known deviations
 
 - The action names stand nine times by hand, with no test; MQTT runs four actions
-  itself instead of through `Do` (`AUDIT.md`, finding 1).
+  itself instead of through `Do` (`AUDIT.md`, finding 1). The web interface does the
+  same for alarm stop and snooze (not in `AUDIT.md`).
+- The names of the sources stand in the service, twice in `web/app.js` and in the
+  Home Assistant integration, with no test (not in `AUDIT.md`).
+- Shared code knows the Invoke in three places: `update.go` lists its files,
+  `apply-update.sh` restarts its vendor service, and `wampx.go` with a field in
+  `app.go` holds the link to its vendor software (not in `AUDIT.md`).
 - A failed save of the settings goes unnoticed in seven places (`AUDIT.md`, finding 2).
 - The access to Home Assistant and the calendar fetch live inside the briefing; the
   setup help reaches into it or rebuilds it (`AUDIT.md`, finding 3).
