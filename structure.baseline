@@ -1,0 +1,57 @@
+# What is over a structure limit today (tools/structure-check.py). An entry may shrink,
+# never grow; a raised or new entry needs its reason in the PR. Rewrite with --update.
+# Lines: exclude<TAB>glob | path<TAB>function or - for the file<TAB>metric=value ...
+exclude	src/leuchtfeuerd/web/kante/*
+custom_components/leuchtfeuer/api.py	events	nesting=5
+custom_components/leuchtfeuer/coordinator.py	_async_sse_loop	nesting=5
+device/src/leuchtfeuer-eq.c	run	ccn=18
+src/castrecv/main.go	handle	ccn=26 length=97
+src/leuchtfeuerd/access_test.go	TestSSHKeys	ccn=16
+src/leuchtfeuerd/app.go	Do	ccn=29
+src/leuchtfeuerd/auth.go	anonymous__0	ccn=22
+src/leuchtfeuerd/backup.go	restoreBackup	ccn=17
+src/leuchtfeuerd/briefing.go	-	lines=908
+src/leuchtfeuerd/briefing.go	Build	ccn=26 length=89
+src/leuchtfeuerd/briefing.go	calendar	ccn=17
+src/leuchtfeuerd/briefing.go	play	ccn=16
+src/leuchtfeuerd/briefing_test.go	TestBriefingAlarmFlow	ccn=18
+src/leuchtfeuerd/briefing_test.go	TestBriefingBuild	ccn=26
+src/leuchtfeuerd/demo.go	runDemo	ccn=20 length=210
+src/leuchtfeuerd/dns_netcup_test.go	ServeHTTP	nesting=5
+src/leuchtfeuerd/dns_netcup_test.go	TestNetcupReplacesStaleChallenge	ccn=16
+src/leuchtfeuerd/holidays.go	holidayName	ccn=45
+src/leuchtfeuerd/https.go	dnsProvider	ccn=20
+src/leuchtfeuerd/https.go	httpsConfig	ccn=40 length=84
+src/leuchtfeuerd/ical.go	anonymous__2	ccn=31 nesting=6
+src/leuchtfeuerd/ical.go	eventsOn	ccn=17
+src/leuchtfeuerd/ical.go	occurrences	ccn=31 length=177
+src/leuchtfeuerd/ical.go	parseICS	ccn=38 length=92
+src/leuchtfeuerd/main.go	main	ccn=22 length=136
+src/leuchtfeuerd/mixer.go	sync	ccn=23
+src/leuchtfeuerd/mqtt.go	command	ccn=29
+src/leuchtfeuerd/output.go	Set	ccn=18
+src/leuchtfeuerd/output_test.go	TestOutputBluetooth	ccn=22
+src/leuchtfeuerd/output_test.go	TestOutputCardsAndConf	ccn=18
+src/leuchtfeuerd/peers_test.go	TestPeers	ccn=36
+src/leuchtfeuerd/sched.go	tick	ccn=22
+src/leuchtfeuerd/secrets_test.go	TestSecretsSealOpen	ccn=17
+src/leuchtfeuerd/sounds.go	parseWAV	ccn=29
+src/leuchtfeuerd/sounds_test.go	TestReplaceVendorAndTones	ccn=35 length=101
+src/leuchtfeuerd/sounds_test.go	TestWAVRoundtripAndConvert	ccn=16
+src/leuchtfeuerd/sources.go	Update	ccn=20
+src/leuchtfeuerd/update_test.go	TestEqEffectiveAndEncode	ccn=23
+src/leuchtfeuerd/viz.go	step	ccn=16
+src/leuchtfeuerd/voice.go	serve	ccn=22 length=83
+src/leuchtfeuerd/voice_test.go	TestVoiceSatellite	ccn=25 length=117
+src/leuchtfeuerd/web.go	-	lines=1148
+src/leuchtfeuerd/web.go	putSettings	ccn=114 length=320
+src/leuchtfeuerd/web.go	routes	length=561
+src/leuchtfeuerd/web/app.js	-	lines=1756
+src/leuchtfeuerd/web/app.js	alarmCard	ccn=17
+src/leuchtfeuerd/web/app.js	briefItemHTML	ccn=26
+src/leuchtfeuerd/web/app.js	fillOverview	ccn=40
+src/leuchtfeuerd/web/app.js	outputBody	ccn=22
+src/leuchtfeuerd/web/app.js	tick	ccn=44 nesting=10
+src/leuchtfeuerd/web/app.js	viewHA	ccn=18
+src/leuchtfeuerd/web/app.js	viewSystem	ccn=39
+src/relsign/main.go	run	ccn=21

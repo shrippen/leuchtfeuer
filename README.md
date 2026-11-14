@@ -93,7 +93,7 @@ Everything is in **[docs/INVOKE.md](docs/INVOKE.md)**.
 ## Development
 
 - Tests without a device: `tests/run.sh` (Go with the race detector, shell, the sound plugin, the web interface, the Home
-  Assistant integration; also run by the CI). On a device: `scripts/smoke.sh`.
+  Assistant integration; also run by the CI, which first runs `tools/structure-check.py`). On a device: `scripts/smoke.sh`.
 - Demo mode for screenshots (no device, demo data "Studio Weber"): `demo/start.sh`.
 - Releases: one package per target, signed (`tools/make-release.sh`, `.github/workflows/release.yml`, on GitHub).
 
